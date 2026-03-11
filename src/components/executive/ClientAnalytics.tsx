@@ -410,505 +410,549 @@ export const ClientAnalytics = () => {
     );
   }
 
+  // Mobile: compact client card list
+  const renderMobileClientCards = () => {
+    const displayClients = filteredAndSortedClients.slice(0, 15);
+    return (
+      <div className="space-y-2">
+        {displayClients.map((client, index) => {
+          const statusColor = client.daysSinceLastService > 30
+            ? 'text-destructive'
+            : client.gmvGrowth > 15
+              ? 'text-green-600'
+              : 'text-muted-foreground';
+          const statusLabel = client.daysSinceLastService > 30
+            ? '⚠ Inactivo'
+            : client.gmvGrowth > 15
+              ? '⭐ Estrella'
+              : client.completionRate < 70
+                ? '⚠ Atención'
+                : '● Activo';
+          return (
+            <div
+              key={client.clientName}
+              onClick={() => setSelectedClient(client.clientName)}
+              className="p-3 rounded-lg border bg-card cursor-pointer active:bg-accent transition-colors"
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {index < 3 && (
+                    <span className="text-xs font-bold text-amber-600">#{index + 1}</span>
+                  )}
+                  <span className="text-sm font-semibold truncate">{client.clientName}</span>
+                </div>
+                <span className={`text-[10px] font-medium ${statusColor}`}>{statusLabel}</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span><strong className="text-foreground">{client.currentServices}</strong> svs</span>
+                <span><strong className="text-foreground">{formatCurrency(client.currentGMV)}</strong></span>
+                <span>AOV <strong className="text-foreground">{formatCurrency(client.currentAOV)}</strong></span>
+              </div>
+              <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
+                <span>✅ {client.completionRate.toFixed(0)}%</span>
+                <span>{client.daysSinceLastService}d inact</span>
+                {client.gmvGrowth !== 0 && (
+                  <span className={client.gmvGrowth > 0 ? 'text-green-600' : 'text-destructive'}>
+                    {client.gmvGrowth > 0 ? '↗' : '↘'}{Math.abs(client.gmvGrowth).toFixed(0)}%
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {filteredAndSortedClients.length > 15 && (
+          <p className="text-center text-xs text-muted-foreground py-2">
+            Mostrando 15 de {filteredAndSortedClients.length} clientes
+          </p>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6" id="client-analytics-content">
+    <div className={isMobile ? "space-y-3" : "space-y-6"} id="client-analytics-content">
       {/* Header */}
-      <div className={isMobile ? "space-y-3" : "flex items-center justify-between"}>
-        <div>
-          <h2 className="text-xl md:text-2xl font-bold">Análisis de Performance de Clientes</h2>
-          {!isMobile && (
+      {isMobile ? (
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold">Performance Clientes</h2>
+          <div className="flex items-center gap-1">
+            <Button onClick={handleDownloadPDF} variant="ghost" size="sm" className="h-8 w-8 p-0 pdf-ignore">
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button onClick={() => window.location.reload()} variant="ghost" size="sm" className="h-8 w-8 p-0 pdf-ignore">
+              <TrendingUp className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl md:text-2xl font-bold">Análisis de Performance de Clientes</h2>
             <p className="text-muted-foreground">
               Dashboard completo con métricas clave • MTD {format(dateRange.from, 'dd/MM')} - {format(dateRange.to, 'dd/MM/yyyy')} 
               {dateFilterType === 'current_month' && <span className="text-orange-600 ml-2">(datos con 1 día de retraso)</span>}
             </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            onClick={handleDownloadPDF}
-            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground pdf-ignore"
-            size="sm"
-          >
-            <Download className="h-4 w-4" />
-            {!isMobile && 'Descargar'} PDF
-          </Button>
-          <Button 
-            onClick={() => window.location.reload()} 
-            variant="outline"
-            className="gap-2 pdf-ignore"
-            size="sm"
-          >
-            <TrendingUp className="h-4 w-4" />
-            {!isMobile && 'Actualizar'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Date Filter Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Período de Análisis
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Select value={dateFilterType} onValueChange={(value: DateFilterType) => setDateFilterType(value)}>
-              <SelectTrigger className={isMobile ? "w-full" : "w-[200px]"}>
-                <SelectValue placeholder="Seleccionar período..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="current_month">MTD - Mes en Curso</SelectItem>
-                <SelectItem value="current_quarter">QTD - Trimestre en Curso</SelectItem>
-                <SelectItem value="current_year">YTD - Año en Curso</SelectItem>
-                <SelectItem value="last_90d">Últimos 90 días</SelectItem>
-                <SelectItem value="last_120d">Últimos 120 días</SelectItem>
-                <SelectItem value="last_180d">Últimos 180 días</SelectItem>
-                <SelectItem value="last_360d">Últimos 360 días</SelectItem>
-                <SelectItem value="custom">Rango Personalizado</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {dateFilterType === 'custom' && (
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[140px] justify-start text-left font-normal",
-                        !customDateRange.from && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customDateRange.from ? format(customDateRange.from, "dd/MM/yyyy") : "Desde"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={customDateRange.from}
-                      onSelect={(date) => date && setCustomDateRange(prev => ({ ...prev, from: date }))}
-                      disabled={(date) => date > new Date()}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
-                
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[140px] justify-start text-left font-normal",
-                        !customDateRange.to && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customDateRange.to ? format(customDateRange.to, "dd/MM/yyyy") : "Hasta"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={customDateRange.to}
-                      onSelect={(date) => date && setCustomDateRange(prev => ({ ...prev, to: date }))}
-                      disabled={(date) => date > new Date() || date < customDateRange.from}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )}
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleDownloadPDF} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground pdf-ignore" size="sm">
+              <Download className="h-4 w-4" />
+              Descargar PDF
+            </Button>
+            <Button onClick={() => window.location.reload()} variant="outline" className="gap-2 pdf-ignore" size="sm">
+              <TrendingUp className="h-4 w-4" />
+              Actualizar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Date Filter — inline on mobile */}
+      {isMobile ? (
+        <Select value={dateFilterType} onValueChange={(value: DateFilterType) => setDateFilterType(value)}>
+          <SelectTrigger className="w-full h-9 text-xs">
+            <SelectValue placeholder="Período..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="current_month">MTD - Mes en Curso</SelectItem>
+            <SelectItem value="current_quarter">QTD - Trimestre</SelectItem>
+            <SelectItem value="current_year">YTD - Año</SelectItem>
+            <SelectItem value="last_90d">Últimos 90 días</SelectItem>
+            <SelectItem value="last_120d">Últimos 120 días</SelectItem>
+            <SelectItem value="last_180d">Últimos 180 días</SelectItem>
+            <SelectItem value="last_360d">Últimos 360 días</SelectItem>
+          </SelectContent>
+        </Select>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Período de Análisis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Select value={dateFilterType} onValueChange={(value: DateFilterType) => setDateFilterType(value)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Seleccionar período..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current_month">MTD - Mes en Curso</SelectItem>
+                  <SelectItem value="current_quarter">QTD - Trimestre en Curso</SelectItem>
+                  <SelectItem value="current_year">YTD - Año en Curso</SelectItem>
+                  <SelectItem value="last_90d">Últimos 90 días</SelectItem>
+                  <SelectItem value="last_120d">Últimos 120 días</SelectItem>
+                  <SelectItem value="last_180d">Últimos 180 días</SelectItem>
+                  <SelectItem value="last_360d">Últimos 360 días</SelectItem>
+                  <SelectItem value="custom">Rango Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {dateFilterType === 'custom' && (
+                <div className="flex gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-[140px] justify-start text-left font-normal", !customDateRange.from && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {customDateRange.from ? format(customDateRange.from, "dd/MM/yyyy") : "Desde"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent mode="single" selected={customDateRange.from} onSelect={(date) => date && setCustomDateRange(prev => ({ ...prev, from: date }))} disabled={(date) => date > new Date()} initialFocus className={cn("p-3 pointer-events-auto")} />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-[140px] justify-start text-left font-normal", !customDateRange.to && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {customDateRange.to ? format(customDateRange.to, "dd/MM/yyyy") : "Hasta"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent mode="single" selected={customDateRange.to} onSelect={(date) => date && setCustomDateRange(prev => ({ ...prev, to: date }))} disabled={(date) => date > new Date() || date < customDateRange.from} initialFocus className={cn("p-3 pointer-events-auto")} />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Key Metrics Cards */}
       {!metricsLoading && clientMetrics && (
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Top AOV Client */}
-          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-green-800">Mejor AOV</CardTitle>
-              <Trophy className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-900">{formatCurrency(clientMetrics.topAOV.aov)}</div>
-              <p className="text-xs text-green-700 font-medium">{clientMetrics.topAOV.clientName}</p>
-              <Badge variant="secondary" className="mt-1 bg-green-100 text-green-800">
-                {clientMetrics.topAOV.services} servicios
-              </Badge>
-            </CardContent>
-          </Card>
-
-          {/* Most Services Client */}
-          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-blue-800">Más Servicios</CardTitle>
-              <Target className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-900">{clientMetrics.mostServices.services}</div>
-              <p className="text-xs text-blue-700 font-medium">{clientMetrics.mostServices.clientName}</p>
-              <Badge variant="secondary" className="mt-1 bg-blue-100 text-blue-800">
-                {formatCurrency(clientMetrics.mostServices.gmv)} GMV
-              </Badge>
-            </CardContent>
-          </Card>
-
-          {/* Highest GMV Client */}
-          <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-purple-800">Mayor GMV</CardTitle>
-              <DollarSign className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-900">{formatCurrency(clientMetrics.highestGMV.gmv)}</div>
-              <p className="text-xs text-purple-700 font-medium">{clientMetrics.highestGMV.clientName}</p>
-              <Badge variant="secondary" className="mt-1 bg-purple-100 text-purple-800">
-                {clientMetrics.highestGMV.services} servicios
-              </Badge>
-            </CardContent>
-          </Card>
-
-          {/* Best Completion Rate */}
-          <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-amber-800">Mejor Cumplimiento</CardTitle>
-              <Star className="h-4 w-4 text-amber-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-900">{clientMetrics.bestCompletion.completionRate}%</div>
-              <p className="text-xs text-amber-700 font-medium">{clientMetrics.bestCompletion.clientName}</p>
-              <Badge variant="secondary" className="mt-1 bg-amber-100 text-amber-800">
-                {clientMetrics.bestCompletion.services} servicios
-              </Badge>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Service Type Analysis */}
-      {!metricsLoading && clientMetrics && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Análisis de Rutas: Foráneos vs Locales
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-900">{clientMetrics.serviceTypeAnalysis.foraneo.count}</div>
-                  <div className="text-sm text-blue-700">Servicios Foráneos</div>
-                  <div className="text-xs text-muted-foreground">{formatCurrency(clientMetrics.serviceTypeAnalysis.foraneo.avgValue)} prom.</div>
-                </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-900">{clientMetrics.serviceTypeAnalysis.local.count}</div>
-                  <div className="text-sm text-green-700">Servicios Locales</div>
-                  <div className="text-xs text-muted-foreground">{formatCurrency(clientMetrics.serviceTypeAnalysis.local.avgValue)} prom.</div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>% Foráneos</span>
-                  <span>{clientMetrics.serviceTypeAnalysis.foraneoPercentage}%</span>
-                </div>
-                <Progress value={clientMetrics.serviceTypeAnalysis.foraneoPercentage} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Route className="h-5 w-5" />
-                Promedio de KM por Cliente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold">{clientMetrics.avgKmPerClient.toFixed(0)}</div>
-                <div className="text-sm text-muted-foreground">KM promedio por cliente</div>
-              </div>
-              <div className="space-y-3">
-                {clientMetrics.topKmClients.slice(0, 3).map((client, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <span className="text-sm font-medium">{client.clientName}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{client.avgKm} km</span>
-                      <Badge variant="outline" className={index === 0 ? "bg-gold-50 text-gold-700" : ""}>
-                        #{index + 1}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Filters and Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtros y Búsqueda Avanzada
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Buscar cliente..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        isMobile ? (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="p-2.5 rounded-lg border bg-card">
+              <div className="text-[10px] uppercase text-muted-foreground font-medium">Mejor AOV</div>
+              <div className="text-lg font-bold">{formatCurrency(clientMetrics.topAOV.aov)}</div>
+              <p className="text-[10px] text-muted-foreground truncate">{clientMetrics.topAOV.clientName}</p>
             </div>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className={isMobile ? "w-full" : "w-[180px]"}>
-                <SelectValue placeholder="Ordenar por..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="gmv">Mayor GMV</SelectItem>
-                <SelectItem value="services">Más Servicios</SelectItem>
-                <SelectItem value="completion">Mejor Cumplimiento</SelectItem>
-                <SelectItem value="aov">Mejor AOV</SelectItem>
-                <SelectItem value="growth">Mayor Crecimiento</SelectItem>
-                <SelectItem value="days_inactive">Días sin Actividad</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterByType} onValueChange={setFilterByType}>
-              <SelectTrigger className={isMobile ? "w-full" : "w-[180px]"}>
-                <SelectValue placeholder="Tipo de servicio..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los tipos</SelectItem>
-                <SelectItem value="local">Solo Locales</SelectItem>
-                <SelectItem value="foraneo">Solo Foráneos</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterByCSM} onValueChange={setFilterByCSM}>
-              <SelectTrigger className={isMobile ? "w-full" : "w-[200px]"}>
-                <SelectValue placeholder="CSM asignado..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los CSM</SelectItem>
-                <SelectItem value="unassigned">Sin asignar</SelectItem>
-                {csmOptions.map(csm => (
-                  <SelectItem key={csm.id} value={csm.id}>{csm.nombre}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="p-2.5 rounded-lg border bg-card">
+              <div className="text-[10px] uppercase text-muted-foreground font-medium">Más Servicios</div>
+              <div className="text-lg font-bold">{clientMetrics.mostServices.services}</div>
+              <p className="text-[10px] text-muted-foreground truncate">{clientMetrics.mostServices.clientName}</p>
+            </div>
+            <div className="p-2.5 rounded-lg border bg-card">
+              <div className="text-[10px] uppercase text-muted-foreground font-medium">Mayor GMV</div>
+              <div className="text-lg font-bold">{formatCurrency(clientMetrics.highestGMV.gmv)}</div>
+              <p className="text-[10px] text-muted-foreground truncate">{clientMetrics.highestGMV.clientName}</p>
+            </div>
+            <div className="p-2.5 rounded-lg border bg-card">
+              <div className="text-[10px] uppercase text-muted-foreground font-medium">Mejor Cumpl.</div>
+              <div className="text-lg font-bold">{clientMetrics.bestCompletion.completionRate}%</div>
+              <p className="text-[10px] text-muted-foreground truncate">{clientMetrics.bestCompletion.clientName}</p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-green-800">Mejor AOV</CardTitle>
+                <Trophy className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-900">{formatCurrency(clientMetrics.topAOV.aov)}</div>
+                <p className="text-xs text-green-700 font-medium">{clientMetrics.topAOV.clientName}</p>
+                <Badge variant="secondary" className="mt-1 bg-green-100 text-green-800">{clientMetrics.topAOV.services} servicios</Badge>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-blue-800">Más Servicios</CardTitle>
+                <Target className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-900">{clientMetrics.mostServices.services}</div>
+                <p className="text-xs text-blue-700 font-medium">{clientMetrics.mostServices.clientName}</p>
+                <Badge variant="secondary" className="mt-1 bg-blue-100 text-blue-800">{formatCurrency(clientMetrics.mostServices.gmv)} GMV</Badge>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-purple-800">Mayor GMV</CardTitle>
+                <DollarSign className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-900">{formatCurrency(clientMetrics.highestGMV.gmv)}</div>
+                <p className="text-xs text-purple-700 font-medium">{clientMetrics.highestGMV.clientName}</p>
+                <Badge variant="secondary" className="mt-1 bg-purple-100 text-purple-800">{clientMetrics.highestGMV.services} servicios</Badge>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-amber-800">Mejor Cumplimiento</CardTitle>
+                <Star className="h-4 w-4 text-amber-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-900">{clientMetrics.bestCompletion.completionRate}%</div>
+                <p className="text-xs text-amber-700 font-medium">{clientMetrics.bestCompletion.clientName}</p>
+                <Badge variant="secondary" className="mt-1 bg-amber-100 text-amber-800">{clientMetrics.bestCompletion.services} servicios</Badge>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      )}
 
-      {/* Enhanced Clients Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Clientes - Análisis de Performance y Tendencias
-          </CardTitle>
-          <CardDescription>
-            Tabla completa con métricas de crecimiento, tendencias y alertas • {filteredAndSortedClients.length} clientes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {tableLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-pulse text-muted-foreground">Cargando datos...</div>
+      {/* Rutas + KM — pills on mobile, cards on desktop */}
+      {!metricsLoading && clientMetrics && (
+        isMobile ? (
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            <div className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border">
+              <span className="text-sm font-bold text-foreground">{clientMetrics.serviceTypeAnalysis.foraneo.count}</span>
+              <span className="text-[9px] uppercase text-muted-foreground">Foráneos</span>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[200px]">Cliente</TableHead>
-                    <TableHead className="text-center">Servicios</TableHead>
-                    <TableHead className="text-center">GMV Actual</TableHead>
-                    <TableHead className="text-center">AOV</TableHead>
-                    <TableHead className="text-center">Cumplimiento</TableHead>
-                    <TableHead className="text-center">Crecimiento GMV</TableHead>
-                    <TableHead className="text-center">Crecimiento Servicios</TableHead>
-                    <TableHead className="text-center">Días sin Actividad</TableHead>
-                    <TableHead className="text-center">Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAndSortedClients.map((client, index) => (
-                    <TableRow 
-                      key={client.clientName} 
-                      className="hover:bg-muted/50 cursor-pointer"
-                      onClick={() => setSelectedClient(client.clientName)}
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1">
-                            {index < 3 && (
-                              <Badge variant="secondary" className="bg-gold-50 text-gold-700 text-xs">
-                                #{index + 1}
-                              </Badge>
-                            )}
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <div className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border">
+              <span className="text-sm font-bold text-foreground">{clientMetrics.serviceTypeAnalysis.local.count}</span>
+              <span className="text-[9px] uppercase text-muted-foreground">Locales</span>
+            </div>
+            <div className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border">
+              <span className="text-sm font-bold text-foreground">{clientMetrics.avgKmPerClient.toFixed(0)}</span>
+              <span className="text-[9px] uppercase text-muted-foreground">KM prom</span>
+            </div>
+            <div className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-card border">
+              <span className="text-sm font-bold text-foreground">{clientMetrics.serviceTypeAnalysis.foraneoPercentage}%</span>
+              <span className="text-[9px] uppercase text-muted-foreground">% For.</span>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Análisis de Rutas: Foráneos vs Locales
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-900">{clientMetrics.serviceTypeAnalysis.foraneo.count}</div>
+                    <div className="text-sm text-blue-700">Servicios Foráneos</div>
+                    <div className="text-xs text-muted-foreground">{formatCurrency(clientMetrics.serviceTypeAnalysis.foraneo.avgValue)} prom.</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-900">{clientMetrics.serviceTypeAnalysis.local.count}</div>
+                    <div className="text-sm text-green-700">Servicios Locales</div>
+                    <div className="text-xs text-muted-foreground">{formatCurrency(clientMetrics.serviceTypeAnalysis.local.avgValue)} prom.</div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>% Foráneos</span>
+                    <span>{clientMetrics.serviceTypeAnalysis.foraneoPercentage}%</span>
+                  </div>
+                  <Progress value={clientMetrics.serviceTypeAnalysis.foraneoPercentage} />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Route className="h-5 w-5" />
+                  Promedio de KM por Cliente
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <div className="text-3xl font-bold">{clientMetrics.avgKmPerClient.toFixed(0)}</div>
+                  <div className="text-sm text-muted-foreground">KM promedio por cliente</div>
+                </div>
+                <div className="space-y-3">
+                  {clientMetrics.topKmClients.slice(0, 3).map((client, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <span className="text-sm font-medium">{client.clientName}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{client.avgKm} km</span>
+                        <Badge variant="outline">#{index + 1}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      )}
+
+      {/* Filters — compact on mobile */}
+      {isMobile ? (
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3.5 w-3.5" />
+            <Input
+              placeholder="Buscar cliente..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 h-9 text-xs"
+            />
+          </div>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[120px] h-9 text-xs">
+              <SelectValue placeholder="Ordenar..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gmv">Mayor GMV</SelectItem>
+              <SelectItem value="services">Más Servicios</SelectItem>
+              <SelectItem value="completion">Cumplimiento</SelectItem>
+              <SelectItem value="aov">Mejor AOV</SelectItem>
+              <SelectItem value="growth">Crecimiento</SelectItem>
+              <SelectItem value="days_inactive">Inactividad</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filtros y Búsqueda Avanzada
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input placeholder="Buscar cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+              </div>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Ordenar por..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gmv">Mayor GMV</SelectItem>
+                  <SelectItem value="services">Más Servicios</SelectItem>
+                  <SelectItem value="completion">Mejor Cumplimiento</SelectItem>
+                  <SelectItem value="aov">Mejor AOV</SelectItem>
+                  <SelectItem value="growth">Mayor Crecimiento</SelectItem>
+                  <SelectItem value="days_inactive">Días sin Actividad</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterByType} onValueChange={setFilterByType}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Tipo de servicio..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
+                  <SelectItem value="local">Solo Locales</SelectItem>
+                  <SelectItem value="foraneo">Solo Foráneos</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterByCSM} onValueChange={setFilterByCSM}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="CSM asignado..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los CSM</SelectItem>
+                  <SelectItem value="unassigned">Sin asignar</SelectItem>
+                  {csmOptions.map(csm => (
+                    <SelectItem key={csm.id} value={csm.id}>{csm.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Client List: cards on mobile, table on desktop */}
+      {isMobile ? (
+        tableLoading ? (
+          <div className="flex items-center justify-center py-6">
+            <div className="animate-pulse text-xs text-muted-foreground">Cargando datos...</div>
+          </div>
+        ) : (
+          renderMobileClientCards()
+        )
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Clientes - Análisis de Performance y Tendencias
+            </CardTitle>
+            <CardDescription>
+              Tabla completa con métricas de crecimiento, tendencias y alertas • {filteredAndSortedClients.length} clientes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {tableLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-pulse text-muted-foreground">Cargando datos...</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[200px]">Cliente</TableHead>
+                      <TableHead className="text-center">Servicios</TableHead>
+                      <TableHead className="text-center">GMV Actual</TableHead>
+                      <TableHead className="text-center">AOV</TableHead>
+                      <TableHead className="text-center">Cumplimiento</TableHead>
+                      <TableHead className="text-center">Crecimiento GMV</TableHead>
+                      <TableHead className="text-center">Crecimiento Servicios</TableHead>
+                      <TableHead className="text-center">Días sin Actividad</TableHead>
+                      <TableHead className="text-center">Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAndSortedClients.map((client, index) => (
+                      <TableRow key={client.clientName} className="hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedClient(client.clientName)}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                              {index < 3 && <Badge variant="secondary" className="bg-gold-50 text-gold-700 text-xs">#{index + 1}</Badge>}
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <span className="line-clamp-2">{client.clientName}</span>
                           </div>
-                          <span className="line-clamp-2">{client.clientName}</span>
-                        </div>
-                      </TableCell>
-                      
-                      <TableCell className="text-center">
-                        <div className="flex flex-col items-center">
-                          <span className="font-semibold">{client.currentServices}</span>
-                          {client.servicesGrowth !== 0 && (
-                            <div className="flex items-center gap-1">
-                              {client.servicesGrowth > 0 ? (
-                                <ArrowUpIcon className="h-3 w-3 text-green-600" />
-                              ) : (
-                                <ArrowDownIcon className="h-3 w-3 text-red-600" />
-                              )}
-                              <span className={`text-xs ${client.servicesGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {Math.abs(client.servicesGrowth)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-center">
-                        <div className="flex flex-col items-center">
-                          <span className="font-semibold text-green-700">
-                            {formatCurrency(client.currentGMV)}
-                          </span>
-                          {client.gmvGrowth !== 0 && (
-                            <div className="flex items-center gap-1">
-                              {client.gmvGrowth > 0 ? (
-                                <ArrowUpIcon className="h-3 w-3 text-green-600" />
-                              ) : (
-                                <ArrowDownIcon className="h-3 w-3 text-red-600" />
-                              )}
-                              <span className={`text-xs ${client.gmvGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {client.gmvGrowth > 0 ? '+' : ''}{client.gmvGrowth.toFixed(1)}%
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-center">
-                        <div className="flex flex-col items-center">
-                          <span className="font-semibold text-purple-700">
-                            {formatCurrency(client.currentAOV)}
-                          </span>
-                          {client.aovGrowth !== 0 && (
-                            <div className="flex items-center gap-1">
-                              {client.aovGrowth > 0 ? (
-                                <ArrowUpIcon className="h-3 w-3 text-green-600" />
-                              ) : (
-                                <ArrowDownIcon className="h-3 w-3 text-red-600" />
-                              )}
-                              <span className={`text-xs ${client.aovGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {client.aovGrowth > 0 ? '+' : ''}{client.aovGrowth.toFixed(1)}%
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-center">
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="font-semibold">{client.completionRate.toFixed(1)}%</span>
-                          <Progress 
-                            value={client.completionRate} 
-                            className="w-16 h-1"
-                          />
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center">
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center">
+                            <span className="font-semibold">{client.currentServices}</span>
+                            {client.servicesGrowth !== 0 && (
+                              <div className="flex items-center gap-1">
+                                {client.servicesGrowth > 0 ? <ArrowUpIcon className="h-3 w-3 text-green-600" /> : <ArrowDownIcon className="h-3 w-3 text-red-600" />}
+                                <span className={`text-xs ${client.servicesGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>{Math.abs(client.servicesGrowth)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center">
+                            <span className="font-semibold text-green-700">{formatCurrency(client.currentGMV)}</span>
+                            {client.gmvGrowth !== 0 && (
+                              <div className="flex items-center gap-1">
+                                {client.gmvGrowth > 0 ? <ArrowUpIcon className="h-3 w-3 text-green-600" /> : <ArrowDownIcon className="h-3 w-3 text-red-600" />}
+                                <span className={`text-xs ${client.gmvGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>{client.gmvGrowth > 0 ? '+' : ''}{client.gmvGrowth.toFixed(1)}%</span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center">
+                            <span className="font-semibold text-purple-700">{formatCurrency(client.currentAOV)}</span>
+                            {client.aovGrowth !== 0 && (
+                              <div className="flex items-center gap-1">
+                                {client.aovGrowth > 0 ? <ArrowUpIcon className="h-3 w-3 text-green-600" /> : <ArrowDownIcon className="h-3 w-3 text-red-600" />}
+                                <span className={`text-xs ${client.aovGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>{client.aovGrowth > 0 ? '+' : ''}{client.aovGrowth.toFixed(1)}%</span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="font-semibold">{client.completionRate.toFixed(1)}%</span>
+                            <Progress value={client.completionRate} className="w-16 h-1" />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
                           {client.gmvGrowth > 10 ? (
-                            <Badge className="bg-green-100 text-green-800 gap-1">
-                              <ArrowUpIcon className="h-3 w-3" />
-                              Creciendo
-                            </Badge>
+                            <Badge className="bg-green-100 text-green-800 gap-1"><ArrowUpIcon className="h-3 w-3" />Creciendo</Badge>
                           ) : client.gmvGrowth < -10 ? (
-                            <Badge className="bg-red-100 text-red-800 gap-1">
-                              <ArrowDownIcon className="h-3 w-3" />
-                              Decreciendo
-                            </Badge>
+                            <Badge className="bg-red-100 text-red-800 gap-1"><ArrowDownIcon className="h-3 w-3" />Decreciendo</Badge>
                           ) : (
                             <Badge variant="outline">Estable</Badge>
                           )}
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center">
+                        </TableCell>
+                        <TableCell className="text-center">
                           {client.servicesGrowth > 2 ? (
-                            <Badge className="bg-blue-100 text-blue-800 gap-1">
-                              <ArrowUpIcon className="h-3 w-3" />
-                              +{client.servicesGrowth}
-                            </Badge>
+                            <Badge className="bg-blue-100 text-blue-800 gap-1"><ArrowUpIcon className="h-3 w-3" />+{client.servicesGrowth}</Badge>
                           ) : client.servicesGrowth < -2 ? (
-                            <Badge className="bg-orange-100 text-orange-800 gap-1">
-                              <ArrowDownIcon className="h-3 w-3" />
-                              {client.servicesGrowth}
-                            </Badge>
+                            <Badge className="bg-orange-100 text-orange-800 gap-1"><ArrowDownIcon className="h-3 w-3" />{client.servicesGrowth}</Badge>
                           ) : (
                             <Badge variant="outline">Normal</Badge>
                           )}
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span className={`text-sm ${client.daysSinceLastService > 30 ? 'text-red-600 font-semibold' : client.daysSinceLastService > 14 ? 'text-orange-600' : 'text-green-600'}`}>
-                            {client.daysSinceLastService} días
-                          </span>
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center">
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className={`text-sm ${client.daysSinceLastService > 30 ? 'text-red-600 font-semibold' : client.daysSinceLastService > 14 ? 'text-orange-600' : 'text-green-600'}`}>
+                              {client.daysSinceLastService} días
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
                           {client.daysSinceLastService > 30 ? (
-                            <Badge className="bg-red-100 text-red-800 gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              Inactivo
-                            </Badge>
+                            <Badge className="bg-red-100 text-red-800 gap-1"><AlertTriangle className="h-3 w-3" />Inactivo</Badge>
                           ) : client.gmvGrowth > 15 ? (
-                            <Badge className="bg-green-100 text-green-800 gap-1">
-                              <Star className="h-3 w-3" />
-                              Estrella
-                            </Badge>
+                            <Badge className="bg-green-100 text-green-800 gap-1"><Star className="h-3 w-3" />Estrella</Badge>
                           ) : client.completionRate < 70 ? (
-                            <Badge className="bg-yellow-100 text-yellow-800 gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              Atención
-                            </Badge>
+                            <Badge className="bg-yellow-100 text-yellow-800 gap-1"><AlertTriangle className="h-3 w-3" />Atención</Badge>
                           ) : (
                             <Badge className="bg-blue-100 text-blue-800">Activo</Badge>
                           )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

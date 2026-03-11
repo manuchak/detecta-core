@@ -416,19 +416,9 @@ const KPIDashboard = () => {
                 <OperationalOverview />
               </TabsContent>
 
-              {/* ── MOBILE: Clientes (Clientes + Adquisición) ── */}
+              {/* ── MOBILE: Clientes (only ClientAnalytics, no Acquisition) ── */}
               <TabsContent value="client" className="space-y-4">
                 <ClientAnalytics />
-
-                <div className="relative py-2">
-                  <Separator />
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs font-medium text-muted-foreground">
-                    Adquisición
-                  </span>
-                </div>
-
-                <AcquisitionOverview />
-                <DailyLeadsCallsChart />
               </TabsContent>
 
               {/* ── MOBILE: KPIs (KPIs + Costos) ── */}
