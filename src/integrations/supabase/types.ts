@@ -1944,29 +1944,7 @@ export type Database = {
           updated_at?: string | null
           zona_alto_riesgo?: boolean | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "candidato_risk_checklist_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: true
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "candidato_risk_checklist_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: true
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "candidato_risk_checklist_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: true
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
-        ]
+        Relationships: []
       }
       candidatos_armados: {
         Row: {
@@ -3241,27 +3219,6 @@ export type Database = {
           visto_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "contratos_candidato_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contratos_candidato_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contratos_candidato_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
           {
             foreignKeyName: "contratos_candidato_enviado_por_fkey"
             columns: ["enviado_por"]
@@ -6427,29 +6384,7 @@ export type Database = {
           tipo_entrevista?: string | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "entrevistas_estructuradas_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entrevistas_estructuradas_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entrevistas_estructuradas_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
-        ]
+        Relationships: []
       }
       esquemas_pago_armados: {
         Row: {
@@ -6937,27 +6872,6 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "evaluaciones_toxicologicas_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "evaluaciones_toxicologicas_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "evaluaciones_toxicologicas_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
           {
             foreignKeyName: "evaluaciones_toxicologicas_registrado_por_fkey"
             columns: ["registrado_por"]
@@ -14587,27 +14501,6 @@ export type Database = {
           validador_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "referencias_candidato_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "referencias_candidato_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "referencias_candidato_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
           {
             foreignKeyName: "referencias_candidato_validador_id_fkey"
             columns: ["validador_id"]
