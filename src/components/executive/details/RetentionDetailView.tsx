@@ -72,8 +72,8 @@ export function RetentionDetailView() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="min-h-[140px] flex flex-col">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+        <Card className="min-h-0 md:min-h-[140px] flex flex-col">
           <CardHeader className="pb-3">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
               <Target className="h-3.5 w-3.5" />
