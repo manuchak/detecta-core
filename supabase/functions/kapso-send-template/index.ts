@@ -49,11 +49,11 @@ function normalizePhoneNumber(phone: string): string {
   let cleaned = phone.replace(/[\s\-\(\)\.\+]/g, '');
   
   if (cleaned.length === 10) {
-    return '521' + cleaned;
+    return '52' + cleaned;           // MX: 52 + 10 dígitos
   } else if (cleaned.length === 12 && cleaned.startsWith('52')) {
-    return '521' + cleaned.slice(2);
+    return cleaned;                   // Ya correcto: 52 + 10
   } else if (cleaned.length === 13 && cleaned.startsWith('521')) {
-    return cleaned;
+    return '52' + cleaned.slice(3);  // Quitar el 1: 521xxx → 52xxx
   }
   
   return cleaned;
