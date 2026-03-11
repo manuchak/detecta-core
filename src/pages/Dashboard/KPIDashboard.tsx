@@ -36,10 +36,6 @@ import { DailyLeadsCallsChart } from '@/components/recruitment/DailyLeadsCallsCh
 import { KPIDetailView } from '@/components/executive/KPIDetailView';
 import { CustodianEngagementDetailView } from '@/components/executive/details/CustodianEngagementDetailView';
 import CalibrationDashboard from '@/components/executive/CalibrationDashboard';
-import { ExpenseForm } from '@/components/recruitment/ExpenseForm';
-import { ExpensesList } from '@/components/recruitment/ExpensesList';
-import { ExpenseMetricsCards } from '@/components/recruitment/ExpenseMetricsCards';
-import { ExpenseDistributionChart } from '@/components/recruitment/ExpenseDistributionChart';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
