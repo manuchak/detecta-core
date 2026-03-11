@@ -105,8 +105,8 @@ export const BitacoraBoard: React.FC = () => {
             </SelectContent>
           </Select>
           {filterMonitoristaId !== 'all' && (
-            <span className="text-[10px] text-muted-foreground">
-              {displayPending.length + displayEnCurso.length + displayEventoEspecial.length} servicios
+            <span className="text-[10px] text-muted-foreground tabular-nums">
+              {displayPending.length} pendientes · {displayEnCurso.length} en curso · {displayEventoEspecial.length} evento = <span className="font-semibold text-foreground">{displayPending.length + displayEnCurso.length + displayEventoEspecial.length}</span> total
             </span>
           )}
         </div>

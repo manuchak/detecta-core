@@ -143,11 +143,14 @@ export function useOrphanGuard() {
       }
 
       // Rule 4: Cleanup — deactivate assignments for pending services with cita >4h away
+      // PROTECT manual assignments (asignado_por != null) from cleanup
       const farFutureAssignments: { id: string; servicio_id: string }[] = [];
       for (const m of [...enTurno, ...sinTurno]) {
         for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
           // Only target pending services (not in-progress or events)
           if (activeServiceIds.includes(a.servicio_id)) continue;
+          // Skip manual assignments (coordinator-assigned) — they are protected
+          if (a.asignado_por) continue;
           const citaStr = serviceHoraCitaMap[a.servicio_id];
           if (!citaStr) continue;
           const timeUntil = new Date(citaStr).getTime() - now;
@@ -157,7 +160,7 @@ export function useOrphanGuard() {
         }
       }
       if (farFutureAssignments.length > 0) {
-        console.log(`[OrphanGuard] Rule 4: Deactivating ${farFutureAssignments.length} assignments for services >4h away`);
+        console.log(`[OrphanGuard] Rule 4: Deactivating ${farFutureAssignments.length} auto-assignments for services >4h away (manual protected)`);
         const ids = farFutureAssignments.map(a => a.id);
         (supabase as any)
           .from('bitacora_asignaciones_monitorista')

@@ -106,9 +106,10 @@ export function useBitacoraBoard() {
 
       let query = supabase
         .from('servicios_planificados')
-        .select('id, id_servicio, nombre_cliente, custodio_asignado, custodio_id, custodio_telefono, telefono_cliente, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, requiere_armado')
+        .select('id, id_servicio, nombre_cliente, custodio_asignado, custodio_id, custodio_telefono, telefono_cliente, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, requiere_armado, hora_llegada_custodio')
         .is('hora_inicio_real', null)
         .not('custodio_asignado', 'is', null)
+        .not('hora_llegada_custodio', 'is', null)  // Gate: only show services where Planning confirmed "En Sitio"
         .in('estado_planeacion', ['confirmado', 'planificado'])
         .gte('fecha_hora_cita', desde.toISOString())
         .lte('fecha_hora_cita', hasta.toISOString())
@@ -238,9 +239,10 @@ export function useBitacoraBoard() {
     const lastEventAt = lastActionTime || (svc.hora_inicio_real ? new Date(svc.hora_inicio_real) : null);
     const minutesSinceLastAction = lastEventAt ? Math.floor((now - lastEventAt.getTime()) / 60_000) : 0;
 
-    // Alert level
+    // Alert level — suppress for active pernocta events
     let alertLevel: AlertLevel = 'normal';
-    if (phase === 'en_curso' || phase === 'en_destino') {
+    const isPernocta = activeEvent?.tipo_evento === 'pernocta';
+    if ((phase === 'en_curso' || phase === 'en_destino') && !isPernocta) {
       if (minutesSinceLastAction >= 45) alertLevel = 'critical';
       else if (minutesSinceLastAction >= 30) alertLevel = 'warning';
     }
@@ -302,14 +304,15 @@ export function useBitacoraBoard() {
 
   const iniciarServicio = useMutation({
     mutationFn: async (serviceId: string) => {
-      // Guard: check not already started
+      // Guard: check not already started + verify "En Sitio" from Planning
       const { data: svc, error: fetchErr } = await supabase
         .from('servicios_planificados')
-        .select('hora_inicio_real, id_servicio')
+        .select('hora_inicio_real, id_servicio, hora_llegada_custodio')
         .eq('id', serviceId)
         .single();
       if (fetchErr) throw fetchErr;
       if (svc.hora_inicio_real) throw new Error('Servicio ya iniciado');
+      if (!svc.hora_llegada_custodio) throw new Error('El custodio aún no ha sido marcado "En Sitio" por Planeación. No se puede iniciar.');
 
       const nowTs = new Date().toISOString();
       const { error } = await supabase

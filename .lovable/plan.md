@@ -1,84 +1,67 @@
+# Centro de Comunicaciones WhatsApp — Bitácora
 
+## Estado: Fase 1 completada ✅
 
-# Análisis Profundo: Tres Preguntas Críticas del Workflow
+### DB (migración aplicada)
+- ✅ `whatsapp_messages`: columnas `servicio_id` (FK) e `is_read` agregadas con índices
+- ✅ `servicio_comm_media`: tabla creada con RLS (`has_monitoring_role` / `has_monitoring_write_role`)
+- ✅ `pc_clientes`: columna `contacto_whatsapp` agregada
+- ✅ Bucket `whatsapp-media` creado (público, RLS para upload)
+- ✅ Realtime habilitado en `servicio_comm_media`
 
-## Pregunta 1: ¿Los planeadores pueden marcar "En Sitio" sin que desaparezca?
+### Frontend (creado)
+- ✅ `useServicioComm.ts` — hook con mensajes por servicio, Realtime, conteo sin leer
+- ✅ `ServiceCommSheet.tsx` — Sheet lateral con Tabs (Chat / Reportar)
+- ✅ `CustodioChat.tsx` — Timeline iMessage-style con quick actions
+- ✅ `ClientReportComposer.tsx` — Galería de fotos + template + envío
+- ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
+- ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
 
-**Estado actual: FUNCIONA CORRECTAMENTE ✅**
+## Fase 2 — Backend (pendiente parcial)
+- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
+- Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
+- Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
 
-Cuando Planeación marca "En Sitio", solo se escribe `hora_llegada_custodio` (tipo `time`). El `estado_planeacion` permanece en `confirmado`/`planificado`. La tarjeta del servicio sigue visible en el dashboard de Planeación con badge verde "En sitio". No desaparece.
+## Fase 2.5 — Trazabilidad monitorista ✅
+- ✅ `whatsapp_messages.sent_by_user_id` — columna UUID con FK a auth.users
+- ✅ Edge functions `kapso-send-message` y `kapso-send-template` registran `sent_by_user_id`
+- ✅ `ServiceCommSheet` envía `user.id` al invocar edge functions
+- ✅ `useServicioComm` resuelve `display_name` desde `profiles`
+- ✅ `CustodioChat` muestra nombre del monitorista en burbujas y separadores de handoff
 
----
+## Fase 2.6 — Debug E2E Comunicación ✅
+- ✅ Bug 1: Nombres de campo corregidos (`phone`→`to`, `template_name`→`templateName`, `language_code`→`languageCode`, `message`→`text`, agregado `type:'text'`)
+- ✅ Bug 2: Se usa `service.custodio_telefono` en lugar de `service.custodio_asignado` como número de teléfono
+- ✅ Bug 3: `BoardService` ahora incluye `custodio_telefono` y `telefono_cliente` en la query e interfaz
+- ✅ Bug 4: Edge functions insertan `servicio_id` desde `context.servicio_id` en `whatsapp_messages`
+- ✅ Bug 5: Formato de `components` corregido de array a objeto `{ body: { parameters: [...] } }`
+- ✅ Bug 6: `telefono_cliente` se pasa a `ClientReportComposer` como `contactoWhatsapp`
+- ✅ Bug 7: Se pasa `service.id` (UUID) como `servicio_id` en context
+- ✅ Validación: guard de teléfono antes de enviar nudge o mensaje libre
 
-## Pregunta 2: ¿Monitoreo solo ve servicios marcados "En Sitio" por Planeación?
+## Fase 3 — Blindaje Workflow Planeación → Monitoreo ✅
 
-**Estado actual: NO. Hay un gap importante ⚠️**
+### Gate de Visibilidad (Q1)
+- ✅ `useBitacoraBoard.ts` — pendingQuery ahora filtra `.not('hora_llegada_custodio', 'is', null)` 
+- ✅ Monitoreo SOLO ve servicios donde Planeación confirmó "En Sitio"
 
-La query de servicios pendientes en Bitácora (Q1) filtra:
-```
-hora_inicio_real IS NULL
-AND custodio_asignado IS NOT NULL  
-AND estado_planeacion IN ('confirmado', 'planificado')
-AND fecha_hora_cita BETWEEN inicio_día AND fin_día
-```
+### Guard de Inicio
+- ✅ `iniciarServicio` verifica `hora_llegada_custodio IS NOT NULL` antes de escribir `hora_inicio_real`
+- ✅ Toast de error explícito si custodio no ha sido marcado "En Sitio"
 
-**No verifica `hora_llegada_custodio`.** Esto significa que un monitorista puede ver y presionar "Iniciar" en un servicio donde el custodio **aún no ha llegado** al punto. El handoff Planeación→Monitoreo no está blindado.
+### Protección de Asignaciones Manuales (OrphanGuard Rule 4)
+- ✅ `useOrphanGuard.ts` — Rule 4 excluye asignaciones con `asignado_por != null` (coordinador)
+- ✅ Solo limpia asignaciones automáticas >4h en el futuro
 
-**Fix propuesto:** Agregar filtro `.not('hora_llegada_custodio', 'is', null)` a Q1, y un guard en `iniciarServicio` que verifique `hora_llegada_custodio` antes de permitir el inicio.
+### Supresión de Alertas en Pernocta
+- ✅ `computePhaseAndTimers` no escala `alertLevel` cuando evento activo es `pernocta`
 
----
+### Contador Total por Monitorista
+- ✅ `BitacoraBoard.tsx` — Badge desglosado: `N pendientes · M en curso · K evento = T total`
+- ✅ `MonitoristaCard.tsx` — Badge `(NP · MC · KE)` por fase
+- ✅ `CoordinatorCommandCenter.tsx` — Calcula `phaseBreakdownByMonitorista` y lo pasa a cards
 
-## Pregunta 3: ¿100% de servicios planificados/en-sitio/no-finalizados SIEMPRE tienen monitorista?
-
-**Estado actual: NO. Hay 4 brechas identificadas ⚠️**
-
-### Brecha A: Ventana operativa de OrphanGuard es solo -60min a +4h
-OrphanGuard Rule 1 solo auto-asigna servicios pendientes cuya cita está dentro de -60 minutos a +4 horas. Un servicio con cita a las 6am del día siguiente NO tiene monitorista asignado hasta ~2am (4h antes). Para rutas foráneas de 5 días, esto es aceptable para el inicio pero NO para la continuidad.
-
-### Brecha B: Rule 4 ELIMINA asignaciones >4h en el futuro
-Si un coordinador asigna manualmente un servicio con anticipación (ej: pernocta que sale mañana), OrphanGuard Rule 4 lo desactiva activamente. No hay distinción entre asignaciones automáticas y manuales.
-
-### Brecha C: Servicios activos SÍ están cubiertos (Q2 + Rule 2) ✅
-Los servicios ya iniciados (`hora_inicio_real` set, `hora_fin_real` null) no tienen filtro de fecha. OrphanGuard Rule 2 los detecta si no tienen asignación. Un servicio de 5 días en ruta siempre tendrá monitorista. **Esto funciona.**
-
-### Brecha D: Gap entre turnos
-Durante el handoff de turno, si los monitoristas salientes firman salida antes de que los entrantes activen heartbeat, hay una ventana (potencialmente 1-5 minutos) donde servicios activos quedan sin monitorista activo. OrphanGuard Rule 3 los reasigna al primer monitorista que entre, pero durante ese gap no hay cobertura.
-
----
-
-## Plan de Blindaje (4 cambios)
-
-### 1. Gate de visibilidad: Monitoreo solo ve "En Sitio"
-**`useBitacoraBoard.ts` — Q1 (pendingQuery):** Agregar `.not('hora_llegada_custodio', 'is', null)` para que solo aparezcan servicios donde Planeación confirmó la llegada del custodio.
-
-### 2. Guard de inicio: No iniciar sin "En Sitio"
-**`useBitacoraBoard.ts` — `iniciarServicio`:** Verificar que `hora_llegada_custodio IS NOT NULL` antes de escribir `hora_inicio_real`. Si no está, mostrar toast de error.
-
-### 3. Proteger asignaciones manuales de Rule 4
-**`useOrphanGuard.ts` — Rule 4:** Agregar condición que excluya asignaciones donde `notas_handoff` contiene `'manual'` o donde `asignado_por` es distinto de `null` (asignación por coordinador). Solo limpiar asignaciones automáticas.
-
-### 4. Suprimir alertas en pernocta
-**`useBitacoraBoard.ts` — `computePhaseAndTimers`:** Si el evento activo es de tipo `pernocta`, no escalar `alertLevel` a `warning`/`critical`.
-
-### Archivos a modificar
-
-| Archivo | Cambio |
-|---|---|
-| `src/hooks/useBitacoraBoard.ts` | Gate Q1 + guard iniciarServicio + suppress pernocta alerts |
-| `src/hooks/useOrphanGuard.ts` | Proteger asignaciones manuales en Rule 4 |
-
-### Resumen de cobertura post-fix
-
-```text
-SERVICIO PLANIFICADO (custodio asignado)
-  └── Sin hora_llegada_custodio → Solo visible en PLANEACIÓN
-  └── Con hora_llegada_custodio → Visible en MONITOREO (Por Iniciar)
-       └── OrphanGuard auto-asigna monitorista
-       └── Monitorista inicia → En Curso
-            └── 100% cubierto: Q2 sin filtro de fecha
-            └── OrphanGuard Rule 2: reasigna si monitorista se va
-            └── OrphanGuard Rule 3: reasigna si monitorista offline
-            └── Pernocta: sin alertas falsas
-            └── Multi-día: visible indefinidamente hasta hora_fin_real
-```
-
+## Fase 4 — Escalamiento y métricas (pendiente)
+- Auto-escalamiento si custodio no responde a nudge en 15/30 min
+- Dashboard de métricas de comunicación
+- Bulk nudge para todos los custodios activos

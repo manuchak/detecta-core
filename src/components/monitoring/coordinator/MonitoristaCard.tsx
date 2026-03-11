@@ -12,11 +12,18 @@ interface UnassignedService {
   horaCita?: string;
 }
 
+interface PhaseBreakdown {
+  pending: number;
+  enCurso: number;
+  evento: number;
+}
+
 interface Props {
   monitorista: MonitoristaProfile;
   assignments: MonitoristaAssignment[];
   maxLoad: number;
   serviceLabelMap: Record<string, string>;
+  phaseBreakdown?: PhaseBreakdown;
   unassignedServices?: UnassignedService[];
   onAssign?: (servicioId: string, monitoristaId: string) => void;
   isAssigning?: boolean;
@@ -50,7 +57,7 @@ function loadBorderColor(count: number, maxLoad: number): string {
 }
 
 export const MonitoristaCard: React.FC<Props> = ({
-  monitorista, assignments, maxLoad, serviceLabelMap,
+  monitorista, assignments, maxLoad, serviceLabelMap, phaseBreakdown,
   unassignedServices = [], onAssign, isAssigning,
 }) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -92,6 +99,11 @@ export const MonitoristaCard: React.FC<Props> = ({
             <span className="text-[10px] text-muted-foreground tabular-nums">
               {count} servicio{count !== 1 ? 's' : ''}
             </span>
+            {phaseBreakdown && (
+              <span className="text-[9px] text-muted-foreground/70 tabular-nums">
+                ({phaseBreakdown.pending}P · {phaseBreakdown.enCurso}C · {phaseBreakdown.evento}E)
+              </span>
+            )}
             {(monitorista.event_count || 0) > 0 && (
               <span className="text-[9px] text-chart-2 flex items-center gap-0.5">
                 <Zap className="h-2.5 w-2.5" />
