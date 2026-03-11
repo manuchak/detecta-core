@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw, FlaskConical, BookOpen } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileMonitoringPage } from "@/components/monitoring/mobile/MobileMonitoringPage";
 import ShiftSummaryCards from "@/components/monitoring/ShiftSummaryCards";
 import ShiftServicesMap from "@/components/monitoring/ShiftServicesMap";
 import ShiftServicesTable from "@/components/monitoring/ShiftServicesTable";
@@ -40,6 +42,7 @@ const COORDINATOR_ROLES = ['monitoring_supervisor', 'coordinador_operaciones', '
 const MONITORING_ROLES = ['monitoring', 'monitoring_supervisor', 'coordinador_operaciones', 'admin', 'owner'] as const;
 
 const MonitoringPage = () => {
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const { hasAnyRole } = useUserRole();
@@ -51,7 +54,7 @@ const MonitoringPage = () => {
 
   // OrphanGuard + BalanceGuard — coordinators only, runs continuously
   useOrphanGuard();
-  
+
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [filterEstado, setFilterEstado] = useState<EstadoVisual | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -150,6 +153,10 @@ const MonitoringPage = () => {
       }
     }
   }, [serviciosChecklist]);
+
+  if (isMobile) {
+    return <MobileMonitoringPage />;
+  }
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
