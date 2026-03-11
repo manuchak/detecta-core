@@ -57,7 +57,8 @@ export function MidotResultForm({ candidatoId, evaluacionExistente, onSuccess }:
 
       if (pdfFile) {
         setUploading(true);
-        const fileName = `midot/${candidatoId}/${Date.now()}_${pdfFile.name.replace(/\s+/g, '_')}`;
+        const safeName = pdfFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const fileName = `midot/${candidatoId}/${Date.now()}_${safeName}`;
         const { error: uploadError } = await supabase.storage
           .from('candidato-documentos')
           .upload(fileName, pdfFile);
