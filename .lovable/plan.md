@@ -1,97 +1,52 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Optimizacion Mobile del Dashboard KPIs
 
-## Roles confirmados por módulo
+## Problemas Identificados
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+1. **Tooltips invisibles en movil**: `KPIHeroCard` usa Radix `Tooltip` (hover-only). En touch no se activa. El contenido es valioso (desglose CPA, formula, evolucion mensual) pero inaccesible.
 
----
+2. **KPIDetailView no es mobile-friendly**: El panel de detalle usa `fixed inset-y-0 right-0 max-w-4xl` con `p-6` — ocupa todo el ancho pero con padding desktop. Las vistas internas (CPADetailView, ConversionRateDetailView, etc.) usan `grid-cols-4` que colapsa a `grid-cols-1` dejando tarjetas apiladas con mucho espacio vertical desperdiciado.
 
-## Hallazgos actuales
+3. **KPI cards con whitespace excesivo**: Las tarjetas en `ExecutiveMetricsGrid` tienen `p-4 md:p-6` y valores `text-2xl md:text-3xl` que en una grilla 2-col movil dejan grandes bloques de espacio en blanco vertical.
 
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+## Solucion Propuesta
 
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
+### A. Tooltips → Bottom Sheet en movil (`KPIHeroCard.tsx`)
+- Detectar `useIsMobile()` en el componente
+- En movil: al hacer tap en la tarjeta, abrir un `Drawer` (vaul) desde abajo con el contenido del tooltip
+- En desktop: mantener el Tooltip de Radix sin cambios
+- El drawer tendra `max-h-[70vh]` con scroll interno, header con titulo del KPI y boton cerrar
 
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
+### B. KPIDetailView → Drawer fullscreen en movil (`KPIDetailView.tsx`)
+- En movil: reemplazar el panel lateral `fixed right-0 max-w-4xl` por un `Drawer` fullscreen (vaul) con `snap-points={[1]}`
+- Padding reducido `p-3` en lugar de `p-6`
+- Header compacto sticky con titulo y boton X
 
----
+### C. Detail Views responsivas (todas las vistas en `/details/*.tsx`)
+- Cambiar `grid-cols-1 md:grid-cols-4` a `grid-cols-2 md:grid-cols-4` para que las summary cards se muestren en pares en movil (aprovechando ancho horizontal)
+- Reducir padding de cards internas: `p-2` en movil
+- Charts: reducir height de `h-80` a `h-48` en movil
+- Valores: `text-lg` en movil en vez de `text-2xl`
 
-## Plan de corrección
+### D. KPI Grid compacto (`ExecutiveMetricsGrid.tsx` + `KPIHeroCard.tsx`)
+- Reducir padding de tarjetas en movil: `p-3` en vez de `p-4`
+- Valores: `text-xl` en movil en vez de `text-2xl`
+- Reducir `space-y-3` a `space-y-1.5` en movil
+- Gap del grid: mantener `gap-3` (ya esta bien)
 
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+## Archivos a modificar
+- `src/components/executive/KPIHeroCard.tsx` — tooltip → drawer en movil
+- `src/components/executive/KPIDetailView.tsx` — panel → drawer fullscreen en movil
+- `src/components/executive/ExecutiveMetricsGrid.tsx` — padding compacto
+- `src/components/executive/details/CPADetailView.tsx` — grid 2-col movil, charts compactos
+- `src/components/executive/details/ConversionRateDetailView.tsx` — idem
+- `src/components/executive/details/RetentionDetailView.tsx` — idem
+- `src/components/executive/details/LTVDetailView.tsx` — idem
+- `src/components/executive/details/SupplyGrowthDetailView.tsx` — idem
+- `src/components/executive/details/CustodianEngagementDetailView.tsx` — idem
+- `src/components/executive/details/MonthlyCapacityDetailView.tsx` — idem
 
-```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
-```
-
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
-
-### Fase 2 — Migrar policies por módulo
-
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
-
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
-
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
-
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
-
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
-
-### Fase 3 — Frontend: Sidebar ajustes menores
-
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
-
-### Archivos a modificar
-
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+## Patron de referencia
+El proyecto ya usa `vaul` (Drawer) extensivamente en otros modulos moviles. El patron de cleanup de body overflow de la memory de gobernanza se aplicara en los `onOpenChange` handlers.
 
