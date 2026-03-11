@@ -200,7 +200,7 @@ export function RetentionDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 180 : 250}>
               <LineChart data={dataWithTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 

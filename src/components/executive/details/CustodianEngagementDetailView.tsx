@@ -279,7 +279,7 @@ export function CustodianEngagementDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 200 : 300}>
               <PieChart>
                 <Pie
                   data={riskDistribution}
