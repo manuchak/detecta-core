@@ -147,7 +147,7 @@ export function PersonalDataTab({ candidatoId, tipoOperativo = 'custodio' }: Pro
         updatePayload.numero_motor = data.numero_motor?.trim() || null;
         updatePayload.numero_licencia = data.numero_licencia?.trim() || null;
       }
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from(tableName)
         .update(updatePayload)
         .eq('id', candidatoId);

@@ -19,13 +19,13 @@ export function PersonalDataBadge({ candidatoId, tipoOperativo = 'custodio', siz
   const { data } = useQuery({
     queryKey: ['candidato-personal-data', candidatoId, tipoOperativo],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from(tableName)
         .select(selectFields)
         .eq('id', candidatoId)
         .single();
       if (error) throw error;
-      return data;
+      return data as any;
     },
     enabled: !!candidatoId,
   });

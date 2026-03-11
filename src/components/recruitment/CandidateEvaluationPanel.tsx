@@ -113,8 +113,8 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
       const selectFields = isArmado
         ? 'nombre, telefono, email, vehiculo_propio'
         : 'vehiculo_propio, nombre, telefono, email, curp, direccion, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia';
-      const { data } = await supabase.from(candidatoTable).select(selectFields).eq('id', candidatoId).single();
-      return data;
+      const { data } = await supabase.from(candidatoTable as any).select(selectFields).eq('id', candidatoId).single();
+      return data as any;
     },
     enabled: !!candidatoId,
   });
