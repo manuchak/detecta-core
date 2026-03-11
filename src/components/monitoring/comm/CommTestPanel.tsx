@@ -698,7 +698,7 @@ const ConversationSection: React.FC<{
     } else {
       // Direct insert
       const record: any = {
-        chat_id: `521${phone}`,
+        chat_id: `52${phone}`,
         message_text: quickText,
         message_type: 'text',
         is_from_bot: false,
