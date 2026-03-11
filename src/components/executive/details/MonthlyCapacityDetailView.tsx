@@ -101,7 +101,7 @@ export function MonthlyCapacityDetailView() {
   return (
     <div className="space-y-6">
       {/* Hero Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-2 md:gap-4">
         {/* Card 1: Capacidad Total Mensual */}
         <Card className="flex flex-col">
           <CardHeader className="pb-3">
@@ -114,7 +114,7 @@ export function MonthlyCapacityDetailView() {
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-1">
-              <div className="text-2xl font-bold text-foreground">
+              <div className="text-lg md:text-2xl font-bold text-foreground">
                 {capacityData.monthlyCapacity.total.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -140,7 +140,7 @@ export function MonthlyCapacityDetailView() {
           <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-2">
               <div className="flex items-baseline gap-2">
-                <div className="text-2xl font-bold text-foreground">
+                <div className="text-lg md:text-2xl font-bold text-foreground">
                   {capacityData.utilizationMetrics.current.toFixed(1)}%
                 </div>
                 <div className="text-xs text-muted-foreground">
@@ -173,7 +173,7 @@ export function MonthlyCapacityDetailView() {
           <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-2">
               <div className="flex items-baseline gap-2">
-                <div className="text-2xl font-bold text-foreground">
+                <div className="text-lg md:text-2xl font-bold text-foreground">
                   {capacityData.availableCustodians}
                 </div>
                 <div className="text-xs text-muted-foreground">
@@ -204,7 +204,7 @@ export function MonthlyCapacityDetailView() {
           <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-1">
               <div className="flex items-baseline gap-2">
-                <div className={`text-2xl font-bold ${calculations.gapVsForecast >= 0 ? 'text-success' : 'text-destructive'}`}>
+                <div className={`text-lg md:text-2xl font-bold ${calculations.gapVsForecast >= 0 ? 'text-success' : 'text-destructive'}`}>
                   {calculations.gapVsForecast >= 0 ? '+' : ''}{calculations.gapVsForecast.toLocaleString()}
                 </div>
                 {calculations.gapVsForecast >= 0 ? (
@@ -259,7 +259,7 @@ export function MonthlyCapacityDetailView() {
           <CardDescription>Comparación de capacidad mensual, forecast y proyección actual</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 200 : 300}>
             <ComposedChart data={calculations.chartData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" className="text-xs" />
@@ -295,14 +295,14 @@ export function MonthlyCapacityDetailView() {
       </Card>
 
       {/* Service Type Distribution */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Distribución por Tipo de Servicio</CardTitle>
             <CardDescription>Capacidad mensual total por categoría</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 180 : 250}>
               <PieChart>
                 <Pie
                   data={calculations.pieData}
@@ -335,7 +335,7 @@ export function MonthlyCapacityDetailView() {
             <CardDescription>Comparación de capacidad promedio por día</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 180 : 250}>
               <BarChart data={calculations.comparisonData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" className="text-xs" />
@@ -366,7 +366,7 @@ export function MonthlyCapacityDetailView() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
             {/* Gauge visual */}
               <div className="flex flex-col items-center justify-center">
                 <div className="relative inline-flex items-center justify-center">

@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
+import { X } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface KPIHeroCardProps {
   title: string;
@@ -25,17 +28,20 @@ export function KPIHeroCard({
   tooltip,
   onClick
 }: KPIHeroCardProps) {
+  const isMobile = useIsMobile();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   if (loading) {
     return (
       <div className={cn(
-        "bg-card border border-border/50 rounded-xl p-4 md:p-6 hover-lift",
+        "bg-card border border-border/50 rounded-xl p-3 md:p-6 hover-lift",
         "shadow-apple hover:shadow-apple-md transition-all duration-200",
         className
       )}>
-        <div className="space-y-3">
-          <div className="h-4 bg-muted animate-pulse rounded w-3/4"></div>
-          <div className="h-6 md:h-8 bg-muted animate-pulse rounded w-1/2"></div>
-          <div className="h-3 bg-muted animate-pulse rounded w-1/4"></div>
+        <div className="space-y-2 md:space-y-3">
+          <div className="h-3 md:h-4 bg-muted animate-pulse rounded w-3/4"></div>
+          <div className="h-5 md:h-8 bg-muted animate-pulse rounded w-1/2"></div>
+          <div className="h-2.5 md:h-3 bg-muted animate-pulse rounded w-1/4"></div>
         </div>
       </div>
     );
@@ -69,29 +75,47 @@ export function KPIHeroCard({
     return value;
   };
 
+  const handleCardClick = () => {
+    if (isMobile && tooltip) {
+      setDrawerOpen(true);
+    } else {
+      onClick?.();
+    }
+  };
+
+  const handleDrawerOpenChange = (open: boolean) => {
+    setDrawerOpen(open);
+    if (!open) {
+      requestAnimationFrame(() => {
+        document.body.style.overflow = '';
+        document.body.style.pointerEvents = '';
+      });
+    }
+  };
+
   const cardContent = (
     <div 
       className={cn(
-      "bg-card border border-border/50 rounded-xl p-4 md:p-6 hover-lift",
+        "bg-card border border-border/50 rounded-xl p-3 md:p-6 hover-lift",
         "shadow-apple hover:shadow-apple-md transition-all duration-200",
         "group cursor-pointer active:scale-95 transition-transform",
         className
       )}
-      onClick={onClick}
+      onClick={handleCardClick}
     >
-      <div className="space-y-3">
+      <div className="space-y-1.5 md:space-y-3">
         {/* Title */}
-        <p className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+        <p className="text-xs md:text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors leading-tight">
           {title}
         </p>
         
         {/* Value */}
-        <div className="flex items-baseline gap-1">
-          <span className="text-2xl md:text-3xl font-light tracking-tight text-foreground">
+        <div className="flex items-baseline gap-0.5 md:gap-1">
+          <span className="text-xl md:text-3xl font-light tracking-tight text-foreground">
             {formatValue()}
           </span>
           {unit && (
-            <span className="text-lg font-light text-muted-foreground">
+            <span className="text-xs md:text-lg font-light text-muted-foreground">
               {unit}
             </span>
           )}
@@ -99,18 +123,43 @@ export function KPIHeroCard({
         
         {/* Trend */}
         {trendValue !== undefined && (
-          <div className={cn("flex items-center gap-1 text-sm", getTrendColor())}>
-            <span className="text-xs">{getTrendIcon()}</span>
+          <div className={cn("flex items-center gap-1 text-xs", getTrendColor())}>
+            <span className="text-[10px] md:text-xs">{getTrendIcon()}</span>
             <span className="font-medium">
               {Math.abs(trendValue)}%
             </span>
-            <span className="text-muted-foreground">vs anterior</span>
+            <span className="text-muted-foreground hidden md:inline">vs anterior</span>
           </div>
         )}
       </div>
     </div>
   );
 
+  // Mobile: use Drawer for tooltip content
+  if (isMobile) {
+    return (
+      <>
+        {cardContent}
+        {tooltip && (
+          <Drawer open={drawerOpen} onOpenChange={handleDrawerOpenChange}>
+            <DrawerContent className="max-h-[75vh]">
+              <DrawerHeader className="flex flex-row items-center justify-between pb-2">
+                <DrawerTitle className="text-base font-semibold">{title}</DrawerTitle>
+                <DrawerClose className="rounded-full p-1 hover:bg-muted">
+                  <X className="h-4 w-4" />
+                </DrawerClose>
+              </DrawerHeader>
+              <div className="px-4 pb-6 overflow-y-auto">
+                {tooltip}
+              </div>
+            </DrawerContent>
+          </Drawer>
+        )}
+      </>
+    );
+  }
+
+  // Desktop: use Tooltip
   if (tooltip) {
     return (
       <TooltipProvider>

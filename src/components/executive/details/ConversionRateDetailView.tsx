@@ -34,72 +34,64 @@ export function ConversionRateDetailView() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Target className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <Target className="h-3.5 w-3.5" />
               Tasa Conversión
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-green-600">
               {formatPercentage(conversionData.yearlyData.overallConversionRate)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Promedio del período
-            </p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Promedio del período</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" />
               Total Leads
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-blue-600">
               {conversionData.yearlyData.totalLeads.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {conversionData.periodLabel}
-            </p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">{conversionData.periodLabel}</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Filter className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <Filter className="h-3.5 w-3.5" />
               Conversiones
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-purple-600">
               {conversionData.yearlyData.totalNewCustodians.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Custodios nuevos
-            </p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Custodios nuevos</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5" />
               Mes Actual
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-orange-600">
               {formatPercentage(conversionData.currentMonthData.conversionRate)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {conversionData.currentMonthData.month}
-            </p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">{conversionData.currentMonthData.month}</p>
           </CardContent>
         </Card>
       </div>
@@ -113,7 +105,7 @@ export function ConversionRateDetailView() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 220 : 350}>
             <BarChart data={conversionData.yearlyData.monthlyBreakdown}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
@@ -145,7 +137,7 @@ export function ConversionRateDetailView() {
       </Card>
 
       {/* Detailed Analysis */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
         {/* Conversion Trend */}
         <Card>
           <CardHeader>
@@ -155,7 +147,7 @@ export function ConversionRateDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 180 : 250}>
               <LineChart data={conversionData.yearlyData.monthlyBreakdown}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 

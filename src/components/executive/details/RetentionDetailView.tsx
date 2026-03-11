@@ -72,70 +72,70 @@ export function RetentionDetailView() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="min-h-[140px] flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <Target className="h-3.5 w-3.5" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+        <Card className="min-h-0 md:min-h-[140px] flex flex-col">
+          <CardHeader className="pb-1 md:pb-3 p-2 md:p-6">
+            <CardTitle className="text-[10px] md:text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Target className="h-3 w-3 md:h-3.5 md:w-3.5" />
               Retención Promedio
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center">
-            <div className="text-3xl font-bold text-emerald-600">
+          <CardContent className="flex-1 flex flex-col justify-center p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-emerald-600">
               {formatPercentage(retentionData.yearlyData.retentionPromedio)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Últimos {retentionData.yearlyData.mesesConDatos} meses completos
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+              Últimos {retentionData.yearlyData.mesesConDatos} meses
             </p>
           </CardContent>
         </Card>
 
-        <Card className="min-h-[140px] flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <Users className="h-3.5 w-3.5" />
+        <Card className="min-h-0 md:min-h-[140px] flex flex-col">
+          <CardHeader className="pb-1 md:pb-3 p-2 md:p-6">
+            <CardTitle className="text-[10px] md:text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Users className="h-3 w-3 md:h-3.5 md:w-3.5" />
               Custodios {retentionData.yearlyData.labelUltimoQCompletado}
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center">
-            <div className="text-3xl font-bold text-blue-600">
+          <CardContent className="flex-1 flex flex-col justify-center p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-blue-600">
               {retentionData.yearlyData.custodiosUltimoQCompletado.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Último trimestre completado
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+              Último trimestre
             </p>
           </CardContent>
         </Card>
 
-        <Card className="min-h-[140px] flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <Clock className="h-3.5 w-3.5" />
+        <Card className="min-h-0 md:min-h-[140px] flex flex-col">
+          <CardHeader className="pb-1 md:pb-3 p-2 md:p-6">
+            <CardTitle className="text-[10px] md:text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Clock className="h-3 w-3 md:h-3.5 md:w-3.5" />
               Tiempo Promedio
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center">
-            <div className="text-3xl font-bold text-purple-600">
+          <CardContent className="flex-1 flex flex-col justify-center p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-purple-600">
               {retentionData.yearlyData.tiempoPromedioPermanenciaGeneral.toFixed(1)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              meses de permanencia
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+              meses permanencia
             </p>
           </CardContent>
         </Card>
 
-        <Card className="min-h-[140px] flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-3.5 w-3.5" />
+        <Card className="min-h-0 md:min-h-[140px] flex flex-col">
+          <CardHeader className="pb-1 md:pb-3 p-2 md:p-6">
+            <CardTitle className="text-[10px] md:text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <TrendingUp className="h-3 w-3 md:h-3.5 md:w-3.5" />
               Mes Actual
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center">
-            <div className="text-3xl font-bold text-orange-600">
+          <CardContent className="flex-1 flex flex-col justify-center p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-orange-600">
               {formatPercentage(retentionData.currentMonthData.tasaRetencion)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
               Tasa de retención
             </p>
           </CardContent>
@@ -151,7 +151,7 @@ export function RetentionDetailView() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 220 : 350}>
             <BarChart data={retentionData.monthlyBreakdown}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
@@ -190,7 +190,7 @@ export function RetentionDetailView() {
       </Card>
 
       {/* Lifetime Evolution and Performance Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
         {/* Average Lifetime Evolution */}
         <Card>
           <CardHeader>
@@ -200,7 +200,7 @@ export function RetentionDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 180 : 250}>
               <LineChart data={dataWithTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 

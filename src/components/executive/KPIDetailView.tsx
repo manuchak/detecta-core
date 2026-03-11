@@ -1,7 +1,9 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { RetentionDetailView } from './details/RetentionDetailView';
 import { SupplyGrowthDetailView } from './details/SupplyGrowthDetailView';
 import { CPADetailView } from './details/CPADetailView';
@@ -18,68 +20,102 @@ interface KPIDetailViewProps {
   onClose: () => void;
 }
 
-export function KPIDetailView({ selectedKPI, onClose }: KPIDetailViewProps) {
-  const getKPITitle = (kpi: KPIType) => {
-    const titles: Record<KPIType, string> = {
-      retention: 'Análisis de Retención',
-      ltv: 'Valor de Vida del Cliente (LTV)',
-      cpa: 'Costo por Adquisición (CPA)',
-      conversion: 'Tasa de Conversión',
-      engagement: 'Engagement de Usuarios',
-      supply: 'Crecimiento de Oferta',
-      supply_growth: 'Crecimiento del Supply',
-      roi: 'ROI de Marketing',
-      monthly_capacity: 'Capacidad Mensual Proyectada',
-      daily_capacity: 'Capacidad Diaria',
-      healthy_utilization: 'Utilización Saludable',
-      gap_forecast: 'Gap vs Forecast',
-      fleet_efficiency: 'Eficiencia de Flota'
-    };
-    return titles[kpi];
-  };
+const KPI_TITLES: Record<KPIType, string> = {
+  retention: 'Análisis de Retención',
+  ltv: 'Valor de Vida del Cliente (LTV)',
+  cpa: 'Costo por Adquisición (CPA)',
+  conversion: 'Tasa de Conversión',
+  engagement: 'Engagement de Usuarios',
+  supply: 'Crecimiento de Oferta',
+  supply_growth: 'Crecimiento del Supply',
+  roi: 'ROI de Marketing',
+  monthly_capacity: 'Capacidad Mensual Proyectada',
+  daily_capacity: 'Capacidad Diaria',
+  healthy_utilization: 'Utilización Saludable',
+  gap_forecast: 'Gap vs Forecast',
+  fleet_efficiency: 'Eficiencia de Flota'
+};
 
-  const renderDetailComponent = () => {
-    switch (selectedKPI) {
-      case 'supply_growth':
-        return <SupplyGrowthDetailView />;
-      case 'retention':
-        return <RetentionDetailView />;
-      case 'cpa':
-        return <CPADetailView />;
-      case 'conversion':
-        return <ConversionRateDetailView />;
-      case 'engagement':
-        return <CustodianEngagementDetailView />;
-      case 'ltv':
-        return <LTVDetailView />;
-      case 'monthly_capacity':
-      case 'daily_capacity':
-      case 'healthy_utilization':
-      case 'gap_forecast':
-      case 'fleet_efficiency':
-        return <MonthlyCapacityDetailView />;
-      default:
-        return (
-          <Card>
-            <CardContent className="p-8">
-              <div className="text-center text-muted-foreground">
-                Vista detallada para {getKPITitle(selectedKPI)} próximamente
-              </div>
-            </CardContent>
-          </Card>
-        );
+function DetailContent({ selectedKPI }: { selectedKPI: KPIType }) {
+  switch (selectedKPI) {
+    case 'supply_growth':
+      return <SupplyGrowthDetailView />;
+    case 'retention':
+      return <RetentionDetailView />;
+    case 'cpa':
+      return <CPADetailView />;
+    case 'conversion':
+      return <ConversionRateDetailView />;
+    case 'engagement':
+      return <CustodianEngagementDetailView />;
+    case 'ltv':
+      return <LTVDetailView />;
+    case 'monthly_capacity':
+    case 'daily_capacity':
+    case 'healthy_utilization':
+    case 'gap_forecast':
+    case 'fleet_efficiency':
+      return <MonthlyCapacityDetailView />;
+    default:
+      return (
+        <Card>
+          <CardContent className="p-8">
+            <div className="text-center text-muted-foreground">
+              Vista detallada para {KPI_TITLES[selectedKPI]} próximamente
+            </div>
+          </CardContent>
+        </Card>
+      );
+  }
+}
+
+export function KPIDetailView({ selectedKPI, onClose }: KPIDetailViewProps) {
+  const isMobile = useIsMobile();
+  const title = KPI_TITLES[selectedKPI];
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      requestAnimationFrame(() => {
+        document.body.style.overflow = '';
+        document.body.style.pointerEvents = '';
+      });
+      onClose();
     }
   };
 
+  // Mobile: fullscreen Drawer
+  if (isMobile) {
+    return (
+      <Drawer open={true} onOpenChange={handleOpenChange}>
+        <DrawerContent className="h-[95vh] max-h-[95vh]">
+          <DrawerHeader className="flex flex-row items-center justify-between py-3 px-4 border-b border-border sticky top-0 bg-background z-10">
+            <div className="min-w-0 flex-1 mr-2">
+              <DrawerTitle className="text-sm font-semibold truncate">{title}</DrawerTitle>
+              <p className="text-xs text-muted-foreground truncate">Análisis detallado</p>
+            </div>
+            <DrawerClose className="rounded-full p-1.5 hover:bg-muted flex-shrink-0">
+              <X className="h-4 w-4" />
+            </DrawerClose>
+          </DrawerHeader>
+          <div className="flex-1 overflow-y-auto px-3 py-3">
+            <div className="animate-fade-in">
+              <DetailContent selectedKPI={selectedKPI} />
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  // Desktop: side panel
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
       <div className="fixed inset-y-0 right-0 w-full max-w-4xl bg-background border-l shadow-lg overflow-y-auto">
         <div className="p-6 space-y-6">
-          {/* Header */}
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h2 className="text-2xl font-light tracking-tight text-foreground">
-                {getKPITitle(selectedKPI)}
+                {title}
               </h2>
               <p className="text-muted-foreground">
                 Evolución mensual y análisis detallado
@@ -94,10 +130,8 @@ export function KPIDetailView({ selectedKPI, onClose }: KPIDetailViewProps) {
               <X className="h-5 w-5" />
             </Button>
           </div>
-
-          {/* Detail Content */}
           <div className="animate-fade-in">
-            {renderDetailComponent()}
+            <DetailContent selectedKPI={selectedKPI} />
           </div>
         </div>
       </div>

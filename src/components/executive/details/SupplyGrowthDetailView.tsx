@@ -107,7 +107,7 @@ export function SupplyGrowthDetailView() {
       </div>
 
       {/* Header KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-2 md:gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -116,7 +116,7 @@ export function SupplyGrowthDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold flex items-center gap-2 ${getTrendColor(currentMonth?.crecimientoPorcentual || 0)}`}>
+            <div className={`text-lg md:text-2xl font-bold flex items-center gap-1 md:gap-2 ${getTrendColor(currentMonth?.crecimientoPorcentual || 0)}`}>
               {getTrendIcon(currentMonth?.crecimientoPorcentual || 0)}
               {formatPercentage(currentMonth?.crecimientoPorcentual || 0)}
             </div>
@@ -134,7 +134,7 @@ export function SupplyGrowthDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-lg md:text-2xl font-bold text-blue-600">
               {yearSummary.custodiosActivosActuales.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -151,7 +151,7 @@ export function SupplyGrowthDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-lg md:text-2xl font-bold text-green-600">
               +{yearSummary.custodiosNuevosAnual}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -168,7 +168,7 @@ export function SupplyGrowthDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getTrendColor(summary.crecimientoPromedioMensual)}`}>
+            <div className={`text-lg md:text-2xl font-bold ${getTrendColor(summary.crecimientoPromedioMensual)}`}>
               {formatPercentage(yearSummary.crecimientoPromedioMensual)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -202,7 +202,7 @@ export function SupplyGrowthDetailView() {
                     size={24}
                     color="hsl(var(--primary))"
                   />
-                  <div className="text-2xl font-bold">{summary.qualityRating.stars}/5</div>
+                  <div className="text-lg md:text-2xl font-bold">{summary.qualityRating.stars}/5</div>
                   <p className="text-xs text-muted-foreground text-center">
                     {summary.qualityRating.stars >= 5 ? 'Excelente' :
                      summary.qualityRating.stars >= 4 ? 'Muy Bueno' :
@@ -235,7 +235,7 @@ export function SupplyGrowthDetailView() {
           </div>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 220 : 350}>
             <ComposedChart data={filteredData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
@@ -290,7 +290,7 @@ export function SupplyGrowthDetailView() {
       </Card>
 
       {/* Desglose de Flujo de Custodios y Métricas de Calidad */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
         {/* Flujo de Custodios */}
         <Card>
           <CardHeader>
@@ -300,7 +300,7 @@ export function SupplyGrowthDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 200 : 300}>
               <BarChart data={recentSixMonths}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
@@ -337,9 +337,9 @@ export function SupplyGrowthDetailView() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 md:gap-4">
                 <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-lg md:text-2xl font-bold text-green-600">
                     {qualityMetrics.custodiosConMas5Servicios}
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -348,7 +348,7 @@ export function SupplyGrowthDetailView() {
                 </div>
                 
                 <div className="text-center p-3 bg-red-50 rounded-lg">
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-lg md:text-2xl font-bold text-red-600">
                     {qualityMetrics.custodiosConMenos1Servicio}
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -391,10 +391,10 @@ export function SupplyGrowthDetailView() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
             <div className="space-y-2">
               <div className="text-sm font-medium text-muted-foreground">Crecimiento Neto</div>
-              <div className={`text-2xl font-bold ${getTrendColor(yearSummary.crecimientoNetoAnual)}`}>
+              <div className={`text-xl md:text-2xl font-bold ${getTrendColor(yearSummary.crecimientoNetoAnual)}`}>
                 {yearSummary.crecimientoNetoAnual > 0 ? '+' : ''}{yearSummary.crecimientoNetoAnual}
               </div>
               <div className="text-xs text-muted-foreground">custodios</div>

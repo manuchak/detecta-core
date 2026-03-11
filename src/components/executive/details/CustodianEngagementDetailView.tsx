@@ -128,13 +128,13 @@ export function CustodianEngagementDetailView() {
   const { metricas, tendenciaMensual, resumenGeneral } = engagementData;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start md:items-center gap-2">
         <div>
-          <h1 className="text-3xl font-bold">Engagement de Custodios</h1>
-          <p className="text-muted-foreground">
-            Análisis detallado del engagement y bienestar laboral
+          <h1 className="text-xl md:text-3xl font-bold">Engagement de Custodios</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">
+            Análisis detallado del engagement
           </p>
         </div>
         <Button onClick={refreshData} variant="outline" size="sm">
@@ -144,7 +144,7 @@ export function CustodianEngagementDetailView() {
       </div>
 
       {/* KPIs Principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -187,7 +187,7 @@ export function CustodianEngagementDetailView() {
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{resumenGeneral.engagementPromedio}/100</div>
+            <div className="text-lg md:text-2xl font-bold">{resumenGeneral.engagementPromedio}/100</div>
             <Progress value={resumenGeneral.engagementPromedio} className="mt-2" />
             <p className="text-xs text-muted-foreground mt-1">
               {resumenGeneral.engagementPromedio >= 75 ? 'Excelente' : 
@@ -203,7 +203,7 @@ export function CustodianEngagementDetailView() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{resumenGeneral.custodiosTotal}</div>
+            <div className="text-lg md:text-2xl font-bold">{resumenGeneral.custodiosTotal}</div>
             <p className="text-xs text-muted-foreground">
               {resumenGeneral.custodiosSaludables} saludables, {resumenGeneral.custodiosEnRiesgo} en riesgo
             </p>
@@ -216,7 +216,7 @@ export function CustodianEngagementDetailView() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{resumenGeneral.horasPromedioPorCustodio}h</div>
+            <div className="text-lg md:text-2xl font-bold">{resumenGeneral.horasPromedioPorCustodio}h</div>
             <p className="text-xs text-muted-foreground">
               {resumenGeneral.horasPromedioPorCustodio > 200 ? 'Alto riesgo' : 
                resumenGeneral.horasPromedioPorCustodio > 160 ? 'Moderado' : 'Saludable'}
@@ -230,7 +230,7 @@ export function CustodianEngagementDetailView() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-lg md:text-2xl font-bold">
               {Math.round((resumenGeneral.custodiosEnRiesgo / resumenGeneral.custodiosTotal) * 100)}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -241,7 +241,7 @@ export function CustodianEngagementDetailView() {
       </div>
 
       {/* Tendencia y Distribución */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -250,7 +250,7 @@ export function CustodianEngagementDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 200 : 300}>
               <ComposedChart data={tendenciaMensual}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="mes" />
@@ -279,7 +279,7 @@ export function CustodianEngagementDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 200 : 300}>
               <PieChart>
                 <Pie
                   data={riskDistribution}
