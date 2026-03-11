@@ -1,86 +1,97 @@
 
 
-# Estrategia de Navegacion Movil — KPI Dashboard
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Problema actual (390px)
+## Roles confirmados por módulo
 
-La vista tiene **dos niveles de tabs apilados** mas contenido denso:
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-1. **Nivel 1**: Proy. / KPIs (2 tabs) — funciona bien
-2. **Nivel 2**: 7 tabs internas (Ops, Adq., Clientes, KPIs, Costos, Resumen, Calib.) — se desbordan horizontalmente con scroll oculto, el usuario no sabe que hay mas tabs a la derecha, y la barra ocupa espacio vertical valioso
+---
 
-El screenshot confirma: la barra de 7 tabs con scroll horizontal es poco descubrible y se come ~56px de altura.
+## Hallazgos actuales
 
-## Estrategia: Scroll-snap tabs con indicadores de overflow
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-En lugar de cambiar la arquitectura de navegacion (que romperia URLs existentes), la solucion es hacer que las 7 tabs sean **visualmente claras en su scroll horizontal** con estas mejoras:
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
 
-### 1. Scroll-snap con fade indicators (`KPIDashboard.tsx`)
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
 
-- Envolver la `TabsList` de 7 tabs en un contenedor con `overflow-x-auto` + `scroll-snap-type: x mandatory`
-- Cada `TabsTrigger` recibe `scroll-snap-align: start`
-- Agregar **gradient fades** en los bordes izq/der cuando hay contenido oculto (CSS pseudo-elements)
-- Reducir padding horizontal de cada tab para que quepan ~4 visibles a la vez
+---
 
-### 2. Agrupar tabs por contexto — reducir de 7 a 4 tabs en movil
+## Plan de corrección
 
-En 390px, consolidar la navegacion:
-
-| Tab movil | Contenido |
-|-----------|-----------|
-| Ops | Operacional (tab actual) |
-| Clientes | Clientes + Adquisicion (como secciones apiladas) |
-| KPIs | KPIs grid + Costos (como secciones apiladas) |
-| Resumen | Resumen + Calibracion |
-
-Esto elimina el scroll horizontal por completo — 4 tabs caben perfectamente en 390px.
-
-### 3. Dentro de cada tab agrupada, separadores visuales
-
-Usar un `<Separator>` con label entre las secciones combinadas:
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
 ```text
-┌─────────────────────────┐
-│ [Ops] [Client] [KPIs] [Sum] │  ← 4 tabs, sin scroll
-├─────────────────────────┤
-│ — Clientes —            │
-│ ClientAnalytics cards   │
-│                         │
-│ — Adquisicion —         │
-│ AcquisitionOverview     │
-│ DailyLeadsCallsChart    │
-└─────────────────────────┘
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
 ```
 
-### 4. Header compacto en movil
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-- Mover el boton `Actualizar` al lado del greeting (ya lo hace parcialmente)
-- Eliminar padding vertical excesivo
+### Fase 2 — Migrar policies por módulo
 
-## Archivos a modificar
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-- **`src/pages/Dashboard/KPIDashboard.tsx`**: Deteccion `isMobile`, reemplazar 7 `TabsTrigger` por 4 en movil, combinar contenido de `TabsContent` agrupados, header compacto
-- Sin nuevos componentes necesarios — solo logica condicional en el archivo existente
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
 
-## Resultado en 390px
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
 
-```text
-┌───────────────────────────┐
-│ Buenas noches, Manuel     │
-│ [Proy.] [KPIs]        🔄 │
-│                           │
-│ [Ops] [Client] [KPIs] [+] │
-│                           │
-│ FILL RATE MTD             │
-│ 93.4%  Meta: 95%          │
-│ ↘ -4%  vs Febrero         │
-│                           │
-│ ON-TIME MTD               │
-│ 100%   Meta: 90%          │
-│ — +0%  vs Febrero         │
-│ ...                       │
-└───────────────────────────┘
-```
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
 
-4 tabs visibles sin scroll = descubribilidad total en movil, sin perder informacion.
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
+
+### Archivos a modificar
+
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 

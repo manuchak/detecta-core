@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -52,9 +53,27 @@ const KPIDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
+  // Mobile tab mapping: 4 consolidated tabs
+  const MOBILE_TAB_MAP: Record<string, string> = {
+    operacional: 'ops',
+    adquisicion: 'client',
+    clientes: 'client',
+    kpis: 'kpis-cost',
+    costos: 'kpis-cost',
+    resumen: 'summary',
+    calibracion: 'summary',
+  };
+
   // Read active internal tab from URL query params, default to 'operacional'
   const searchParams = new URLSearchParams(location.search);
-  const activeTab = searchParams.get('tab') || 'operacional';
+  const rawTab = searchParams.get('tab') || 'operacional';
+  // On mobile, normalize desktop tab values to mobile groups
+  const activeTab = useMemo(() => {
+    if (isMobile && !['ops', 'client', 'kpis-cost', 'summary'].includes(rawTab)) {
+      return MOBILE_TAB_MAP[rawTab] || 'ops';
+    }
+    return rawTab;
+  }, [rawTab, isMobile]);
   const [selectedKPI, setSelectedKPI] = useState<string | null>(null);
   const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
 
@@ -293,210 +312,331 @@ const KPIDashboard = () => {
         </div>
 
         {/* Executive Dashboard Tabs */}
-        <Tabs value={activeTab} onValueChange={handleInternalTabChange} className="space-y-6">
-          <TabsList className={isMobile 
-            ? "flex w-auto gap-1 overflow-x-auto scrollbar-hide" 
-            : "grid w-full grid-cols-7"
-          }>
-            <TabsTrigger value="operacional" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
-              <Activity className="h-4 w-4" />
-              {isMobile ? 'Ops' : 'Operacional'}
-            </TabsTrigger>
-            <TabsTrigger value="adquisicion" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
-              <UserPlus className="h-4 w-4" />
-              {isMobile ? 'Adq.' : 'Adquisición'}
-            </TabsTrigger>
-            <TabsTrigger value="clientes" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
-              <Building2 className="h-4 w-4" />
-              Clientes
-            </TabsTrigger>
-            <TabsTrigger value="kpis" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
-              <BarChart3 className="h-4 w-4" />
-              KPIs
-            </TabsTrigger>
-            <TabsTrigger value="costos" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
-              <DollarSign className="h-4 w-4" />
-              Costos
-            </TabsTrigger>
-            <TabsTrigger value="resumen" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
-              <Building className="h-4 w-4" />
-              Resumen
-            </TabsTrigger>
-            <TabsTrigger value="calibracion" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
-              <Settings className="h-4 w-4" />
-              {isMobile ? 'Calib.' : 'Calibración'}
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={handleInternalTabChange} className="space-y-4 md:space-y-6">
+          {isMobile ? (
+            /* ── Mobile: 4 consolidated tabs ── */
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="ops" className="flex items-center gap-1 min-h-[44px] text-xs">
+                <Activity className="h-3.5 w-3.5" />
+                Ops
+              </TabsTrigger>
+              <TabsTrigger value="client" className="flex items-center gap-1 min-h-[44px] text-xs">
+                <Building2 className="h-3.5 w-3.5" />
+                Clientes
+              </TabsTrigger>
+              <TabsTrigger value="kpis-cost" className="flex items-center gap-1 min-h-[44px] text-xs">
+                <BarChart3 className="h-3.5 w-3.5" />
+                KPIs
+              </TabsTrigger>
+              <TabsTrigger value="summary" className="flex items-center gap-1 min-h-[44px] text-xs">
+                <Building className="h-3.5 w-3.5" />
+                Resumen
+              </TabsTrigger>
+            </TabsList>
+          ) : (
+            /* ── Desktop: 7 tabs ── */
+            <TabsList className="grid w-full grid-cols-7">
+              <TabsTrigger value="operacional" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
+                <Activity className="h-4 w-4" />
+                Operacional
+              </TabsTrigger>
+              <TabsTrigger value="adquisicion" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
+                <UserPlus className="h-4 w-4" />
+                Adquisición
+              </TabsTrigger>
+              <TabsTrigger value="clientes" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
+                <Building2 className="h-4 w-4" />
+                Clientes
+              </TabsTrigger>
+              <TabsTrigger value="kpis" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
+                <BarChart3 className="h-4 w-4" />
+                KPIs
+              </TabsTrigger>
+              <TabsTrigger value="costos" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
+                <DollarSign className="h-4 w-4" />
+                Costos
+              </TabsTrigger>
+              <TabsTrigger value="resumen" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
+                <Building className="h-4 w-4" />
+                Resumen
+              </TabsTrigger>
+              <TabsTrigger value="calibracion" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
+                <Settings className="h-4 w-4" />
+                Calibración
+              </TabsTrigger>
+            </TabsList>
+          )}
 
-          {/* Operational Overview Tab */}
-          <TabsContent value="operacional" className="space-y-6">
-            <OperationalOverview />
-          </TabsContent>
+          {isMobile ? (
+            <>
+              {/* ── MOBILE: Ops ── */}
+              <TabsContent value="ops" className="space-y-4">
+                <OperationalOverview />
+              </TabsContent>
 
-          {/* Acquisition Overview Tab */}
-          <TabsContent value="adquisicion" className="space-y-6">
-            <AcquisitionOverview />
-            
-            {/* Daily Leads & Calls Chart */}
-            <div className="mt-8">
-              <DailyLeadsCallsChart />
-            </div>
-          </TabsContent>
+              {/* ── MOBILE: Clientes (Clientes + Adquisición) ── */}
+              <TabsContent value="client" className="space-y-4">
+                <ClientAnalytics />
 
-          {/* Client Analytics Tab */}
-          <TabsContent value="clientes" className="space-y-6">
-            <ClientAnalytics />
-          </TabsContent>
+                <div className="relative py-2">
+                  <Separator />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs font-medium text-muted-foreground">
+                    Adquisición
+                  </span>
+                </div>
 
-          {/* Advanced KPIs Tab */}
-          <TabsContent value="kpis" className="space-y-6">
-            <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={setSelectedKPI} />
-          </TabsContent>
+                <AcquisitionOverview />
+                <DailyLeadsCallsChart />
+              </TabsContent>
 
-          {/* Cost Management Tab */}
-          <TabsContent value="costos" className="space-y-6">
-            {/* Hero Metrics */}
-            <ExpenseMetricsCards />
+              {/* ── MOBILE: KPIs (KPIs + Costos) ── */}
+              <TabsContent value="kpis-cost" className="space-y-4">
+                <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={setSelectedKPI} />
 
-            {/* Distribution Chart */}
-            <ExpenseDistributionChart />
+                <div className="relative py-2">
+                  <Separator />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs font-medium text-muted-foreground">
+                    Costos
+                  </span>
+                </div>
 
-            {/* Form and List */}
-            <div className="space-y-6">
-              <ExpenseForm />
-              <ExpensesList />
-            </div>
-          </TabsContent>
+                <ExpenseMetricsCards />
+                <ExpenseDistributionChart />
+                <ExpenseForm />
+                <ExpensesList />
+              </TabsContent>
 
-          {/* Executive Summary Tab */}
-          <TabsContent value="resumen" className="space-y-6">
-            {/* Current Month Summary */}
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-              {mainKPIs.map((kpi, index) => {
-                const Icon = kpi.icon;
-                const isPositive = kpi.trend > 0;
-                
-                return (
-                  <Card key={index} className="relative overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">
-                        {kpi.title}
+              {/* ── MOBILE: Resumen (Resumen + Calibración) ── */}
+              <TabsContent value="summary" className="space-y-4">
+                {/* Main KPIs cards */}
+                <div className="grid grid-cols-2 gap-3">
+                  {mainKPIs.map((kpi, index) => {
+                    const Icon = kpi.icon;
+                    const isPositive = kpi.trend > 0;
+                    return (
+                      <Card key={index} className="relative overflow-hidden">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-3 pt-3">
+                          <CardTitle className="text-xs font-medium text-muted-foreground">{kpi.title}</CardTitle>
+                          <div className={`p-1.5 rounded-lg ${kpi.bgColor}`}>
+                            <Icon className={`h-3.5 w-3.5 ${kpi.color}`} />
+                          </div>
+                        </CardHeader>
+                        <CardContent className="px-3 pb-3">
+                          <div className="text-lg font-bold">{kpi.value}</div>
+                          <div className="flex items-center gap-1 text-xs mt-1">
+                            {isPositive ? (
+                              <TrendingUp className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <TrendingDown className="h-3 w-3 text-red-500" />
+                            )}
+                            <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
+                              {Math.abs(kpi.trend)}%
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {/* Service data summary */}
+                {serviceData && (
+                  <Card>
+                    <CardHeader className="pb-2 px-4 pt-4">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" />
+                        Resumen {currentMonthLabel}
                       </CardTitle>
-                      <div className={`p-2 rounded-lg ${kpi.bgColor}`}>
-                        <Icon className={`h-4 w-4 ${kpi.color}`} />
-                      </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{kpi.value}</div>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        {kpi.description}
-                      </p>
-                      <div className="flex items-center gap-1 text-xs">
-                        {isPositive ? (
-                          <TrendingUp className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <TrendingDown className="h-3 w-3 text-red-500" />
-                        )}
-                        <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
-                          {Math.abs(kpi.trend)}%
-                        </span>
-                        <span className="text-muted-foreground">vs mes anterior</span>
+                    <CardContent className="px-4 pb-4 grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Servicios</span>
+                        <p className="text-base font-bold text-primary">{serviceData.currentMonth.services.toLocaleString()}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">GMV</span>
+                        <p className="text-base font-bold">${serviceData.currentMonth.gmv.toFixed(1)}M</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">AOV</span>
+                        <p className="text-base font-bold">{formatCurrency(serviceData.currentMonth.aov)}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Ritmo Diario</span>
+                        <p className="text-base font-bold">{serviceData.currentMonth.dailyPace}</p>
                       </div>
                     </CardContent>
                   </Card>
-                );
-              })}
-            </div>
+                )}
 
-            {/* Month Summary with Service Data */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Resumen {currentMonthLabel}
-                  </CardTitle>
-                  <CardDescription>
-                    Métricas consolidadas del mes actual
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {serviceData && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center py-2 border-b">
-                          <span className="text-sm">Servicios Totales</span>
-                          <span className="text-lg font-bold text-primary">
-                            {serviceData.currentMonth.services.toLocaleString()}
-                          </span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center py-2 border-b">
-                          <span className="text-sm">GMV Acumulado</span>
-                          <span className="text-lg font-bold text-green-600">
-                            ${serviceData.currentMonth.gmv.toFixed(1)}M
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center py-2 border-b">
-                          <span className="text-sm">AOV Promedio</span>
-                          <span className="text-lg font-bold text-purple-600">
-                            {formatCurrency(serviceData.currentMonth.aov)}
-                          </span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center py-2 border-b">
-                          <span className="text-sm">Ritmo Diario</span>
-                          <span className="text-lg font-bold text-orange-600">
-                            {serviceData.currentMonth.dailyPace}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Key Performance Indicators */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>KPIs Principales</CardTitle>
-                  <CardDescription>
-                    Indicadores clave de rendimiento
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {secondaryKPIs.slice(0, 4).map((kpi, index) => {
-                    const Icon = kpi.icon;
-                    const progressPercentage = (kpi.progress / kpi.target) * 100;
-                    
-                    return (
-                      <div key={index} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Icon className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">{kpi.title}</span>
+                {/* Secondary KPIs */}
+                <Card>
+                  <CardHeader className="pb-2 px-4 pt-4">
+                    <CardTitle className="text-sm">KPIs Principales</CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 space-y-3">
+                    {secondaryKPIs.slice(0, 4).map((kpi, index) => {
+                      const Icon = kpi.icon;
+                      const progressPercentage = (kpi.progress / kpi.target) * 100;
+                      return (
+                        <div key={index} className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-xs font-medium">{kpi.title}</span>
+                            </div>
+                            <span className="text-xs font-bold">{kpi.value}</span>
                           </div>
-                          <span className="text-sm font-bold">{kpi.value}</span>
+                          <Progress value={Math.min(progressPercentage, 100)} className="h-1.5" />
                         </div>
-                        <Progress 
-                          value={Math.min(progressPercentage, 100)} 
-                          className="h-2" 
-                        />
-                      </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+
+                <div className="relative py-2">
+                  <Separator />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs font-medium text-muted-foreground">
+                    Calibración
+                  </span>
+                </div>
+
+                <CalibrationDashboard />
+              </TabsContent>
+            </>
+          ) : (
+            <>
+              {/* ── DESKTOP: Original 7 TabsContent ── */}
+              <TabsContent value="operacional" className="space-y-6">
+                <OperationalOverview />
+              </TabsContent>
+
+              <TabsContent value="adquisicion" className="space-y-6">
+                <AcquisitionOverview />
+                <div className="mt-8">
+                  <DailyLeadsCallsChart />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="clientes" className="space-y-6">
+                <ClientAnalytics />
+              </TabsContent>
+
+              <TabsContent value="kpis" className="space-y-6">
+                <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={setSelectedKPI} />
+              </TabsContent>
+
+              <TabsContent value="costos" className="space-y-6">
+                <ExpenseMetricsCards />
+                <ExpenseDistributionChart />
+                <div className="space-y-6">
+                  <ExpenseForm />
+                  <ExpensesList />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="resumen" className="space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                  {mainKPIs.map((kpi, index) => {
+                    const Icon = kpi.icon;
+                    const isPositive = kpi.trend > 0;
+                    return (
+                      <Card key={index} className="relative overflow-hidden">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
+                          <div className={`p-2 rounded-lg ${kpi.bgColor}`}>
+                            <Icon className={`h-4 w-4 ${kpi.color}`} />
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{kpi.value}</div>
+                          <p className="text-xs text-muted-foreground mb-2">{kpi.description}</p>
+                          <div className="flex items-center gap-1 text-xs">
+                            {isPositive ? (
+                              <TrendingUp className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <TrendingDown className="h-3 w-3 text-red-500" />
+                            )}
+                            <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
+                              {Math.abs(kpi.trend)}%
+                            </span>
+                            <span className="text-muted-foreground">vs mes anterior</span>
+                          </div>
+                        </CardContent>
+                      </Card>
                     );
                   })}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                </div>
 
-          {/* Calibración Tab */}
-          <TabsContent value="calibracion" className="space-y-6">
-            <CalibrationDashboard />
-          </TabsContent>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <Card className="lg:col-span-2">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        Resumen {currentMonthLabel}
+                      </CardTitle>
+                      <CardDescription>Métricas consolidadas del mes actual</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {serviceData && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center py-2 border-b">
+                              <span className="text-sm">Servicios Totales</span>
+                              <span className="text-lg font-bold text-primary">{serviceData.currentMonth.services.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b">
+                              <span className="text-sm">GMV Acumulado</span>
+                              <span className="text-lg font-bold text-green-600">${serviceData.currentMonth.gmv.toFixed(1)}M</span>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center py-2 border-b">
+                              <span className="text-sm">AOV Promedio</span>
+                              <span className="text-lg font-bold text-purple-600">{formatCurrency(serviceData.currentMonth.aov)}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b">
+                              <span className="text-sm">Ritmo Diario</span>
+                              <span className="text-lg font-bold text-orange-600">{serviceData.currentMonth.dailyPace}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>KPIs Principales</CardTitle>
+                      <CardDescription>Indicadores clave de rendimiento</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {secondaryKPIs.slice(0, 4).map((kpi, index) => {
+                        const Icon = kpi.icon;
+                        const progressPercentage = (kpi.progress / kpi.target) * 100;
+                        return (
+                          <div key={index} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{kpi.title}</span>
+                              </div>
+                              <span className="text-sm font-bold">{kpi.value}</span>
+                            </div>
+                            <Progress value={Math.min(progressPercentage, 100)} className="h-2" />
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="calibracion" className="space-y-6">
+                <CalibrationDashboard />
+              </TabsContent>
+            </>
+          )}
         </Tabs>
 
         {/* KPI Detail View Modal */}
