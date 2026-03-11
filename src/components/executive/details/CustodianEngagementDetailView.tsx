@@ -250,7 +250,7 @@ export function CustodianEngagementDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 200 : 300}>
               <ComposedChart data={tendenciaMensual}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="mes" />
