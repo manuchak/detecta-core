@@ -373,7 +373,7 @@ const KPIDashboard = () => {
             </TabsList>
           ) : (
             /* ── Desktop: 7 tabs ── */
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="operacional" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
                 <Activity className="h-4 w-4" />
                 Operacional
@@ -389,10 +389,6 @@ const KPIDashboard = () => {
               <TabsTrigger value="kpis" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
                 <BarChart3 className="h-4 w-4" />
                 KPIs
-              </TabsTrigger>
-              <TabsTrigger value="costos" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
-                <DollarSign className="h-4 w-4" />
-                Costos
               </TabsTrigger>
               <TabsTrigger value="resumen" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
                 <Building className="h-4 w-4" />
