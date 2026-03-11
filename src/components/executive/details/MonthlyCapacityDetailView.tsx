@@ -302,7 +302,7 @@ export function MonthlyCapacityDetailView() {
             <CardDescription>Capacidad mensual total por categoría</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 180 : 250}>
               <PieChart>
                 <Pie
                   data={calculations.pieData}
