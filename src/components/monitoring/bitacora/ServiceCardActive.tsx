@@ -132,7 +132,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
             size="sm"
             className={cn(
               'gap-0.5 text-muted-foreground hover:text-foreground relative',
-              isMobile ? 'h-9 min-h-[44px] text-xs px-2' : 'h-6 text-[11px] px-1.5'
+              isMobile ? 'h-8 text-xs px-2' : 'h-6 text-[11px] px-1.5'
             )}
             onClick={(e) => { e.stopPropagation(); setCommOpen(true); }}
           >
