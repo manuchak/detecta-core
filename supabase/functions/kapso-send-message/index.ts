@@ -49,15 +49,14 @@ interface SendMessageRequest {
 }
 
 function normalizePhoneNumber(phone: string): string {
-  // Eliminar espacios, guiones, paréntesis y +
   let cleaned = phone.replace(/[\s\-\(\)\.\+]/g, '');
   
   if (cleaned.length === 10) {
-    // 10 dígitos → agregar 521 (México celular)
-    return '521' + cleaned;
+    return '52' + cleaned;           // MX: 52 + 10 dígitos
   } else if (cleaned.length === 12 && cleaned.startsWith('52')) {
-    // 52 + 10 dígitos → insertar 1 después del 52
-    return '521' + cleaned.slice(2);
+    return cleaned;                   // Ya correcto: 52 + 10
+  } else if (cleaned.length === 13 && cleaned.startsWith('521')) {
+    return '52' + cleaned.slice(3);  // Quitar el 1: 521xxx → 52xxx
   } else if (cleaned.length === 13 && cleaned.startsWith('521')) {
     // Ya tiene formato correcto 521 + 10 dígitos
     return cleaned;

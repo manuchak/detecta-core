@@ -1,121 +1,67 @@
+# Centro de Comunicaciones WhatsApp — Bitácora
 
+## Estado: Fase 1 completada ✅
 
-# Análisis Fishbone: Templates WhatsApp No Recibidos
+### DB (migración aplicada)
+- ✅ `whatsapp_messages`: columnas `servicio_id` (FK) e `is_read` agregadas con índices
+- ✅ `servicio_comm_media`: tabla creada con RLS (`has_monitoring_role` / `has_monitoring_write_role`)
+- ✅ `pc_clientes`: columna `contacto_whatsapp` agregada
+- ✅ Bucket `whatsapp-media` creado (público, RLS para upload)
+- ✅ Realtime habilitado en `servicio_comm_media`
 
-## Resumen de Hallazgos
+### Frontend (creado)
+- ✅ `useServicioComm.ts` — hook con mensajes por servicio, Realtime, conteo sin leer
+- ✅ `ServiceCommSheet.tsx` — Sheet lateral con Tabs (Chat / Reportar)
+- ✅ `CustodioChat.tsx` — Timeline iMessage-style con quick actions
+- ✅ `ClientReportComposer.tsx` — Galería de fotos + template + envío
+- ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
+- ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
 
-Tracé la secuencia completa de envío. **Desde el código, todo funciona correctamente:**
+## Fase 2 — Backend (pendiente parcial)
+- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
+- Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
+- Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
 
-```text
-┌──────────┐    ┌───────────────┐    ┌─────────┐    ┌──────┐    ┌─────────┐
-│ Frontend │───▶│ Edge Function │───▶│ Kapso   │───▶│ Meta │───▶│ Teléfono│
-│ CommTest │    │ send-template │    │ API     │    │ WA   │    │ Destino │
-│ Panel    │    │               │    │         │    │      │    │         │
-│ ✅ OK    │    │ ✅ 200 + wamid│    │ ✅ OK   │    │ ✅?  │    │ ❌ ???  │
-└──────────┘    └───────────────┘    └─────────┘    └──────┘    └─────────┘
-                       │
-                       ▼
-                ┌───────────────┐
-                │ whatsapp_     │
-                │ messages DB   │
-                │ ✅ Registrado │
-                └───────────────┘
-```
+## Fase 2.5 — Trazabilidad monitorista ✅
+- ✅ `whatsapp_messages.sent_by_user_id` — columna UUID con FK a auth.users
+- ✅ Edge functions `kapso-send-message` y `kapso-send-template` registran `sent_by_user_id`
+- ✅ `ServiceCommSheet` envía `user.id` al invocar edge functions
+- ✅ `useServicioComm` resuelve `display_name` desde `profiles`
+- ✅ `CustodioChat` muestra nombre del monitorista en burbujas y separadores de handoff
 
-## Diagrama Fishbone - Causas Posibles
+## Fase 2.6 — Debug E2E Comunicación ✅
+- ✅ Bug 1: Nombres de campo corregidos (`phone`→`to`, `template_name`→`templateName`, `language_code`→`languageCode`, `message`→`text`, agregado `type:'text'`)
+- ✅ Bug 2: Se usa `service.custodio_telefono` en lugar de `service.custodio_asignado` como número de teléfono
+- ✅ Bug 3: `BoardService` ahora incluye `custodio_telefono` y `telefono_cliente` en la query e interfaz
+- ✅ Bug 4: Edge functions insertan `servicio_id` desde `context.servicio_id` en `whatsapp_messages`
+- ✅ Bug 5: Formato de `components` corregido de array a objeto `{ body: { parameters: [...] } }`
+- ✅ Bug 6: `telefono_cliente` se pasa a `ClientReportComposer` como `contactoWhatsapp`
+- ✅ Bug 7: Se pasa `service.id` (UUID) como `servicio_id` en context
+- ✅ Validación: guard de teléfono antes de enviar nudge o mensaje libre
 
-```text
-                          NO LLEGAN MENSAJES AL TELÉFONO
-                          ══════════════════════════════
-                                      │
-        ┌───────────────┬─────────────┼──────────────┬────────────────┐
-        │               │             │              │                │
-   NORMALIZACIÓN    TEMPLATE EN   WEBHOOK DE     CONFIGURACIÓN     TELÉFONO
-   DE TELÉFONO      META/KAPSO    ESTATUS        DE KAPSO          DESTINO
-        │               │             │              │                │
-  ┌─────┴─────┐   ┌─────┴─────┐  ┌───┴────┐   ┌────┴─────┐   ┌─────┴─────┐
-  │521 vs 52  │   │Params no  │  │No hay  │   │Phone ID  │   │Notif off  │
-  │(formato   │   │coinciden  │  │webhook │   │incorrecto│   │o bloqueado│
-  │México)    │   │con Meta   │  │config. │   │en secret │   │           │
-  └───────────┘   └───────────┘  └────────┘   └──────────┘   └───────────┘
-      ⚠️ #1           ⚠️ #2        ⚠️ #3          ⚠️ #4          ⚠️ #5
-```
+## Fase 3 — Blindaje Workflow Planeación → Monitoreo ✅
 
-## Análisis Detallado por Causa
+### Gate de Visibilidad (Q1)
+- ✅ `useBitacoraBoard.ts` — pendingQuery ahora filtra `.not('hora_llegada_custodio', 'is', null)` 
+- ✅ Monitoreo SOLO ve servicios donde Planeación confirmó "En Sitio"
 
-### ⚠️ #1 ALTA PRIORIDAD - Formato de Número de Teléfono (521 vs 52)
+### Guard de Inicio
+- ✅ `iniciarServicio` verifica `hora_llegada_custodio IS NOT NULL` antes de escribir `hora_inicio_real`
+- ✅ Toast de error explícito si custodio no ha sido marcado "En Sitio"
 
-**El problema más probable.** La función `normalizePhoneNumber` en ambas edge functions (`kapso-send-template` y `kapso-send-message`) convierte 10 dígitos → `521` + 10 dígitos.
+### Protección de Asignaciones Manuales (OrphanGuard Rule 4)
+- ✅ `useOrphanGuard.ts` — Rule 4 excluye asignaciones con `asignado_por != null` (coordinador)
+- ✅ Solo limpia asignaciones automáticas >4h en el futuro
 
-```
-Input:  5518095686 (10 dígitos)
-Output: 5215518095686 (con el "1" intercalado)
-```
+### Supresión de Alertas en Pernocta
+- ✅ `computePhaseAndTimers` no escala `alertLevel` cuando evento activo es `pernocta`
 
-**Desde agosto 2019, México eliminó el prefijo "1" para celulares.** El formato correcto para WhatsApp API es `52` + 10 dígitos = `525518095686` (12 dígitos). Meta acepta ambos formatos en su API, pero en algunos casos el formato con `521` causa que el mensaje se marque como "delivered" sin llegar realmente al dispositivo, porque se entrega a un "número fantasma" en la red de Meta.
+### Contador Total por Monitorista
+- ✅ `BitacoraBoard.tsx` — Badge desglosado: `N pendientes · M en curso · K evento = T total`
+- ✅ `MonitoristaCard.tsx` — Badge `(NP · MC · KE)` por fase
+- ✅ `CoordinatorCommandCenter.tsx` — Calcula `phaseBreakdownByMonitorista` y lo pasa a cards
 
-**Esto explica por qué Kapso muestra "entregado" pero no llega nada al teléfono.**
-
-**Fix necesario en ambas edge functions:**
-```typescript
-// ANTES (incorrecto para México moderno)
-if (cleaned.length === 10) {
-  return '521' + cleaned;  // ❌ 521 ya no es necesario
-}
-
-// DESPUÉS (correcto)
-if (cleaned.length === 10) {
-  return '52' + cleaned;   // ✅ 52 + 10 dígitos
-}
-```
-
-### ⚠️ #2 MEDIA - Parámetros del Template vs Meta
-
-El template `confirmacion_posicionamiento` tiene 4 variables (`custodio_nombre`, `ubicacion`, `hora`, `servicio_id`) y el payload las envía correctamente. Sin embargo, si el template registrado en Meta tiene un formato diferente (ej. diferente número de variables o tipo de componente), Meta acepta el request pero no entrega el mensaje.
-
-**Verificación necesaria:** Comparar el payload enviado con la definición exacta del template en el Business Manager de Meta.
-
-### ⚠️ #3 MEDIA - Webhook No Configurado
-
-Sin webhook configurado, el sistema **nunca recibe confirmación de delivery/read/failed**. El `delivery_status` en la BD se queda en `sent` para siempre. Esto no causa la no-entrega, pero significa que no hay forma de detectar fallos desde el sistema.
-
-### ⚠️ #4 BAJA - KAPSO_PHONE_NUMBER_ID
-
-El secret existe y funciona (la API responde 200). Pero si apunta a un número de WhatsApp Business diferente al esperado, los mensajes saldrían desde otro número.
-
-### ⚠️ #5 BAJA - Teléfono Destino
-
-El usuario podría tener el número de WhatsApp Business bloqueado, notificaciones desactivadas, o estar revisando un WhatsApp diferente (personal vs business).
-
-## Plan de Corrección
-
-### Archivos a modificar:
-
-| Archivo | Cambio |
-|---|---|
-| `supabase/functions/kapso-send-template/index.ts` | Fix `normalizePhoneNumber`: `10 dígitos → '52' + dígitos` (sin el 1) |
-| `supabase/functions/kapso-send-message/index.ts` | Mismo fix de normalización |
-
-### La función corregida:
-
-```typescript
-function normalizePhoneNumber(phone: string): string {
-  let cleaned = phone.replace(/[\s\-\(\)\.\+]/g, '');
-  
-  if (cleaned.length === 10) {
-    return '52' + cleaned;           // MX: 52 + 10 dígitos
-  } else if (cleaned.length === 12 && cleaned.startsWith('52')) {
-    return cleaned;                   // Ya correcto: 52 + 10
-  } else if (cleaned.length === 13 && cleaned.startsWith('521')) {
-    return '52' + cleaned.slice(3);  // Quitar el 1: 521xxx → 52xxx
-  }
-  
-  return cleaned;
-}
-```
-
-### Después del fix:
-- Probar envío al mismo número
-- Si llega, el problema era el formato `521`
-- Si no llega, escalar a verificación en el Business Manager de Meta para validar que el template y el Phone Number ID sean correctos
-
+## Fase 4 — Escalamiento y métricas (pendiente)
+- Auto-escalamiento si custodio no responde a nudge en 15/30 min
+- Dashboard de métricas de comunicación
+- Bulk nudge para todos los custodios activos
