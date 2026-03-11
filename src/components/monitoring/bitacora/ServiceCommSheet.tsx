@@ -118,7 +118,7 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
 
   if (!service) return null;
 
-  const imageCount = media.filter(m => m.media_type === 'image').length;
+  const imageCount = media.filter(m => m.media_type?.startsWith('image') || m.media_type === 'image').length;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

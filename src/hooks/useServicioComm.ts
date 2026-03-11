@@ -42,7 +42,7 @@ export function useServicioComm(servicioId: string | null) {
       if (!servicioId) return [];
       const { data, error } = await supabase
         .from('whatsapp_messages')
-        .select('id, chat_id, content, media_url, media_type, is_from_bot, delivery_status, created_at, servicio_id, is_read')
+        .select('id, chat_id, message_text, media_url, message_type, is_from_bot, delivery_status, created_at, servicio_id, is_read')
         .eq('servicio_id', servicioId)
         .order('created_at', { ascending: true });
       if (error) throw error;
