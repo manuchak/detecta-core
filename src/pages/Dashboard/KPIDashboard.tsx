@@ -424,7 +424,7 @@ const KPIDashboard = () => {
 
               {/* ── MOBILE: KPIs (KPIs + Costos) ── */}
               <TabsContent value="kpis-cost" className="space-y-4">
-                <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={setSelectedKPI} />
+                <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={(kpi, tooltip) => { setSelectedKPI(kpi); setSelectedKPITooltip(tooltip || null); }} />
 
                 <div className="relative py-2">
                   <Separator />
