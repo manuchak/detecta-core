@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePerformanceHistorico } from '@/hooks/usePerformanceHistorico';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
