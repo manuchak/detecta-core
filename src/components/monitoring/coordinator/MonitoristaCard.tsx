@@ -92,6 +92,11 @@ export const MonitoristaCard: React.FC<Props> = ({
             <span className="text-[10px] text-muted-foreground tabular-nums">
               {count} servicio{count !== 1 ? 's' : ''}
             </span>
+            {phaseBreakdown && (
+              <span className="text-[9px] text-muted-foreground/70 tabular-nums">
+                ({phaseBreakdown.pending}P · {phaseBreakdown.enCurso}C · {phaseBreakdown.evento}E)
+              </span>
+            )}
             {(monitorista.event_count || 0) > 0 && (
               <span className="text-[9px] text-chart-2 flex items-center gap-0.5">
                 <Zap className="h-2.5 w-2.5" />
