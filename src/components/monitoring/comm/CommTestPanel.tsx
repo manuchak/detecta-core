@@ -473,12 +473,12 @@ const TemplateTestSection: React.FC<{
           </SelectTrigger>
           <SelectContent>
             {Object.entries(grouped).map(([category, catTemplates]) => (
-              <React.Fragment key={category}>
+              <SelectGroup key={category}>
                 <SelectLabel className="text-xs uppercase text-muted-foreground">{category}</SelectLabel>
                 {catTemplates.map(t => (
                   <SelectItem key={t.name} value={t.name}>{t.label}</SelectItem>
                 ))}
-              </React.Fragment>
+              </SelectGroup>
             ))}
           </SelectContent>
         </Select>
