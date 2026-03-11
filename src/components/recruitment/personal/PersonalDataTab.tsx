@@ -66,11 +66,11 @@ export function PersonalDataTab({ candidatoId }: Props) {
     enabled: !!candidatoId,
   });
 
-  const { formData, setFormData, clearDraft, hasDraft } = usePersistedForm<PersonalData>(
-    `personal-data-${candidatoId}`,
-    EMPTY_FORM,
-    'light'
-  );
+  const { data: formData, setData: setFormData, updateData, clearDraft, hasDraft } = useFormPersistence<PersonalData>({
+    key: `personal-data-${candidatoId}`,
+    initialData: EMPTY_FORM,
+    level: 'light',
+  });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [initialized, setInitialized] = useState(false);
