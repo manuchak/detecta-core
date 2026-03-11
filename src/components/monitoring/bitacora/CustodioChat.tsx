@@ -90,11 +90,32 @@ function MediaBubble({ url, caption }: { url: string; caption?: string }) {
   );
 }
 
+/* ── Handoff separator ── */
+function HandoffSeparator({ name }: { name: string }) {
+  return (
+    <div className="flex items-center justify-center py-2 gap-2">
+      <div className="flex-1 h-px bg-border/30" />
+      <span className="px-2.5 py-0.5 rounded-full bg-accent/50 border border-border/20 text-[9px] font-medium text-muted-foreground/70 flex items-center gap-1">
+        🔄 {name} tomó el servicio
+      </span>
+      <div className="flex-1 h-px bg-border/30" />
+    </div>
+  );
+}
+
+/* ── Short display name (first name + last initial) ── */
+function shortName(displayName: string | null): string {
+  if (!displayName) return 'Sistema';
+  const parts = displayName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[1][0]}.`;
+}
+
 /* ── Message Bubble ── */
-function MessageBubble({ msg, showTail }: { msg: CommMessage; showTail: boolean }) {
+function MessageBubble({ msg, showTail, showAuthor, authorName }: { msg: CommMessage; showTail: boolean; showAuthor: boolean; authorName: string | null }) {
   const isBot = msg.is_from_bot;
   const time = format(new Date(msg.created_at), 'HH:mm');
-  const hasMedia = !!msg.media_url && !msg.media_url?.match(/^[a-f0-9]+$/i); // Skip raw Kapso media IDs
+  const hasMedia = !!msg.media_url && !msg.media_url?.match(/^[a-f0-9]+$/i);
   const hasContent = !!msg.message_text && msg.message_text !== '[Imagen]';
 
   return (
@@ -104,6 +125,13 @@ function MessageBubble({ msg, showTail }: { msg: CommMessage; showTail: boolean 
         isBot ? 'ml-auto items-end' : 'mr-auto items-start'
       )}
     >
+      {/* Author label for bot messages */}
+      {isBot && showAuthor && (
+        <span className="text-[9px] font-medium text-muted-foreground/60 px-2 mb-0.5">
+          {authorName ? shortName(authorName) : 'Sistema'}
+        </span>
+      )}
+
       <div
         className={cn(
           'relative px-3 py-2 text-[13px] leading-[1.35] transition-shadow',
@@ -133,7 +161,6 @@ function MessageBubble({ msg, showTail }: { msg: CommMessage; showTail: boolean 
       {/* Timestamp + delivery status */}
       <div className={cn(
         'flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150',
-        // Always show on last message
         showTail && 'opacity-100'
       )}>
         <span className="text-[9px] text-muted-foreground/50 tabular-nums">{time}</span>
