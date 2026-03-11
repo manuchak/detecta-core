@@ -1,4 +1,5 @@
-// @ts-nocheck – Executive Dashboard (cleaned)
+// @ts-nocheck
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, TrendingUp, Target, Star, Radio, Loader2 } from 'lucide-react';
