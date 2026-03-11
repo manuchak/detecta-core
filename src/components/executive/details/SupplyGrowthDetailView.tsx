@@ -116,7 +116,7 @@ export function SupplyGrowthDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold flex items-center gap-2 ${getTrendColor(currentMonth?.crecimientoPorcentual || 0)}`}>
+            <div className={`text-lg md:text-2xl font-bold flex items-center gap-1 md:gap-2 ${getTrendColor(currentMonth?.crecimientoPorcentual || 0)}`}>
               {getTrendIcon(currentMonth?.crecimientoPorcentual || 0)}
               {formatPercentage(currentMonth?.crecimientoPorcentual || 0)}
             </div>
