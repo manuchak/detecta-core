@@ -132,7 +132,7 @@ export function useServicioComm(servicioId: string | null, commChannel?: string)
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['servicio-comm', servicioId] });
+      queryClient.invalidateQueries({ queryKey: ['servicio-comm', servicioId, commChannel] });
       queryClient.invalidateQueries({ queryKey: ['servicio-comm-unread'] });
     },
   });
