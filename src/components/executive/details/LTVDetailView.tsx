@@ -56,78 +56,69 @@ export function LTVDetailView() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <DollarSign className="h-3.5 w-3.5" />
               LTV Promedio
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-green-600">
               {formatCurrency(ltvData.yearlyData.ltvGeneral)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Valor de vida general
-            </p>
-            <div className="text-xs text-muted-foreground mt-2 flex items-start gap-1">
-              <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-              <span>
-                LTV basado en mediana de permanencia ({ltvData.tiempoVidaPromedio.toFixed(1)}m)
-              </span>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Valor de vida general</p>
+            <div className="text-[10px] md:text-xs text-muted-foreground mt-1 md:mt-2 flex items-start gap-1">
+              <Info className="h-2.5 w-2.5 md:h-3 md:w-3 mt-0.5 flex-shrink-0" />
+              <span className="hidden md:inline">LTV basado en mediana ({ltvData.tiempoVidaPromedio.toFixed(1)}m)</span>
+              <span className="md:hidden">{ltvData.tiempoVidaPromedio.toFixed(1)}m mediana</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" />
               Custodios Activos
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-blue-600">
               {ltvData.yearlyData.totalCustodios.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Total del período
-            </p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Total del período</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Ingreso por Custodio
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <Target className="h-3.5 w-3.5" />
+              Ingreso/Custodio
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-purple-600">
               {formatCurrency(ltvData.yearlyData.ingresoPromedioPorCustodio)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Promedio mensual
-            </p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Promedio mensual</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5" />
               Mes Actual
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-orange-600">
               {formatCurrency(ltvData.currentMonthData.ltvCalculado)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {ltvData.currentMonthData.month}
-            </p>
+            <p className="text-[10px] md:text-xs text-muted-foreground">{ltvData.currentMonthData.month}</p>
           </CardContent>
         </Card>
       </div>
