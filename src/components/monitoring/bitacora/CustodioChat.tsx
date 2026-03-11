@@ -259,12 +259,28 @@ export const CustodioChat: React.FC<CustodioChatProps> = ({
               {groupMsgs.map((msg, i) => {
                 const isLast = i === groupMsgs.length - 1;
                 const nextDifferentSender = isLast || groupMsgs[i + 1].is_from_bot !== msg.is_from_bot;
+                
+                // Determine if we should show author label (when sender changes among bot messages)
+                const prevMsg = i > 0 ? groupMsgs[i - 1] : null;
+                const showAuthor = msg.is_from_bot && (
+                  !prevMsg || !prevMsg.is_from_bot || prevMsg.sent_by_user_id !== msg.sent_by_user_id
+                );
+
+                // Insert handoff separator when bot sender changes
+                const showHandoff = msg.is_from_bot && prevMsg?.is_from_bot &&
+                  prevMsg.sent_by_user_id !== msg.sent_by_user_id &&
+                  msg.sent_by_user_id !== null;
+
                 return (
-                  <MessageBubble
-                    key={msg.id}
-                    msg={msg}
-                    showTail={nextDifferentSender}
-                  />
+                  <React.Fragment key={msg.id}>
+                    {showHandoff && <HandoffSeparator name={shortName(msg.sender_display_name)} />}
+                    <MessageBubble
+                      msg={msg}
+                      showTail={nextDifferentSender}
+                      showAuthor={showAuthor}
+                      authorName={msg.sender_display_name}
+                    />
+                  </React.Fragment>
                 );
               })}
             </React.Fragment>
