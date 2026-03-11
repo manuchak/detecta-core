@@ -740,13 +740,13 @@ const LiberacionChecklistModal = ({
                     </Badge>
                   )}
                   {/* Gate badge for docs */}
-                  {(!liberacion.documentacion_ine || !liberacion.documentacion_licencia) && (
+                  {(!liberacion.documentacion_ine || (liberacion.tipo_operativo !== 'armado' && !liberacion.documentacion_licencia)) && (
                     <Badge variant="destructive" className="ml-auto text-xs">
                       <XCircle className="h-3 w-3 mr-1" />
                       Bloqueo
                     </Badge>
                   )}
-                  {liberacion.documentacion_ine && liberacion.documentacion_licencia && progress.documentacion === 100 && (
+                  {liberacion.documentacion_ine && (liberacion.tipo_operativo === 'armado' || liberacion.documentacion_licencia) && progress.documentacion === 100 && (
                     <Badge variant="success" className="ml-auto text-xs">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       OK
