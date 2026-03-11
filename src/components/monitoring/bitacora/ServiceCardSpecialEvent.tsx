@@ -21,6 +21,9 @@ const ROUTINE_TYPES = ['combustible', 'baño', 'descanso', 'trafico'];
 
 export const ServiceCardSpecialEvent: React.FC<ServiceCardSpecialEventProps> = ({ service, onCerrar, onDoubleClick, isPending }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [commOpen, setCommOpen] = useState(false);
+  const unreadMap = useUnreadCounts();
+  const unreadCount = unreadMap.get(service.id) || 0;
   const event = service.activeEvent;
   if (!event) return null;
 
