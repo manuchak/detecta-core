@@ -504,10 +504,7 @@ const ExecutiveDashboard = () => {
 
             {/* Existentes: Finanzas + Comparativa + Forecast */}
             <FinancialSummaryPanel />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <AnnualComparisonCard />
-              <AdvancedForecastDashboard />
-            </div>
+            <AnnualComparisonCard />
           </>
         )}
       </div>
