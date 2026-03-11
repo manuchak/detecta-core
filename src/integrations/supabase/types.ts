@@ -12189,6 +12189,7 @@ export type Database = {
           contacto_facturacion_tel: string | null
           contacto_nombre: string
           contacto_tel: string
+          contacto_whatsapp: string | null
           created_at: string | null
           created_by: string | null
           csm_asignado: string | null
@@ -12247,6 +12248,7 @@ export type Database = {
           contacto_facturacion_tel?: string | null
           contacto_nombre: string
           contacto_tel: string
+          contacto_whatsapp?: string | null
           created_at?: string | null
           created_by?: string | null
           csm_asignado?: string | null
@@ -12305,6 +12307,7 @@ export type Database = {
           contacto_facturacion_tel?: string | null
           contacto_nombre?: string
           contacto_tel?: string
+          contacto_whatsapp?: string | null
           created_at?: string | null
           created_by?: string | null
           csm_asignado?: string | null
@@ -15803,6 +15806,66 @@ export type Database = {
         }
         Relationships: []
       }
+      servicio_comm_media: {
+        Row: {
+          created_at: string
+          enviado_a_cliente: boolean
+          enviado_a_cliente_at: string | null
+          id: string
+          media_type: string
+          original_media_id: string | null
+          servicio_id: string
+          storage_path: string
+          validado: boolean
+          validado_at: string | null
+          validado_por: string | null
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          enviado_a_cliente?: boolean
+          enviado_a_cliente_at?: string | null
+          id?: string
+          media_type?: string
+          original_media_id?: string | null
+          servicio_id: string
+          storage_path: string
+          validado?: boolean
+          validado_at?: string | null
+          validado_por?: string | null
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          enviado_a_cliente?: boolean
+          enviado_a_cliente_at?: string | null
+          id?: string
+          media_type?: string
+          original_media_id?: string | null
+          servicio_id?: string
+          storage_path?: string
+          validado?: boolean
+          validado_at?: string | null
+          validado_por?: string | null
+          whatsapp_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servicio_comm_media_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_planificados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servicio_comm_media_whatsapp_message_id_fkey"
+            columns: ["whatsapp_message_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       servicio_eventos_ruta: {
         Row: {
           created_at: string | null
@@ -18272,6 +18335,7 @@ export type Database = {
           message_type: string | null
           sender_name: string | null
           sender_phone: string | null
+          servicio_id: string | null
           ticket_id: string | null
         }
         Insert: {
@@ -18287,6 +18351,7 @@ export type Database = {
           message_type?: string | null
           sender_name?: string | null
           sender_phone?: string | null
+          servicio_id?: string | null
           ticket_id?: string | null
         }
         Update: {
@@ -18302,9 +18367,17 @@ export type Database = {
           message_type?: string | null
           sender_name?: string | null
           sender_phone?: string | null
+          servicio_id?: string | null
           ticket_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_planificados"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "whatsapp_messages_ticket_id_fkey"
             columns: ["ticket_id"]

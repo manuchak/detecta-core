@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Fuel, Coffee, Bath, BedDouble, AlertTriangle, MapPinCheck, Timer, MoreHorizontal, User, Shield, Construction } from 'lucide-react';
+import { Fuel, Coffee, Bath, BedDouble, AlertTriangle, MapPinCheck, Timer, MoreHorizontal, User, Shield, Construction, MessageCircle } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
 import { CheckpointPopover } from './CheckpointPopover';
+import { ServiceCommSheet } from './ServiceCommSheet';
 import { useMonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
+import { useUnreadCounts } from '@/hooks/useServicioComm';
 import type { BoardService, SpecialEventType } from '@/hooks/useBitacoraBoard';
 import { cn } from '@/lib/utils';
 
@@ -49,7 +51,10 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
   isCheckpointPending, isEventoPending, isLlegadaPending,
 }) => {
   const [llegadaConfirm, setLlegadaConfirm] = useState(false);
+  const [commOpen, setCommOpen] = useState(false);
   const { monitoristaByService, monitoristas } = useMonitoristaAssignment();
+  const unreadMap = useUnreadCounts();
+  const unreadCount = unreadMap.get(service.id) || 0;
 
   const assignedMonitorista = monitoristaByService.get(service.id_servicio);
   const monitoristaColorIndex = assignedMonitorista
@@ -118,6 +123,21 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
             </Badge>
           )}
 
+          {/* Comm badge */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-[11px] px-1.5 gap-0.5 text-muted-foreground hover:text-foreground relative"
+            onClick={(e) => { e.stopPropagation(); setCommOpen(true); }}
+          >
+            <MessageCircle className="h-3 w-3" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 rounded-full bg-destructive text-destructive-foreground text-[7px] flex items-center justify-center px-0.5 animate-pulse">
+                {unreadCount}
+              </span>
+            )}
+          </Button>
+
           <div className="flex-1" />
 
           <CheckpointPopover
@@ -183,6 +203,12 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
           onLlegadaDestino(service.id, service.id_servicio);
           setLlegadaConfirm(false);
         }}
+      />
+
+      <ServiceCommSheet
+        open={commOpen}
+        onOpenChange={setCommOpen}
+        service={service}
       />
     </>
   );
