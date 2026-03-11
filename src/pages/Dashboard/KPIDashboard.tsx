@@ -556,7 +556,7 @@ const KPIDashboard = () => {
               </TabsContent>
 
               <TabsContent value="kpis" className="space-y-6">
-                <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={setSelectedKPI} />
+                <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={(kpi, tooltip) => { setSelectedKPI(kpi); setSelectedKPITooltip(tooltip || null); }} />
               </TabsContent>
 
               <TabsContent value="costos" className="space-y-6">
