@@ -644,10 +644,10 @@ const ConversationSection: React.FC<{
     let query = supabase
       .from('whatsapp_messages')
       .select('id, chat_id, message_text, message_type, is_from_bot, is_read, delivery_status, servicio_id, sent_by_user_id, media_url, created_at')
-      .in('chat_id', [phone, `521${phone}`])
+      .in('chat_id', [phone, `52${phone}`])
       .order('created_at', { ascending: true })
       .limit(50);
-    if (servicioId) query = query.eq('servicio_id', servicioId);
+    if (servicioId) query = query.or(`servicio_id.eq.${servicioId},servicio_id.is.null`);
     const { data, error } = await query;
     if (!error) setMessages((data || []) as DbMessage[]);
     setLoading(false);
@@ -664,7 +664,7 @@ const ConversationSection: React.FC<{
         event: 'INSERT',
         schema: 'public',
         table: 'whatsapp_messages',
-        filter: `chat_id=eq.521${phone}`,
+        filter: `chat_id=eq.52${phone}`,
       }, () => { fetchMessages(); })
       .on('postgres_changes', {
         event: 'INSERT',
@@ -698,7 +698,7 @@ const ConversationSection: React.FC<{
     } else {
       // Direct insert
       const record: any = {
-        chat_id: `521${phone}`,
+        chat_id: `52${phone}`,
         message_text: quickText,
         message_type: 'text',
         is_from_bot: false,
@@ -806,7 +806,7 @@ const PersistenceSection: React.FC<{ phone: string }> = ({ phone }) => {
     const { data, error } = await supabase
       .from('whatsapp_messages')
       .select('id, chat_id, message_text, message_type, is_from_bot, is_read, delivery_status, servicio_id, sent_by_user_id, media_url, created_at')
-      .in('chat_id', [phone, `521${phone}`])
+      .in('chat_id', [phone, `52${phone}`])
       .order('created_at', { ascending: false })
       .limit(20);
     if (!error) setRows((data || []) as DbMessage[]);
