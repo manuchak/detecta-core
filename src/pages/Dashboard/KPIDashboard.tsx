@@ -362,7 +362,7 @@ const KPIDashboard = () => {
                 <Building2 className="h-3.5 w-3.5" />
                 Clientes
               </TabsTrigger>
-              <TabsTrigger value="kpis-cost" className="flex items-center gap-1 min-h-[44px] text-xs">
+              <TabsTrigger value="kpis" className="flex items-center gap-1 min-h-[44px] text-xs">
                 <BarChart3 className="h-3.5 w-3.5" />
                 KPIs
               </TabsTrigger>
