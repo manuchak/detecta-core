@@ -38,7 +38,7 @@ import { ArmedServicesMoMChart } from '@/components/executive/ArmedServicesMoMCh
 // Existing
 import { FinancialSummaryPanel } from '@/components/executive/FinancialSummaryPanel';
 import { AnnualComparisonCard } from '@/components/executive/AnnualComparisonCard';
-import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
+
 import { MobileOperationalDashboard } from '@/components/executive/MobileOperationalDashboard';
 
 // StarMap
