@@ -90,7 +90,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
         {/* Row 1: Timer hero — right aligned, dominant */}
         <div className="flex items-baseline justify-between gap-2">
           <span className={cn('font-medium truncate flex-1', isMobile ? 'text-sm' : 'text-xs')}>{service.nombre_cliente}</span>
-          <span className={cn('font-mono tabular-nums leading-none', timerColor, isMobile ? 'text-xl' : 'text-lg')}>
+          <span className={cn('font-mono tabular-nums leading-none', timerColor, isMobile ? 'text-lg' : 'text-lg')}>
             {service.minutesSinceLastAction}<span className={cn('ml-0.5', isMobile ? 'text-sm' : 'text-xs')}>m</span>
           </span>
         </div>
