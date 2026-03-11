@@ -359,60 +359,114 @@ export const useLeadApprovals = () => {
         throw new Error(`Error en proceso de aprobación: ${approvalError.message}`);
       }
 
-      // 🔄 ARQUITECTURA FIX: Sincronizar PRIMERO con candidatos_custodios
-      // Si la sincronización falla, el lead NO se marca como aprobado (evita desincronización)
-      const { data: candidatoId, error: syncError } = await supabase
-        .rpc('sync_lead_to_candidato', {
-          p_lead_id: lead.lead_id,
-          p_nombre: lead.lead_nombre,
-          p_email: lead.lead_email,
-          p_telefono: lead.lead_telefono || '',
-          p_fuente: 'Plataforma Detecta',
-          p_estado_proceso: 'aprobado'
-        });
+      // 🔄 ARQUITECTURA FIX: Determinar tipo de operativo y sincronizar con tabla correcta
+      let notesData: Record<string, any> = {};
+      try {
+        notesData = lead.notas ? JSON.parse(lead.notas) : {};
+      } catch { notesData = {}; }
+
+      const tipoCustodio = notesData.tipo_custodio || 'custodio_vehiculo';
+      const esArmado = tipoCustodio === 'armado';
+
+      console.log(`🔀 Tipo operativo detectado: ${tipoCustodio} (esArmado: ${esArmado})`);
+
+      let candidatoId: string;
+      let syncError: any;
+
+      if (esArmado) {
+        // Sincronizar con candidatos_armados
+        const seguridadArmada = notesData.seguridad_armada || {};
+        const { data, error } = await supabase
+          .rpc('sync_lead_to_candidato_armado', {
+            p_lead_id: lead.lead_id,
+            p_nombre: lead.lead_nombre,
+            p_email: lead.lead_email,
+            p_telefono: lead.lead_telefono || '',
+            p_fuente: 'Plataforma Detecta',
+            p_estado_proceso: 'aprobado',
+            p_tipo_armado: 'interno',
+            p_licencia_portacion: seguridadArmada.licencia_armas || null,
+            p_experiencia_seguridad: !!seguridadArmada.experiencia_militar
+          });
+        candidatoId = data;
+        syncError = error;
+      } else {
+        // Sincronizar con candidatos_custodios (flujo original)
+        const { data, error } = await supabase
+          .rpc('sync_lead_to_candidato', {
+            p_lead_id: lead.lead_id,
+            p_nombre: lead.lead_nombre,
+            p_email: lead.lead_email,
+            p_telefono: lead.lead_telefono || '',
+            p_fuente: 'Plataforma Detecta',
+            p_estado_proceso: 'aprobado'
+          });
+        candidatoId = data;
+        syncError = error;
+      }
 
       if (syncError) {
         console.error('❌ Error sincronizando candidato:', syncError);
         throw new Error(`Error vinculando candidato: ${syncError.message}. El lead NO fue aprobado.`);
       }
 
-      console.log('✅ Candidato vinculado exitosamente:', candidatoId);
+      console.log(`✅ Candidato ${esArmado ? 'armado' : 'custodio'} vinculado exitosamente:`, candidatoId);
 
-      // 🚗 Migrar datos vehiculares y personales desde notas del lead al candidato
-      try {
-        let notesData: Record<string, any> = {};
+      // 🚗 Migrar datos adicionales desde notas del lead al candidato (solo para custodios)
+      if (!esArmado) {
         try {
-          notesData = lead.notas ? JSON.parse(lead.notas) : {};
-        } catch { notesData = {}; }
+          const vehiculo = notesData.vehiculo || {};
+          const datosPersonales = notesData.datos_personales || {};
+          const experiencia = notesData.experiencia || {};
 
-        const vehiculo = notesData.vehiculo || {};
-        const datosPersonales = notesData.datos_personales || {};
-        const experiencia = notesData.experiencia || {};
+          const updatePayload: Record<string, any> = {};
+          if (vehiculo.marca_vehiculo) updatePayload.marca_vehiculo = vehiculo.marca_vehiculo;
+          if (vehiculo.modelo_vehiculo) updatePayload.modelo_vehiculo = vehiculo.modelo_vehiculo;
+          if (vehiculo.placas) updatePayload.placas_vehiculo = vehiculo.placas;
+          if (vehiculo.color_vehiculo) updatePayload.color_vehiculo = vehiculo.color_vehiculo;
+          if (vehiculo.numero_serie) updatePayload.numero_serie = vehiculo.numero_serie;
+          if (experiencia.licencia_conducir) updatePayload.numero_licencia = experiencia.licencia_conducir;
+          if (experiencia.tipo_licencia) updatePayload.licencia_expedida_por = experiencia.tipo_licencia;
+          if (datosPersonales.direccion) updatePayload.direccion = datosPersonales.direccion;
 
-        const updatePayload: Record<string, any> = {};
-        if (vehiculo.marca_vehiculo) updatePayload.marca_vehiculo = vehiculo.marca_vehiculo;
-        if (vehiculo.modelo_vehiculo) updatePayload.modelo_vehiculo = vehiculo.modelo_vehiculo;
-        if (vehiculo.placas) updatePayload.placas_vehiculo = vehiculo.placas;
-        if (vehiculo.color_vehiculo) updatePayload.color_vehiculo = vehiculo.color_vehiculo;
-        if (vehiculo.numero_serie) updatePayload.numero_serie = vehiculo.numero_serie;
-        if (experiencia.licencia_conducir) updatePayload.numero_licencia = experiencia.licencia_conducir;
-        if (experiencia.tipo_licencia) updatePayload.licencia_expedida_por = experiencia.tipo_licencia;
-        if (datosPersonales.direccion) updatePayload.direccion = datosPersonales.direccion;
+          if (Object.keys(updatePayload).length > 0) {
+            const { error: vehicleError } = await supabase
+              .from('candidatos_custodios')
+              .update(updatePayload)
+              .eq('id', candidatoId);
 
-        if (Object.keys(updatePayload).length > 0) {
-          const { error: vehicleError } = await supabase
-            .from('candidatos_custodios')
-            .update(updatePayload)
-            .eq('id', candidatoId);
-
-          if (vehicleError) {
-            console.warn('⚠️ No se pudieron migrar datos vehiculares:', vehicleError);
-          } else {
-            console.log('✅ Datos vehiculares migrados al candidato:', Object.keys(updatePayload));
+            if (vehicleError) {
+              console.warn('⚠️ No se pudieron migrar datos vehiculares:', vehicleError);
+            } else {
+              console.log('✅ Datos vehiculares migrados al candidato:', Object.keys(updatePayload));
+            }
           }
+        } catch (vehicleErr) {
+          console.warn('⚠️ Error migrando datos vehiculares:', vehicleErr);
         }
-      } catch (vehicleErr) {
-        console.warn('⚠️ Error parseando notas para datos vehiculares:', vehicleErr);
+      } else {
+        // Para armados, migrar datos de seguridad armada
+        try {
+          const seguridadArmada = notesData.seguridad_armada || {};
+          const updatePayload: Record<string, any> = {};
+          if (seguridadArmada.licencia_armas) updatePayload.licencia_portacion = seguridadArmada.licencia_armas;
+          if (seguridadArmada.años_experiencia_armada) updatePayload.experiencia_seguridad = true;
+
+          if (Object.keys(updatePayload).length > 0) {
+            const { error: armadoError } = await supabase
+              .from('candidatos_armados')
+              .update(updatePayload)
+              .eq('id', candidatoId);
+
+            if (armadoError) {
+              console.warn('⚠️ No se pudieron migrar datos de armado:', armadoError);
+            } else {
+              console.log('✅ Datos de seguridad armada migrados:', Object.keys(updatePayload));
+            }
+          }
+        } catch (armadoErr) {
+          console.warn('⚠️ Error migrando datos de armado:', armadoErr);
+        }
       }
 
       // Solo si la sincronización fue exitosa, actualizar el lead a aprobado
