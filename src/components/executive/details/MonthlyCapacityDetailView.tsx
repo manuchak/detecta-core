@@ -173,7 +173,7 @@ export function MonthlyCapacityDetailView() {
           <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-2">
               <div className="flex items-baseline gap-2">
-                <div className="text-2xl font-bold text-foreground">
+                <div className="text-lg md:text-2xl font-bold text-foreground">
                   {capacityData.availableCustodians}
                 </div>
                 <div className="text-xs text-muted-foreground">
