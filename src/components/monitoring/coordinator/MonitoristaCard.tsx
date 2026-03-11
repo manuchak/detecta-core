@@ -12,6 +12,12 @@ interface UnassignedService {
   horaCita?: string;
 }
 
+interface PhaseBreakdown {
+  pending: number;
+  enCurso: number;
+  evento: number;
+}
+
 interface Props {
   monitorista: MonitoristaProfile;
   assignments: MonitoristaAssignment[];
