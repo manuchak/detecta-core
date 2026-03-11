@@ -1,66 +1,36 @@
 
+# Centro de Comunicaciones WhatsApp — Bitácora
 
-# Trazabilidad de Monitorista en Conversaciones
+## Estado: Fase 1 completada ✅
 
-## Problema actual
+### DB (migración aplicada)
+- ✅ `whatsapp_messages`: columnas `servicio_id` (FK) e `is_read` agregadas con índices
+- ✅ `servicio_comm_media`: tabla creada con RLS (`has_monitoring_role` / `has_monitoring_write_role`)
+- ✅ `pc_clientes`: columna `contacto_whatsapp` agregada
+- ✅ Bucket `whatsapp-media` creado (público, RLS para upload)
+- ✅ Realtime habilitado en `servicio_comm_media`
 
-La tabla `whatsapp_messages` tiene `is_from_bot = true` para todo mensaje enviado desde la plataforma, pero **no registra qué monitorista lo envió**. Cuando un servicio cambia de manos (pausa, handoff, reasignación), el nuevo responsable ve burbujas sin autoría — pierde contexto de quién dijo qué y cuándo.
+### Frontend (creado)
+- ✅ `useServicioComm.ts` — hook con mensajes por servicio, Realtime, conteo sin leer
+- ✅ `ServiceCommSheet.tsx` — Sheet lateral con Tabs (Chat / Reportar)
+- ✅ `CustodioChat.tsx` — Timeline iMessage-style con quick actions
+- ✅ `ClientReportComposer.tsx` — Galería de fotos + template + envío
+- ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
+- ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
 
-## Solución
+## Fase 2 — Backend (pendiente parcial)
+- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
+- Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
+- Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
 
-### 1. Migración DB: agregar `sent_by_user_id` a `whatsapp_messages`
+## Fase 2.5 — Trazabilidad monitorista ✅
+- ✅ `whatsapp_messages.sent_by_user_id` — columna UUID con FK a auth.users
+- ✅ Edge functions `kapso-send-message` y `kapso-send-template` registran `sent_by_user_id`
+- ✅ `ServiceCommSheet` envía `user.id` al invocar edge functions
+- ✅ `useServicioComm` resuelve `display_name` desde `profiles`
+- ✅ `CustodioChat` muestra nombre del monitorista en burbujas y separadores de handoff
 
-```sql
-ALTER TABLE whatsapp_messages
-  ADD COLUMN sent_by_user_id uuid REFERENCES auth.users(id);
-
-CREATE INDEX idx_whatsapp_msg_sent_by ON whatsapp_messages(sent_by_user_id)
-  WHERE sent_by_user_id IS NOT NULL;
-```
-
-Un campo nullable que se llena **solo** cuando `is_from_bot = true` y el mensaje fue enviado por un monitorista autenticado. Los mensajes del custodio (entrantes) y los automatizados (sistema/webhook) quedan con `NULL`.
-
-### 2. Backend: registrar autoría al enviar
-
-En `ServiceCommSheet.tsx`, las funciones `handleSendMessage` y `handleSendNudge` invocan edge functions. Después de enviar exitosamente, hacer un `UPDATE` al registro del mensaje recién creado con el `user.id` actual:
-
-- Modificar `handleSendMessage` y `handleSendNudge` para obtener `supabase.auth.getUser()` y pasar `sent_by_user_id` en el body de la edge function
-- En las edge functions (`kapso-send-message`, `kapso-send-template`), al insertar en `whatsapp_messages`, incluir el campo `sent_by_user_id`
-
-**Alternativa más simple (sin tocar edge functions):** Después de que la edge function responde OK, hacer un UPDATE directo al último mensaje bot insertado para ese servicio, seteando `sent_by_user_id`. Esto es más pragmático y no requiere modificar las edge functions.
-
-### 3. Hook: traer nombre del monitorista
-
-En `useServicioComm.ts`, extender el `select` para incluir `sent_by_user_id` y hacer un join ligero a `profiles` para resolver el `display_name`:
-
-```
-.select('..., sent_by_user_id, profiles!sent_by_user_id(display_name)')
-```
-
-Actualizar la interfaz `CommMessage` para incluir `sent_by_user_id` y `sender_display_name`.
-
-### 4. UI: mostrar autoría en burbujas bot
-
-En `CustodioChat.tsx`, para mensajes con `is_from_bot = true` y `sent_by_user_id` presente:
-
-- Mostrar un label pequeño arriba de la burbuja azul: **"Ana M."** (primer nombre) en `text-[9px] text-primary-foreground/60`
-- Solo mostrar cuando cambia el autor respecto al mensaje anterior (igual que iMessage agrupa por sender)
-- Mensajes de sistema (sin `sent_by_user_id`) mostrar etiqueta "Sistema" en gris
-
-### 5. Indicador de handoff en el timeline
-
-Cuando el `sent_by_user_id` cambia entre dos mensajes bot consecutivos, insertar un separador visual:
-
-```
-─── 🔄 Ana M. tomó el servicio ───
-```
-
-Esto le da al monitorista entrante una señal clara de dónde empezó cada persona, facilitando la lectura rápida del historial.
-
-## Resultado
-
-- **Trazabilidad completa**: cada mensaje enviado desde la plataforma queda firmado con el UUID del monitorista
-- **Continuidad en pausas**: al retomar, el nuevo monitorista ve quién dijo qué, con separadores de cambio de turno
-- **Continuidad en handoffs**: misma experiencia — el historial completo persiste con autoría
-- **Auditoría**: se puede consultar qué instrucciones dio cada monitorista a cada custodio
-
+## Fase 3 — Escalamiento y métricas (pendiente)
+- Auto-escalamiento si custodio no responde a nudge en 15/30 min
+- Dashboard de métricas de comunicación
+- Bulk nudge para todos los custodios activos

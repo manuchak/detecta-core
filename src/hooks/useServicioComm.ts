@@ -17,6 +17,8 @@ export interface CommMessage {
   servicio_id: string | null;
   is_read: boolean;
   sender_name?: string;
+  sent_by_user_id: string | null;
+  sender_display_name: string | null;
 }
 
 export interface CommMedia {
@@ -42,11 +44,27 @@ export function useServicioComm(servicioId: string | null) {
       if (!servicioId) return [];
       const { data, error } = await supabase
         .from('whatsapp_messages')
-        .select('id, chat_id, message_text, media_url, message_type, is_from_bot, delivery_status, created_at, servicio_id, is_read')
+        .select('id, chat_id, message_text, media_url, message_type, is_from_bot, delivery_status, created_at, servicio_id, is_read, sent_by_user_id')
         .eq('servicio_id', servicioId)
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return (data || []) as CommMessage[];
+
+      // Resolve display names for monitorist-sent messages
+      const userIds = [...new Set((data || []).filter((m: any) => m.sent_by_user_id).map((m: any) => m.sent_by_user_id as string))];
+      const nameMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', userIds);
+        (profiles || []).forEach((p: any) => nameMap.set(p.id, p.display_name));
+      }
+
+      return (data || []).map((m: any) => ({
+        ...m,
+        sent_by_user_id: m.sent_by_user_id || null,
+        sender_display_name: m.sent_by_user_id ? (nameMap.get(m.sent_by_user_id) || null) : null,
+      })) as CommMessage[];
     },
     enabled: !!servicioId,
     refetchInterval: 30000,

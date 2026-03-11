@@ -25,6 +25,7 @@ interface SendTemplateRequest {
   to: string;
   templateName: string;
   languageCode?: string;
+  sent_by_user_id?: string;
   components?: {
     header?: {
       type: string;
@@ -151,7 +152,7 @@ serve(async (req) => {
     const messageId = kapsoData.messages?.[0]?.id;
     
     // Registrar en base de datos
-    const messageRecord = {
+    const messageRecord: Record<string, any> = {
       chat_id: normalizedPhone,
       message_id: messageId,
       sender_phone: KAPSO_PHONE_NUMBER_ID,
@@ -160,7 +161,8 @@ serve(async (req) => {
       is_from_bot: true,
       delivery_status: 'sent',
       ticket_id: request.context?.ticket_id || null,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      sent_by_user_id: request.sent_by_user_id || null,
     };
     
     const { error: dbError } = await supabase.from('whatsapp_messages').insert(messageRecord);
