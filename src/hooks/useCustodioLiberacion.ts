@@ -87,14 +87,20 @@ export const useCustodioLiberacion = () => {
       
       if (error) throw error;
 
-      // 🔄 SINCRONIZACIÓN CRÍTICA: Actualizar estado del candidato
-      const { error: candidatoError } = await supabase
+      // 🔄 SINCRONIZACIÓN CRÍTICA: Actualizar estado del candidato (intentar ambas tablas)
+      let candidatoError: any = null;
+      const { error: custodioErr } = await supabase
         .from('candidatos_custodios')
-        .update({
-          estado_proceso: 'en_liberacion',
-          updated_at: new Date().toISOString()
-        })
+        .update({ estado_proceso: 'en_liberacion', updated_at: new Date().toISOString() })
         .eq('id', candidato_id);
+      if (custodioErr) {
+        // Intentar en candidatos_armados
+        const { error: armadoErr } = await supabase
+          .from('candidatos_armados')
+          .update({ estado_proceso: 'en_liberacion', updated_at: new Date().toISOString() })
+          .eq('id', candidato_id);
+        candidatoError = armadoErr;
+      }
 
       if (candidatoError) {
         console.error('Error actualizando estado del candidato:', candidatoError);
