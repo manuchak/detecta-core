@@ -28,7 +28,22 @@ const MONTH_NAMES = [
 
 export const OperationalOverview = () => {
   const { data: metrics, isLoading } = useOperationalMetrics();
+  const { data: historicoData } = usePerformanceHistorico();
   const isMobile = useIsMobile();
+
+  const realTrendData = useMemo(() => {
+    if (!historicoData?.daily) return [];
+    return historicoData.daily.map(d => ({
+      fecha: d.label,
+      fechaLabel: d.label,
+      solicitados: d.total,
+      realizados: Math.round(d.total * d.fillRate / 100),
+      fillRate: d.fillRate,
+      aTiempo: Math.round(d.total * d.onTimeRate / 100),
+      conRetraso: Math.round(d.total * (100 - d.onTimeRate) / 100),
+      otpRate: d.onTimeRate,
+    }));
+  }, [historicoData?.daily]);
   
   const { currentMonthLabel, quarterLabel, mtdLabel, previousMonthLabel } = useMemo(() => {
     const now = new Date();
