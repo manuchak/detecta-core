@@ -21,6 +21,9 @@ interface ServiceCardEnDestinoProps {
 export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ service, onLiberar, onRevertir, onDoubleClick, isPending, isRevertirPending }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [revertConfirmOpen, setRevertConfirmOpen] = useState(false);
+  const [commOpen, setCommOpen] = useState(false);
+  const unreadMap = useUnreadCounts();
+  const unreadCount = unreadMap.get(service.id) || 0;
 
   return (
     <>
