@@ -1,14 +1,14 @@
-import React, { useEffect } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React, { useEffect, useState } from 'react';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, FileText } from 'lucide-react';
+import { MessageCircle, FileText, Shield, User, MapPin } from 'lucide-react';
 import { CustodioChat } from './CustodioChat';
 import { ClientReportComposer } from './ClientReportComposer';
 import { useServicioComm } from '@/hooks/useServicioComm';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
+import { cn } from '@/lib/utils';
 
 interface ServiceCommSheetProps {
   open: boolean;
@@ -16,10 +16,13 @@ interface ServiceCommSheetProps {
   service: BoardService | null;
 }
 
+type CommTab = 'chat' | 'report';
+
 export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
   open, onOpenChange, service,
 }) => {
   const servicioId = service?.id || null;
+  const [activeTab, setActiveTab] = useState<CommTab>('chat');
   const { messages, media, messagesLoading, mediaLoading, unreadCount, markAsRead, validateMedia } = useServicioComm(servicioId);
 
   // Mark as read when sheet opens
@@ -29,13 +32,17 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
     }
   }, [open, unreadCount, markAsRead]);
 
+  // Reset tab on close
+  useEffect(() => {
+    if (!open) setActiveTab('chat');
+  }, [open]);
+
   const handleSendNudge = async () => {
     if (!service) return;
     try {
-      // Use kapso-send-template to send nudge
       const { error } = await supabase.functions.invoke('kapso-send-template', {
         body: {
-          phone: service.custodio_asignado, // Will need phone lookup
+          phone: service.custodio_asignado,
           template_name: 'nudge_status_custodio',
           language_code: 'es_MX',
           components: [
@@ -57,10 +64,9 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
   const handleSendMessage = async (text: string) => {
     if (!service) return;
     try {
-      // Use kapso-send-message to send free text
       const { error } = await supabase.functions.invoke('kapso-send-message', {
         body: {
-          phone: service.custodio_asignado, // Will need phone lookup
+          phone: service.custodio_asignado,
           message: text,
         },
       });
@@ -96,7 +102,6 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
       });
       if (error) throw error;
 
-      // Mark selected media as sent to client
       for (const mediaId of data.selectedMediaIds) {
         await supabase
           .from('servicio_comm_media')
@@ -113,35 +118,86 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
 
   if (!service) return null;
 
+  const imageCount = media.filter(m => m.media_type === 'image').length;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[380px] sm:max-w-[420px] p-0 flex flex-col">
-        <SheetHeader className="px-4 pt-4 pb-2 border-b border-border/30">
-          <SheetTitle className="text-sm font-medium flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-primary" />
-            Comunicaciones
-            <span className="text-xs text-muted-foreground font-normal">· {service.id_servicio}</span>
-          </SheetTitle>
-        </SheetHeader>
+      <SheetContent side="right" className="w-[400px] sm:max-w-[440px] p-0 flex flex-col bg-background/95 backdrop-blur-xl border-l border-border/40">
+        
+        {/* ── Apple-style header with service context ── */}
+        <div className="px-5 pt-5 pb-3 space-y-3">
+          {/* Service info pill */}
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+              <MessageCircle className="h-5 w-5 text-primary" strokeWidth={1.5} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="apple-text-headline text-sm truncate">{service.nombre_cliente}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="apple-text-caption text-[10px] font-mono">{service.id_servicio}</span>
+                <span className="text-muted-foreground/30">·</span>
+                <div className="flex items-center gap-0.5 text-muted-foreground">
+                  <User className="h-2.5 w-2.5" />
+                  <span className="apple-text-caption text-[10px] truncate">{service.custodio_asignado || 'Sin custodio'}</span>
+                </div>
+                {service.requiere_armado && <Shield className="h-2.5 w-2.5 text-chart-4" />}
+              </div>
+            </div>
+          </div>
 
-        <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="mx-3 mt-2 h-9">
-            <TabsTrigger value="chat" className="text-xs gap-1.5 flex-1">
-              <MessageCircle className="h-3 w-3" />
+          {/* Route pill */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border/30">
+            <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+            <span className="apple-text-caption text-[10px] truncate">
+              {service.origen} → {service.destino}
+            </span>
+          </div>
+
+          {/* Tab switcher — iOS segmented control style */}
+          <div className="flex p-0.5 rounded-xl bg-muted/60 border border-border/30">
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] text-xs font-medium transition-all duration-200',
+                activeTab === 'chat'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground/70'
+              )}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
               Custodio
               {unreadCount > 0 && (
-                <Badge className="text-[8px] px-1 py-0 min-w-[14px] h-3.5 bg-destructive text-destructive-foreground border-0">
+                <span className="min-w-[16px] h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-semibold flex items-center justify-center px-1 animate-pulse">
                   {unreadCount}
-                </Badge>
+                </span>
               )}
-            </TabsTrigger>
-            <TabsTrigger value="report" className="text-xs gap-1.5 flex-1">
-              <FileText className="h-3 w-3" />
-              Reportar a Cliente
-            </TabsTrigger>
-          </TabsList>
+            </button>
+            <button
+              onClick={() => setActiveTab('report')}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] text-xs font-medium transition-all duration-200',
+                activeTab === 'report'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground/70'
+              )}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Cliente
+              {imageCount > 0 && (
+                <span className="min-w-[16px] h-4 rounded-full bg-chart-1/15 text-chart-1 text-[9px] font-medium flex items-center justify-center px-1">
+                  {imageCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
 
-          <TabsContent value="chat" className="flex-1 min-h-0 mt-0">
+        {/* ── Divider ── */}
+        <div className="h-px bg-border/30" />
+
+        {/* ── Content area ── */}
+        <div className="flex-1 min-h-0 flex flex-col">
+          {activeTab === 'chat' ? (
             <CustodioChat
               messages={messages}
               isLoading={messagesLoading}
@@ -149,9 +205,7 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
               onSendNudge={handleSendNudge}
               onSendMessage={handleSendMessage}
             />
-          </TabsContent>
-
-          <TabsContent value="report" className="flex-1 min-h-0 mt-0">
+          ) : (
             <ClientReportComposer
               servicioId={service.id}
               clienteName={service.nombre_cliente}
@@ -159,9 +213,10 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
               custodioName={service.custodio_asignado || 'Sin custodio'}
               media={media}
               onSendReport={handleSendReport}
+              onValidateMedia={validateMedia}
             />
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </SheetContent>
     </Sheet>
   );
