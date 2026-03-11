@@ -3,7 +3,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, FileText, Shield, User, MapPin } from 'lucide-react';
 import { CustodioChat } from './CustodioChat';
-import { ClientReportComposer } from './ClientReportComposer';
+import { ClientChat } from './ClientChat';
 import { useServicioComm } from '@/hooks/useServicioComm';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,21 +16,27 @@ interface ServiceCommSheetProps {
   service: BoardService | null;
 }
 
-type CommTab = 'chat' | 'report';
+type CommTab = 'chat' | 'client';
 
 export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
   open, onOpenChange, service,
 }) => {
   const servicioId = service?.id || null;
   const [activeTab, setActiveTab] = useState<CommTab>('chat');
-  const { messages, media, messagesLoading, mediaLoading, unreadCount, markAsRead, validateMedia } = useServicioComm(servicioId);
+
+  // Custodio channel messages
+  const { messages, media, messagesLoading, mediaLoading, unreadCount, markAsRead, validateMedia } = useServicioComm(servicioId, 'custodio_c4');
+
+  // Client channel unread count
+  const { messages: clientMessages } = useServicioComm(servicioId, 'cliente_c4');
+  const clientUnread = clientMessages.filter(m => !m.is_read && m.sender_type === 'cliente').length;
 
   // Mark as read when sheet opens
   useEffect(() => {
-    if (open && unreadCount > 0) {
+    if (open && unreadCount > 0 && activeTab === 'chat') {
       markAsRead();
     }
-  }, [open, unreadCount, markAsRead]);
+  }, [open, unreadCount, markAsRead, activeTab]);
 
   // Reset tab on close
   useEffect(() => {
@@ -61,6 +67,7 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
           },
           context: {
             servicio_id: service.id,
+            comm_channel: 'custodio_c4',
           },
         },
       });
@@ -88,6 +95,7 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
           sent_by_user_id: user?.id || null,
           context: {
             servicio_id: service.id,
+            comm_channel: 'custodio_c4',
           },
         },
       });
@@ -99,62 +107,14 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
     }
   };
 
-  const handleSendReport = async (data: {
-    selectedMediaIds: string[];
-    observaciones: string;
-    destinatario: string;
-  }) => {
-    if (!service) return;
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.functions.invoke('kapso-send-template', {
-        body: {
-          to: data.destinatario,
-          templateName: 'reporte_servicio_cliente',
-          languageCode: 'es_MX',
-          sent_by_user_id: user?.id || null,
-          components: {
-            body: {
-              parameters: [
-                { type: 'text', text: service.nombre_cliente },
-                { type: 'text', text: service.id_servicio },
-                { type: 'text', text: 'en curso' },
-                { type: 'text', text: data.observaciones || 'Sin observaciones' },
-              ],
-            },
-          },
-          context: {
-            servicio_id: service.id,
-          },
-        },
-      });
-      if (error) throw error;
-
-      for (const mediaId of data.selectedMediaIds) {
-        await supabase
-          .from('servicio_comm_media')
-          .update({ enviado_a_cliente: true, enviado_a_cliente_at: new Date().toISOString() })
-          .eq('id', mediaId);
-      }
-
-      toast.success('Reporte enviado al cliente');
-    } catch (err) {
-      toast.error('Error al enviar reporte');
-      console.error(err);
-    }
-  };
-
   if (!service) return null;
-
-  const imageCount = media.filter(m => m.media_type?.startsWith('image') || m.media_type === 'image').length;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[400px] sm:max-w-[440px] p-0 flex flex-col bg-background/95 backdrop-blur-xl border-l border-border/40">
         
-        {/* ── Apple-style header with service context ── */}
+        {/* ── Header with service context ── */}
         <div className="px-5 pt-5 pb-3 space-y-3">
-          {/* Service info pill */}
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               <MessageCircle className="h-5 w-5 text-primary" strokeWidth={1.5} />
@@ -181,7 +141,7 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
             </span>
           </div>
 
-          {/* Tab switcher — iOS segmented control style */}
+          {/* Tab switcher */}
           <div className="flex p-0.5 rounded-xl bg-muted/60 border border-border/30">
             <button
               onClick={() => setActiveTab('chat')}
@@ -201,19 +161,19 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
               )}
             </button>
             <button
-              onClick={() => setActiveTab('report')}
+              onClick={() => setActiveTab('client')}
               className={cn(
                 'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] text-xs font-medium transition-all duration-200',
-                activeTab === 'report'
+                activeTab === 'client'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground/70'
               )}
             >
               <FileText className="h-3.5 w-3.5" />
               Cliente
-              {imageCount > 0 && (
-                <span className="min-w-[16px] h-4 rounded-full bg-chart-1/15 text-chart-1 text-[9px] font-medium flex items-center justify-center px-1">
-                  {imageCount}
+              {clientUnread > 0 && (
+                <span className="min-w-[16px] h-4 rounded-full bg-chart-2 text-white text-[9px] font-semibold flex items-center justify-center px-1 animate-pulse">
+                  {clientUnread}
                 </span>
               )}
             </button>
@@ -234,14 +194,14 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
               onSendMessage={handleSendMessage}
             />
           ) : (
-            <ClientReportComposer
+            <ClientChat
               servicioId={service.id}
               clienteName={service.nombre_cliente}
               folioServicio={service.id_servicio}
               custodioName={service.custodio_asignado || 'Sin custodio'}
-              media={media}
+              clienteId={(service as any).cliente_id || null}
               contactoWhatsapp={service.telefono_cliente}
-              onSendReport={handleSendReport}
+              media={media}
               onValidateMedia={validateMedia}
             />
           )}
