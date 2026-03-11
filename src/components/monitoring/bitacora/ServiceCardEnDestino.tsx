@@ -113,6 +113,12 @@ export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ serv
           }}
         />
       )}
+
+      <ServiceCommSheet
+        open={commOpen}
+        onOpenChange={setCommOpen}
+        service={service}
+      />
     </>
   );
 };
