@@ -70,28 +70,15 @@ interface DbMessage {
   created_at: string;
 }
 
-/* ─── Template definitions ─── */
+/* ─── Template definitions (loaded from DB) ─── */
 
-const TEMPLATES = [
-  {
-    name: 'nudge_status_custodio',
-    label: 'Nudge Status Custodio',
-    params: [
-      { key: 'nombre_custodio', label: 'Nombre Custodio', default: 'Juan Pérez' },
-      { key: 'folio_servicio', label: 'Folio Servicio', default: 'SVC-001' },
-    ],
-  },
-  {
-    name: 'reporte_servicio_cliente',
-    label: 'Reporte Servicio Cliente',
-    params: [
-      { key: 'nombre_cliente', label: 'Nombre Cliente', default: 'Empresa ABC' },
-      { key: 'folio_servicio', label: 'Folio Servicio', default: 'SVC-001' },
-      { key: 'estado', label: 'Estado', default: 'en curso' },
-      { key: 'observaciones', label: 'Observaciones', default: 'Sin novedades' },
-    ],
-  },
-];
+interface TemplateDefinition {
+  name: string;
+  label: string;
+  category: string;
+  variable_count: number;
+  params: Array<{ key: string; label: string; default: string }>;
+}
 
 /* ─── Main Component ─── */
 
