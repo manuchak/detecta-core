@@ -38,10 +38,14 @@ Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeaci
 - Separadores visuales en `CustodioChat.tsx`
 - Bloqueo de escritura post-handoff
 
-## Fase Dev 6 — Tab Cliente bidireccional (pendiente)
-- NUEVO: `ClientChat.tsx` (reemplaza ClientReportComposer)
-- Ventana 24h con countdown
-- Selector de contacto desde pc_clientes_contactos
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
 
 ## Fase Dev 7 — Automatizaciones de ciclo de vida (pendiente)
 - Auto-envío posicionamiento_cliente al marcar "En Sitio"
