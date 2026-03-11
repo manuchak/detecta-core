@@ -47,7 +47,8 @@ import {
   User, Loader2, Plus, Star, Clock,
   MessageSquare, Shield, Brain, ShieldCheck, TestTube,
   FileText, FileSignature, Users, GraduationCap, Cpu, Home,
-  GitBranch, ChevronDown, CheckCircle2, XCircle, AlertTriangle, Info
+  GitBranch, ChevronDown, CheckCircle2, XCircle, AlertTriangle, Info,
+  UserCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
