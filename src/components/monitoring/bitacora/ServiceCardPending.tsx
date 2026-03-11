@@ -23,6 +23,9 @@ interface ServiceCardPendingProps {
 
 export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service, onIniciar, onDoubleClick, isPending }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [commOpen, setCommOpen] = useState(false);
+  const unreadMap = useUnreadCounts();
+  const unreadCount = unreadMap.get(service.id) || 0;
 
   const cita = new Date(service.fecha_hora_cita);
   const now = new Date();
