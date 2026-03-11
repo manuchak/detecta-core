@@ -168,7 +168,7 @@ export function SupplyGrowthDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getTrendColor(summary.crecimientoPromedioMensual)}`}>
+            <div className={`text-lg md:text-2xl font-bold ${getTrendColor(summary.crecimientoPromedioMensual)}`}>
               {formatPercentage(yearSummary.crecimientoPromedioMensual)}
             </div>
             <p className="text-xs text-muted-foreground">
