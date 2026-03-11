@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePerformanceHistorico } from '@/hooks/usePerformanceHistorico';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +28,22 @@ const MONTH_NAMES = [
 
 export const OperationalOverview = () => {
   const { data: metrics, isLoading } = useOperationalMetrics();
+  const { data: historicoData } = usePerformanceHistorico();
   const isMobile = useIsMobile();
+
+  const realTrendData = useMemo(() => {
+    if (!historicoData?.daily) return [];
+    return historicoData.daily.map(d => ({
+      fecha: d.label,
+      fechaLabel: d.label,
+      solicitados: d.total,
+      realizados: Math.round(d.total * d.fillRate / 100),
+      fillRate: d.fillRate,
+      aTiempo: Math.round(d.total * d.onTimeRate / 100),
+      conRetraso: Math.round(d.total * (100 - d.onTimeRate) / 100),
+      otpRate: d.onTimeRate,
+    }));
+  }, [historicoData?.daily]);
   
   const { currentMonthLabel, quarterLabel, mtdLabel, previousMonthLabel } = useMemo(() => {
     const now = new Date();
@@ -202,9 +218,9 @@ export const OperationalOverview = () => {
 
         {/* Section 4: Compact 7d Trend Chart */}
         <DoDTrendChart 
-          data={metrics.dailyTrend}
+          data={realTrendData}
           fillRateTarget={95}
-          otpTarget={90}
+          otpTarget={95}
         />
 
         {/* Section 5: Services inline */}
@@ -282,9 +298,9 @@ export const OperationalOverview = () => {
       />
 
       <DoDTrendChart 
-        data={metrics.dailyTrend}
+        data={realTrendData}
         fillRateTarget={95}
-        otpTarget={90}
+        otpTarget={95}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
