@@ -333,6 +333,11 @@ const MonitoringPage = () => {
             <CoordinatorCommandCenter />
           </TabsContent>
         )}
+        {isCoordinator && (
+          <TabsContent value="comm-test" className="space-y-4 mt-0">
+            <CommTestPanel />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Service Detail Modal */}
