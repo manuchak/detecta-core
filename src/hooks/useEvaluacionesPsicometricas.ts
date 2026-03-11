@@ -82,26 +82,35 @@ export const useEvaluacionesPsicometricas = (candidatoId: string, leadId?: strin
   });
 };
 
-export const useLatestEvaluacionPsicometrica = (candidatoId: string) => {
+export const useLatestEvaluacionPsicometrica = (candidatoId: string, leadId?: string) => {
   return useQuery({
-    queryKey: ['evaluacion-psicometrica-latest', candidatoId],
+    queryKey: ['evaluacion-psicometrica-latest', candidatoId, leadId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('evaluaciones_psicometricas')
         .select(`
           *,
           evaluador:evaluador_id(display_name),
           aval_coordinacion:aval_coordinacion_id(display_name)
         `)
-        .eq('candidato_id', candidatoId)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
 
+      const filters: string[] = [];
+      if (candidatoId) filters.push(`candidato_id.eq.${candidatoId}`);
+      if (leadId) filters.push(`lead_id.eq.${leadId}`);
+
+      if (filters.length > 0) {
+        query = query.or(filters.join(','));
+      } else {
+        return null;
+      }
+
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       return data as EvaluacionPsicometrica | null;
     },
-    enabled: !!candidatoId,
+    enabled: !!(candidatoId || leadId),
   });
 };
 
