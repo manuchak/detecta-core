@@ -25,6 +25,7 @@ interface SendTemplateRequest {
   to: string;
   templateName: string;
   languageCode?: string;
+  sent_by_user_id?: string;
   components?: {
     header?: {
       type: string;
