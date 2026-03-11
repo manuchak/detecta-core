@@ -76,6 +76,7 @@ const KPIDashboard = () => {
     return rawTab;
   }, [rawTab, isMobile]);
   const [selectedKPI, setSelectedKPI] = useState<string | null>(null);
+  const [selectedKPITooltip, setSelectedKPITooltip] = useState<React.ReactNode>(null);
   const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
 
   // Dynamic date label for current month
