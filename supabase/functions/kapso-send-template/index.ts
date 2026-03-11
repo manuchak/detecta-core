@@ -42,6 +42,7 @@ interface SendTemplateRequest {
     custodio_telefono?: string;
     tipo_notificacion?: string;
     invitation_id?: string;
+    comm_channel?: string;
   };
 }
 
