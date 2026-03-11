@@ -187,7 +187,7 @@ export function CustodianEngagementDetailView() {
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{resumenGeneral.engagementPromedio}/100</div>
+            <div className="text-lg md:text-2xl font-bold">{resumenGeneral.engagementPromedio}/100</div>
             <Progress value={resumenGeneral.engagementPromedio} className="mt-2" />
             <p className="text-xs text-muted-foreground mt-1">
               {resumenGeneral.engagementPromedio >= 75 ? 'Excelente' : 
