@@ -541,9 +541,10 @@ export function useCustodiosConProximidad(
       };
 
       for (const custodio of custodiosFiltrados) {
-        // CRÍTICO: Filtrar completamente indisponibles y con conflictos
-        if (custodio.disponibilidad_efectiva === 'temporalmente_indisponible' || 
-            custodio.conflictos_detectados) {
+        // Solo indisponibilidades reales (falla mecánica, emergencia) van a noDisponibles
+        // Conflictos de horario se muestran como advertencia en la lista principal
+        if (custodio.disponibilidad_efectiva === 'temporalmente_indisponible' && 
+            !custodio.conflictos_detectados) {
           categorizado.noDisponibles.push(custodio);
           continue;
         }
