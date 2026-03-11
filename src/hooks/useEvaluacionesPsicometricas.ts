@@ -49,24 +49,36 @@ export interface CreateEvaluacionData {
   risk_flags?: string[];
 }
 
-export const useEvaluacionesPsicometricas = (candidatoId: string) => {
+export const useEvaluacionesPsicometricas = (candidatoId: string, leadId?: string) => {
   return useQuery({
-    queryKey: ['evaluaciones-psicometricas', candidatoId],
+    queryKey: ['evaluaciones-psicometricas', candidatoId, leadId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('evaluaciones_psicometricas')
         .select(`
           *,
           evaluador:evaluador_id(display_name),
           aval_coordinacion:aval_coordinacion_id(display_name)
         `)
-        .eq('candidato_id', candidatoId)
         .order('created_at', { ascending: false });
 
+      // Build OR filter: candidato_id OR lead_id
+      const filters: string[] = [];
+      if (candidatoId) filters.push(`candidato_id.eq.${candidatoId}`);
+      if (leadId) filters.push(`lead_id.eq.${leadId}`);
+
+      if (filters.length > 0) {
+        query = query.or(filters.join(','));
+      } else {
+        // No filters means no results
+        return [] as EvaluacionPsicometrica[];
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as EvaluacionPsicometrica[];
     },
-    enabled: !!candidatoId,
+    enabled: !!(candidatoId || leadId),
   });
 };
 
