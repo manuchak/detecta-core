@@ -23,7 +23,7 @@ interface ExecutiveMetricsGridProps {
   kpis: ExecutiveKPIData;
   loading?: boolean;
   className?: string;
-  onKPIClick?: (kpiType: string) => void;
+  onKPIClick?: (kpiType: string, tooltipContent?: React.ReactNode) => void;
 }
 
 export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPIClick }: ExecutiveMetricsGridProps) {
