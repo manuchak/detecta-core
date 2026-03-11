@@ -38,7 +38,7 @@ export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ serv
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
-          <Badge className={cn('px-2 py-0 bg-chart-2/20 text-chart-2 border-chart-2/30 gap-1', isMobile ? 'text-xs' : 'text-[10px]')}>
+          <Badge className={cn('px-2 py-0 bg-chart-2/20 text-chart-2 border-chart-2/30 gap-1', isMobile ? 'text-[10px]' : 'text-[10px]')}>
             <MapPinCheck className="h-2.5 w-2.5" />
             EN DESTINO
           </Badge>
