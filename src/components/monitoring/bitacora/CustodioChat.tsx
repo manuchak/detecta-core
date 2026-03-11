@@ -1,11 +1,14 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Camera, Send, Clock, Check, CheckCheck, MessageSquare } from 'lucide-react';
+import {
+  Camera, Send, Clock, Check, CheckCheck, MessageSquare,
+  ArrowUp, Zap, Image as ImageIcon
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CommMessage } from '@/hooks/useServicioComm';
-import { format } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface CustodioChatProps {
   messages: CommMessage[];
@@ -17,24 +20,143 @@ interface CustodioChatProps {
   isSendPending?: boolean;
 }
 
-function DeliveryIcon({ status }: { status: string | null }) {
-  if (status === 'read') return <CheckCheck className="h-2.5 w-2.5 text-chart-1" />;
-  if (status === 'delivered') return <CheckCheck className="h-2.5 w-2.5 text-muted-foreground/50" />;
-  if (status === 'sent') return <Check className="h-2.5 w-2.5 text-muted-foreground/50" />;
-  return <Clock className="h-2.5 w-2.5 text-muted-foreground/30" />;
+/* ── Delivery status ticks (iMessage style) ── */
+function DeliveryTicks({ status }: { status: string | null }) {
+  if (status === 'read') {
+    return (
+      <div className="flex items-center gap-px">
+        <CheckCheck className="h-3 w-3 text-chart-1" />
+      </div>
+    );
+  }
+  if (status === 'delivered') {
+    return <CheckCheck className="h-3 w-3 text-muted-foreground/40" />;
+  }
+  if (status === 'sent') {
+    return <Check className="h-3 w-3 text-muted-foreground/40" />;
+  }
+  return <Clock className="h-3 w-3 text-muted-foreground/25 animate-pulse" />;
 }
 
+/* ── Date separator ── */
+function DateSeparator({ date }: { date: Date }) {
+  let label: string;
+  if (isToday(date)) label = 'Hoy';
+  else if (isYesterday(date)) label = 'Ayer';
+  else label = format(date, "d 'de' MMMM", { locale: es });
+
+  return (
+    <div className="flex items-center justify-center py-2">
+      <span className="px-3 py-0.5 rounded-full bg-muted/60 border border-border/20 text-[9px] font-medium text-muted-foreground/70 backdrop-blur-sm">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/* ── Image lightbox for inline photos ── */
+function MediaBubble({ url, caption }: { url: string; caption?: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <>
+      <button
+        onClick={() => setExpanded(true)}
+        className="block rounded-xl overflow-hidden max-w-[220px] group relative"
+      >
+        <img
+          src={url}
+          alt={caption || 'media'}
+          className="w-full max-h-48 object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button>
+
+      {/* Lightbox overlay */}
+      {expanded && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer animate-in fade-in duration-200"
+          onClick={() => setExpanded(false)}
+        >
+          <img
+            src={url}
+            alt={caption || 'media'}
+            className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain animate-in zoom-in-95 duration-200"
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ── Message Bubble ── */
+function MessageBubble({ msg, showTail }: { msg: CommMessage; showTail: boolean }) {
+  const isBot = msg.is_from_bot;
+  const time = format(new Date(msg.created_at), 'HH:mm');
+  const hasMedia = !!msg.media_url && !msg.media_url?.match(/^[a-f0-9]+$/i); // Skip raw Kapso media IDs
+  const hasContent = !!msg.content && msg.content !== '[Imagen]';
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col max-w-[82%] gap-0.5 group',
+        isBot ? 'ml-auto items-end' : 'mr-auto items-start'
+      )}
+    >
+      <div
+        className={cn(
+          'relative px-3 py-2 text-[13px] leading-[1.35] transition-shadow',
+          isBot
+            ? cn(
+                'bg-primary text-primary-foreground',
+                showTail ? 'rounded-[18px] rounded-br-[4px]' : 'rounded-[18px]'
+              )
+            : cn(
+                'bg-muted/70 text-foreground border border-border/20',
+                showTail ? 'rounded-[18px] rounded-bl-[4px]' : 'rounded-[18px]'
+              ),
+          'shadow-sm'
+        )}
+      >
+        {hasMedia && <MediaBubble url={msg.media_url!} caption={msg.content || undefined} />}
+        {hasContent && (
+          <span className={cn(hasMedia && 'block mt-1.5')}>
+            {msg.content}
+          </span>
+        )}
+        {!hasContent && !hasMedia && msg.content && (
+          <span className="italic text-muted-foreground/50 text-xs">{msg.content}</span>
+        )}
+      </div>
+
+      {/* Timestamp + delivery status */}
+      <div className={cn(
+        'flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150',
+        // Always show on last message
+        showTail && 'opacity-100'
+      )}>
+        <span className="text-[9px] text-muted-foreground/50 tabular-nums">{time}</span>
+        {isBot && <DeliveryTicks status={msg.delivery_status} />}
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Chat Component ── */
 export const CustodioChat: React.FC<CustodioChatProps> = ({
   messages, isLoading, custodioName, onSendNudge, onSendMessage,
   isNudgePending, isSendPending,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState('');
+  const [showQuickActions, setShowQuickActions] = useState(false);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [messages.length]);
 
@@ -43,100 +165,165 @@ export const CustodioChat: React.FC<CustodioChatProps> = ({
     if (!text) return;
     onSendMessage(text);
     setDraft('');
+    inputRef.current?.focus();
   };
+
+  // Group messages by date
+  const groupedMessages = useMemo(() => {
+    const groups: { date: string; messages: CommMessage[] }[] = [];
+    let currentDate = '';
+
+    messages.forEach(msg => {
+      const msgDate = format(new Date(msg.created_at), 'yyyy-MM-dd');
+      if (msgDate !== currentDate) {
+        currentDate = msgDate;
+        groups.push({ date: msgDate, messages: [msg] });
+      } else {
+        groups[groups.length - 1].messages.push(msg);
+      }
+    });
+
+    return groups;
+  }, [messages]);
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-        Cargando mensajes…
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground px-6">
+        <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+        <p className="apple-text-footnote">Cargando conversación…</p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full">
-      {/* Messages timeline */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+      {/* ── Messages area ── */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-3 space-y-1"
+        style={{ overscrollBehavior: 'contain' }}
+      >
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
-            <MessageSquare className="h-8 w-8 opacity-30" />
-            <p className="text-xs">Sin mensajes vinculados a este servicio</p>
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground px-6">
+            <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center">
+              <MessageSquare className="h-7 w-7 text-muted-foreground/30" strokeWidth={1.5} />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="apple-text-callout text-foreground/60">Sin mensajes</p>
+              <p className="apple-text-caption text-[11px]">
+                Los mensajes del custodio aparecerán aquí en tiempo real
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5 rounded-full px-4 mt-2 apple-press-scale"
+              onClick={onSendNudge}
+              disabled={isNudgePending}
+            >
+              <Camera className="h-3.5 w-3.5" />
+              Solicitar primer status
+            </Button>
           </div>
         ) : (
-          messages.map((msg) => {
-            const isBot = msg.is_from_bot;
-            const time = format(new Date(msg.created_at), 'HH:mm');
-            const hasMedia = !!msg.media_url;
-
-            return (
-              <div
-                key={msg.id}
-                className={cn(
-                  'flex flex-col max-w-[80%] gap-0.5',
-                  isBot ? 'ml-auto items-end' : 'mr-auto items-start'
-                )}
-              >
-                <div
-                  className={cn(
-                    'rounded-2xl px-3 py-1.5 text-xs leading-relaxed',
-                    isBot
-                      ? 'bg-primary text-primary-foreground rounded-br-md'
-                      : 'bg-muted text-foreground rounded-bl-md'
-                  )}
-                >
-                  {hasMedia && (
-                    <div className="mb-1">
-                      <img
-                        src={msg.media_url!}
-                        alt="media"
-                        className="rounded-lg max-h-40 object-cover cursor-pointer"
-                        loading="lazy"
-                      />
-                    </div>
-                  )}
-                  {msg.content && <span>{msg.content}</span>}
-                </div>
-                <div className="flex items-center gap-1 px-1">
-                  <span className="text-[9px] text-muted-foreground/50">{time}</span>
-                  {isBot && <DeliveryIcon status={msg.delivery_status} />}
-                </div>
-              </div>
-            );
-          })
+          groupedMessages.map(({ date, messages: groupMsgs }) => (
+            <React.Fragment key={date}>
+              <DateSeparator date={new Date(date)} />
+              {groupMsgs.map((msg, i) => {
+                const isLast = i === groupMsgs.length - 1;
+                const nextDifferentSender = isLast || groupMsgs[i + 1].is_from_bot !== msg.is_from_bot;
+                return (
+                  <MessageBubble
+                    key={msg.id}
+                    msg={msg}
+                    showTail={nextDifferentSender}
+                  />
+                );
+              })}
+            </React.Fragment>
+          ))
         )}
       </div>
 
-      {/* Quick actions */}
-      <div className="px-3 py-1.5 flex gap-1.5 border-t border-border/30">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-[10px] gap-1 px-2"
-          onClick={onSendNudge}
-          disabled={isNudgePending}
-        >
-          <Camera className="h-3 w-3" />
-          Pedir Status 📸
-        </Button>
-      </div>
+      {/* ── Quick actions bar ── */}
+      {messages.length > 0 && (
+        <div className={cn(
+          'px-4 overflow-hidden transition-all duration-200',
+          showQuickActions ? 'max-h-16 py-2' : 'max-h-0 py-0'
+        )}>
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] gap-1 px-2.5 rounded-full whitespace-nowrap shrink-0 border-chart-1/30 text-chart-1 hover:bg-chart-1/10 apple-press-scale"
+              onClick={onSendNudge}
+              disabled={isNudgePending}
+            >
+              <Camera className="h-3 w-3" />
+              Pedir Status 📸
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] gap-1 px-2.5 rounded-full whitespace-nowrap shrink-0 apple-press-scale"
+              onClick={() => { onSendMessage('Recibido, gracias 👍'); }}
+            >
+              👍 Recibido
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] gap-1 px-2.5 rounded-full whitespace-nowrap shrink-0 apple-press-scale"
+              onClick={() => { onSendMessage('¿Todo en orden con el servicio?'); }}
+            >
+              ¿Todo bien?
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {/* Input bar */}
-      <div className="px-3 pb-3 pt-1.5 flex gap-1.5">
-        <Input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-          placeholder="Escribe un mensaje…"
-          className="h-8 text-xs"
-        />
-        <Button
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          onClick={handleSend}
-          disabled={!draft.trim() || isSendPending}
-        >
-          <Send className="h-3.5 w-3.5" />
-        </Button>
+      {/* ── Input bar (iMessage style) ── */}
+      <div className="px-3 pb-3 pt-2 border-t border-border/20">
+        <div className="flex items-end gap-2">
+          {/* Quick actions toggle */}
+          <button
+            onClick={() => setShowQuickActions(!showQuickActions)}
+            className={cn(
+              'h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 apple-press-scale',
+              showQuickActions
+                ? 'bg-primary text-primary-foreground rotate-45'
+                : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+            )}
+          >
+            <Zap className="h-4 w-4" />
+          </button>
+
+          {/* Text input */}
+          <div className="flex-1 flex items-end rounded-full bg-muted/40 border border-border/30 px-3 py-1 transition-colors focus-within:border-primary/40 focus-within:bg-muted/60">
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              placeholder="Mensaje…"
+              className="flex-1 bg-transparent border-0 outline-none text-xs py-1 placeholder:text-muted-foreground/50"
+            />
+          </div>
+
+          {/* Send button */}
+          <button
+            onClick={handleSend}
+            disabled={!draft.trim() || isSendPending}
+            className={cn(
+              'h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 apple-press-scale',
+              draft.trim()
+                ? 'bg-primary text-primary-foreground scale-100'
+                : 'bg-muted/40 text-muted-foreground/30 scale-90'
+            )}
+          >
+            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+          </button>
+        </div>
       </div>
     </div>
   );
