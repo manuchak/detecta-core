@@ -1,83 +1,41 @@
-# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
-## Resumen ejecutivo
-Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
-Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-## Fase Dev 1 — Modelo de datos ✅
-- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
-- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
-- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
-- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
-- ✅ Índice `idx_wm_channel_sender` para queries de cliente
-- ✅ Backfill de registros existentes
+# Conflictos de horario como advertencia, no como bloqueo
 
-## Fase Dev 2 — Router de contexto en webhook ✅
-- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
-- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
-- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
-- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
-- ✅ Cliente con servicio activo → visible en tab, no crea ticket
-- ✅ Cliente sin servicio → crea ticket de atención
+## Problema
 
-## Fase Dev 3 — Clasificación en mensajes salientes ✅
-- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
-- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
+Cuando el sistema detecta un conflicto de horario (ej: Rodrigo Rainier ya tenía un servicio matutino), el custodio se mueve a la sección colapsada "noDisponibles" y queda oculto de la lista principal. El equipo de planeación tiene que expandir la sección, buscar el custodio, y pasar por un modal de justificación — un flujo confuso que les impide trabajar con agilidad.
 
-## Fase Dev 4 — Chat de Planeación con custodio ✅
-- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
-- ✅ Filtra por `comm_channel='custodio_planeacion'`
-- ✅ Read-only después del handoff (`isHandedOff` prop)
-- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
-- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
+Además, el RPC usa una ventana fija de 4 horas para cada servicio, lo que puede generar falsos positivos cuando un servicio matutino ya finalizó pero su ventana teórica aún "cubre" horario.
 
-## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
-- Mensaje de sistema al marcar "En Sitio"
-- Separadores visuales en `CustodioChat.tsx`
-- Bloqueo de escritura post-handoff
+## Solución
 
-## Fase Dev 6 — Tab Cliente bidireccional ✅
-- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
-- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
-- ✅ WindowPill con countdown en tiempo real
-- ✅ Input deshabilitado cuando ventana cerrada, solo templates
-- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
-- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
-- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
+Mover los custodios con conflicto horario de `noDisponibles` a `ocupados` (visibles en la lista principal), con un badge de advertencia visual. Eliminar la necesidad del modal de justificación obligatorio — el planner puede seleccionarlos directamente con un click, igual que cualquier otro custodio.
 
-## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
-- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
-- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
-- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
-- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
-- ✅ Fire-and-forget: no bloquea el flujo principal
+### Cambios
 
-## Fase Dev 8 — Broadcast multi-contacto (pendiente)
-- Checkboxes de contactos en tab Cliente
-- Envío individual por contacto
-- Agrupación visual en timeline
+**1. `src/hooks/useProximidadOperacional.ts`** (~líneas 308-313)
+- Cuando se detecta conflicto horario (`esConflictoHorario`), cambiar la categoría de `no_disponible` a `ocupado`
+- Mantener `conflictos_detectados = true` para el badge visual, pero NO para bloquear
+- Esto hace que el custodio aparezca en la lista principal (sección "ocupados") en vez de ocultarse
 
-## Fase Dev 9 — Testing E2E (pendiente)
-- CommTestPanel: flujos por canal
-- Edge cases: multi-servicio, ventana 24h, handoff
+**2. `src/hooks/useProximidadOperacional.ts`** (~líneas 543-549)
+- Remover `custodio.conflictos_detectados` como condición para enviar a `noDisponibles`
+- Solo `temporalmente_indisponible` (indisponibilidades reales como falla mecánica) va a `noDisponibles`
 
-## Dependencias
-```
-Fase 1 → Fase 2, Fase 3 (paralelas)
-Fase 2+3 → Fase 4, Fase 6 (paralelas)
-Fase 4 → Fase 5
-Fase 5+6 → Fase 7
-Fase 6 → Fase 8
-Todas → Fase 9
-```
+**3. `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianCard.tsx`**
+- Cuando `conflictos_detectados === true` y categoría es `ocupado`, mostrar un badge amber "⚠️ Conflicto horario" en la tarjeta (informativo, no bloqueante)
+- El custodio sigue siendo seleccionable con click normal
 
-## Templates Meta pendientes
-| Template | Estado |
-|---|---|
-| posicionamiento_cliente | Por crear |
-| cierre_servicio_cliente | Por crear |
-| incidencia_servicio_cliente | Por crear |
-| nudge_status_custodio | No aprobado aún |
-| reporte_servicio_cliente | No aprobado aún |
+**4. `src/components/planeacion/PendingAssignmentModal.tsx`** y `src/components/planeacion/ReassignmentModal.tsx`
+- Mismo comportamiento: custodios con conflicto aparecen en lista principal con badge de advertencia
+- Click directo para asignar sin modal de justificación
+
+### Lo que NO cambia
+- La sección `ConflictSection` colapsable sigue existiendo para indisponibilidades reales (falla mecánica, etc.)
+- El `ConflictOverrideModal` se mantiene en el código pero ya no se invoca para conflictos de horario simples
+- El RPC sigue detectando conflictos (dato útil para auditoría), solo cambia cómo el frontend los trata
+
+### Resultado
+El planner ve todos los custodios en la lista principal. Los que tienen conflicto horario muestran un badge amber informativo pero son 100% seleccionables con un click, sin justificación obligatoria.
+
