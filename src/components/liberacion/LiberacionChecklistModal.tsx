@@ -429,9 +429,11 @@ const LiberacionChecklistModal = ({
       red.push('INE faltante');
     }
     if (!liberacion.documentacion_licencia) {
-      red.push(liberacion.tipo_operativo === 'armado' 
-        ? 'Portación de arma faltante' 
-        : 'Licencia de conducir faltante');
+      if (liberacion.tipo_operativo === 'armado') {
+        yellow.push('Portación de arma no registrada (opcional)');
+      } else {
+        red.push('Licencia de conducir faltante');
+      }
     }
     // Estudio socioeconómico desfavorable = RED
     if (latestSocioeconomico?.resultado_general === 'desfavorable') {
