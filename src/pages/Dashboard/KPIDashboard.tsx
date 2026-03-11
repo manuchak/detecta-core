@@ -1,31 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { 
   TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Users, 
-  Target, 
-  UserCheck, 
-  Star, 
   BarChart3, 
-  Clock, 
   RefreshCw,
   Activity,
   Settings,
-  Building,
   UserPlus,
   Building2,
-  Radio
+  Radio,
+  Target,
+  Star
 } from 'lucide-react';
 import { useExecutiveDashboardKPIs } from '@/hooks/useExecutiveDashboardKPIs';
-import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { OperationalOverview } from '@/components/executive/OperationalOverview';
@@ -34,13 +23,7 @@ import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGri
 import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
 import { DailyLeadsCallsChart } from '@/components/recruitment/DailyLeadsCallsChart';
 import { KPIDetailView } from '@/components/executive/KPIDetailView';
-import { CustodianEngagementDetailView } from '@/components/executive/details/CustodianEngagementDetailView';
 import CalibrationDashboard from '@/components/executive/CalibrationDashboard';
-
-const MONTH_NAMES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-];
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
