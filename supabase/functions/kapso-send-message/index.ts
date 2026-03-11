@@ -39,6 +39,7 @@ interface SendMessageRequest {
   mediaCaption?: string;
   filename?: string;
   interactive?: InteractiveConfig;
+  sent_by_user_id?: string;
   context?: {
     servicio_id?: string;
     ticket_id?: string;
