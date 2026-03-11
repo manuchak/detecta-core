@@ -34,7 +34,7 @@ export const MobileTabSelector: React.FC<MobileTabSelectorProps> = ({ tabs, acti
   return (
     <div
       ref={scrollRef}
-      className="flex gap-2 overflow-x-auto scrollbar-hide px-4 py-2 -mx-4"
+      className="flex gap-1.5 overflow-x-auto scrollbar-hide px-3 py-2"
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
       {visibleTabs.map(tab => {
