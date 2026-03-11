@@ -200,6 +200,12 @@ const MonitoringPage = () => {
           {isCoordinator && (
             <TabsTrigger value="coordinacion">Coordinación C4</TabsTrigger>
           )}
+          {isCoordinator && (
+            <TabsTrigger value="comm-test" className="gap-1.5">
+              <FlaskConical className="h-3.5 w-3.5" />
+              Pruebas Comm
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Tab: Performance */}
