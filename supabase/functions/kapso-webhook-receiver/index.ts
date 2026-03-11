@@ -341,6 +341,7 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
           },
           body: JSON.stringify({
             media_id: mediaId,
+            servicio_id: servicioId || null,
             servicio_id: servicioId,
             whatsapp_message_id: insertedMsg.id,
             media_type: messageType,

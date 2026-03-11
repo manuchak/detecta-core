@@ -124,22 +124,28 @@ serve(async (req) => {
       : mimeType.startsWith('audio/') ? 'audio'
       : 'document';
 
-    const { data: commMedia, error: insertError } = await supabase
-      .from('servicio_comm_media')
-      .insert({
-        servicio_id: servicio_id,
-        whatsapp_message_id: whatsapp_message_id || null,
-        storage_path: storagePath,
-        media_type: media_type || detectedType,
-        original_media_id: media_id,
-        validado: false,
-        enviado_a_cliente: false,
-      })
-      .select()
-      .single();
+    let commMedia: any = null;
+    if (servicio_id) {
+      const { data: inserted, error: insertError } = await supabase
+        .from('servicio_comm_media')
+        .insert({
+          servicio_id: servicio_id,
+          whatsapp_message_id: whatsapp_message_id || null,
+          storage_path: storagePath,
+          media_type: media_type || detectedType,
+          original_media_id: media_id,
+          validado: false,
+          enviado_a_cliente: false,
+        })
+        .select()
+        .single();
 
-    if (insertError) {
-      console.error('Error inserting servicio_comm_media:', insertError);
+      if (insertError) {
+        console.error('Error inserting servicio_comm_media:', insertError);
+      }
+      commMedia = inserted;
+    } else {
+      console.log('⚠️ No servicio_id — skipping servicio_comm_media insert');
     }
 
     // Step 6: Update the whatsapp_message media_url with the public URL
