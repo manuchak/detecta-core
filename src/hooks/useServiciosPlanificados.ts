@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { isValidUuid, safeUuidForDatabase } from '@/utils/uuidHelpers';
 import { createLogger } from '@/lib/logger';
+import { sendPositioningNotification } from '@/lib/lifecycleAutomations';
 
 const logger = createLogger('useServiciosPlanificados');
 
@@ -1007,6 +1008,13 @@ export function useServiciosPlanificados() {
         ? { hora_llegada_custodio: timeOnly }
         : { hora_llegada_custodio: null };
       
+      const { data: svcData, error: fetchErr } = await supabase
+        .from('servicios_planificados')
+        .select('id_servicio')
+        .eq('id', serviceId)
+        .single();
+      if (fetchErr) throw fetchErr;
+
       const { error } = await supabase
         .from('servicios_planificados')
         .update(updateData)
@@ -1018,13 +1026,19 @@ export function useServiciosPlanificados() {
       }
       
       logger.operation('updateOperationalStatus', 'success', { serviceId, action });
+      return { idServicio: svcData?.id_servicio as string };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (result, variables) => {
       const message = variables.action === 'mark_on_site' 
         ? 'Servicio marcado como "En sitio"' 
         : 'Servicio revertido a "Programado"';
       toast.success(message);
       queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+
+      // Fase 7: Auto-envío posicionamiento_cliente al marcar "En Sitio"
+      if (variables.action === 'mark_on_site' && result?.idServicio) {
+        sendPositioningNotification(result.idServicio, variables.serviceId);
+      }
     },
     onError: (error) => {
       logger.error('updateOperationalStatus', 'Mutation failed', error);

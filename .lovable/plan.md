@@ -47,10 +47,12 @@ Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeaci
 - ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
 - ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
 
-## Fase Dev 7 — Automatizaciones de ciclo de vida (pendiente)
-- Auto-envío posicionamiento_cliente al marcar "En Sitio"
-- Auto-envío cierre_servicio_cliente al completar
-- Guard anti-duplicado 5 min
+## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
+- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
+- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
+- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
+- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
+- ✅ Fire-and-forget: no bloquea el flujo principal
 
 ## Fase Dev 8 — Broadcast multi-contacto (pendiente)
 - Checkboxes de contactos en tab Cliente
