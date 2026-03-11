@@ -1,73 +1,47 @@
-# Centro de Comunicaciones WhatsApp — Bitácora
 
-## Estado: Fase 1 completada ✅
 
-### DB (migración aplicada)
-- ✅ `whatsapp_messages`: columnas `servicio_id` (FK) e `is_read` agregadas con índices
-- ✅ `servicio_comm_media`: tabla creada con RLS (`has_monitoring_role` / `has_monitoring_write_role`)
-- ✅ `pc_clientes`: columna `contacto_whatsapp` agregada
-- ✅ Bucket `whatsapp-media` creado (público, RLS para upload)
-- ✅ Realtime habilitado en `servicio_comm_media`
+# Registrar User Persona: Monitorista
 
-### Frontend (creado)
-- ✅ `useServicioComm.ts` — hook con mensajes por servicio, Realtime, conteo sin leer
-- ✅ `ServiceCommSheet.tsx` — Sheet lateral con Tabs (Chat / Reportar)
-- ✅ `CustodioChat.tsx` — Timeline iMessage-style con quick actions
-- ✅ `ClientReportComposer.tsx` — Galería de fotos + template + envío
-- ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
-- ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
+Crear el archivo de conocimiento del proyecto con el perfil completo, incluyendo el dato clave: **desktop dual-screen como dispositivo, pero afinidad mental mobile-first**.
 
-## Fase 2 — Backend (pendiente parcial)
-- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
-- Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
-- Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
+## Contenido del archivo `knowledge://memory/ui-ux/personas/monitorista-user-persona`
 
-## Fase 2.5 — Trazabilidad monitorista ✅
-- ✅ `whatsapp_messages.sent_by_user_id` — columna UUID con FK a auth.users
-- ✅ Edge functions `kapso-send-message` y `kapso-send-template` registran `sent_by_user_id`
-- ✅ `ServiceCommSheet` envía `user.id` al invocar edge functions
-- ✅ `useServicioComm` resuelve `display_name` desde `profiles`
-- ✅ `CustodioChat` muestra nombre del monitorista en burbujas y separadores de handoff
+### Perfil
+- 18-25 años, carreras administrativas, sin experiencia en ERPs
+- Nativos de redes sociales (Instagram, TikTok, WhatsApp)
+- **Dispositivo**: Desktop con hasta 2 pantallas — pero su modelo mental y afinidad de interacción es 100% mobile/social
+- Turnos rotativos incluyendo nocturnos
 
-## Fase 2.6 — Debug E2E Comunicación ✅
-- ✅ Bug 1: Nombres de campo corregidos (`phone`→`to`, `template_name`→`templateName`, `language_code`→`languageCode`, `message`→`text`, agregado `type:'text'`)
-- ✅ Bug 2: Se usa `service.custodio_telefono` en lugar de `service.custodio_asignado` como número de teléfono
-- ✅ Bug 3: `BoardService` ahora incluye `custodio_telefono` y `telefono_cliente` en la query e interfaz
-- ✅ Bug 4: Edge functions insertan `servicio_id` desde `context.servicio_id` en `whatsapp_messages`
-- ✅ Bug 5: Formato de `components` corregido de array a objeto `{ body: { parameters: [...] } }`
-- ✅ Bug 6: `telefono_cliente` se pasa a `ClientReportComposer` como `contactoWhatsapp`
-- ✅ Bug 7: Se pasa `service.id` (UUID) como `servicio_id` en context
-- ✅ Validación: guard de teléfono antes de enviar nudge o mensaje libre
+### Misión
+Asegurar que las unidades de clientes lleguen a destino sin incidentes
 
-## Fase 3 — Blindaje Workflow Planeación → Monitoreo ✅
+### Implicaciones de diseño
 
-### Gate de Visibilidad (Q1)
-- ✅ `useBitacoraBoard.ts` — pendingQuery ahora filtra `.not('hora_llegada_custodio', 'is', null)` 
-- ✅ Monitoreo SOLO ve servicios donde Planeación confirmó "En Sitio"
+1. **Mobile-mental en desktop** — Usar cards, pills, burbujas y patrones de app móvil incluso en viewport desktop. Evitar tablas densas tipo ERP, menús profundos y formularios extensos
+2. **Fatiga nocturna** — Tonos suaves, evitar blancos puros, texto mínimo 14px. Dark mode como default nocturno. Sin animaciones agresivas
+3. **Zero-ambiguity** — Estado visible en <2s de escaneo visual. Colores semáforo + iconos. Micro-copy coloquial
+4. **1-tap rule** — Acción más frecuente de cada contexto a máximo 1 clic (checkpoint, evento, mensaje)
+5. **Dual-screen awareness** — Diseñar módulos que se beneficien de tener bitácora en una pantalla y mapa/comm en otra, sin requerir esa configuración
 
-### Guard de Inicio
-- ✅ `iniciarServicio` verifica `hora_llegada_custodio IS NOT NULL` antes de escribir `hora_inicio_real`
-- ✅ Toast de error explícito si custodio no ha sido marcado "En Sitio"
+### Anti-patrones
+- Tablas con >5 columnas visibles
+- Formularios con >3 campos visibles a la vez
+- UUIDs o timestamps crudos
+- Modales que bloqueen la vista de servicios activos
+- Jerga de ERP o sistemas empresariales
 
-### Protección de Asignaciones Manuales (OrphanGuard Rule 4)
-- ✅ `useOrphanGuard.ts` — Rule 4 excluye asignaciones con `asignado_por != null` (coordinador)
-- ✅ Solo limpia asignaciones automáticas >4h en el futuro
+### Escenarios clave
+1. Escaneo de bitácora — detectar qué servicio necesita atención
+2. Registro de checkpoint — confirmar ubicación/estado
+3. Evento especial — reportar incidente
+4. Comunicación con custodio — mensajes y fotos por WhatsApp
+5. Entrega de turno — transferir servicios con contexto
 
-### Supresión de Alertas en Pernocta
-- ✅ `computePhaseAndTimers` no escala `alertLevel` cuando evento activo es `pernocta`
+## Implementación
 
-### Contador Total por Monitorista
-- ✅ `BitacoraBoard.tsx` — Badge desglosado: `N pendientes · M en curso · K evento = T total`
-- ✅ `MonitoristaCard.tsx` — Badge `(NP · MC · KE)` por fase
-- ✅ `CoordinatorCommandCenter.tsx` — Calcula `phaseBreakdownByMonitorista` y lo pasa a cards
+| Archivo | Acción |
+|---|---|
+| `knowledge://memory/ui-ux/personas/monitorista-user-persona` | Crear |
 
-## Fase 2.7 — Fix Formato Webhook Kapso ✅
-- ✅ `kapso-webhook-receiver` ahora parsea formato nativo Kapso (`message.kapso.status/direction`) además del formato genérico (`event`)
-- ✅ Outbound: actualiza `delivery_status` y loguea errores detallados en `failed`
-- ✅ Inbound: adapta payload Kapso al formato interno y reutiliza `handleIncomingMessage`
-- ⚠️ Pendiente: Resolver error Meta 131042 (pago Business Manager) — problema externo, no de código
+Un solo archivo de knowledge. Sin cambios de código.
 
-## Fase 4 — Escalamiento y métricas (pendiente)
-- Auto-escalamiento si custodio no responde a nudge en 15/30 min
-- Dashboard de métricas de comunicación
-- Bulk nudge para todos los custodios activos
