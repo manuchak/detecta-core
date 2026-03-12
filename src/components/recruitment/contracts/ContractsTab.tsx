@@ -71,7 +71,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
 
   const { data: contratos, isLoading } = useContratosCandidato(candidatoId);
   const { data: plantillas } = usePlantillasContrato();
-  const { firmados, totalRequeridos, porcentaje, contratosFaltantes } = useContratosProgress(candidatoId, vehiculoPropio);
+  const { firmados, totalRequeridos, porcentaje, contratosFaltantes } = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo);
   const eliminarContrato = useEliminarContrato();
 
   const contratosRequeridos = getContratosRequeridosParaCandidato(vehiculoPropio);
