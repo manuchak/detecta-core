@@ -122,7 +122,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   // Armados sin vehículo no requieren contrato vehicular
   const tieneVehiculo = isArmado ? vehiculoPropio : true;
 
-  const contractsProgress = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo);
+  const contractsProgress = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo, isArmado);
 
   const { data: liberacionRecord, isLoading: loadingLib } = useQuery({
     queryKey: ['custodio-liberacion-by-candidato', candidatoId],
