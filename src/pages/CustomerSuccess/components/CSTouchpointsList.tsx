@@ -302,11 +302,12 @@ export function CSTouchpointsList({ onClienteClick, initialTab }: Props) {
             <SelectTrigger className="w-[140px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos los tipos</SelectItem>
-              <SelectItem value="llamada">Llamada</SelectItem>
+              <SelectItem value="llamada_seguimiento">Llamada</SelectItem>
               <SelectItem value="email">Email</SelectItem>
               <SelectItem value="whatsapp">WhatsApp</SelectItem>
               <SelectItem value="reunion">Reunión</SelectItem>
               <SelectItem value="visita">Visita</SelectItem>
+              <SelectItem value="nota_interna">Nota Interna</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterCSM} onValueChange={setFilterCSM}>
