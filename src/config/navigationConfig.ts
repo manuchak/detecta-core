@@ -573,7 +573,7 @@ export const navigationModules: NavigationModule[] = [
     icon: ShieldAlert,
     path: '/seguridad',
     group: 'seguridad',
-    roles: ['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'coordinador_operaciones'],
+    roles: ['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'coordinador_operaciones', 'customer_success'],
   },
 
   // ===== SISTEMA GROUP =====
