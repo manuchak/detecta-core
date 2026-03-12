@@ -10,6 +10,7 @@ export interface CustodioProfile {
   zona_base: string | null;
   estado: string;
   disponibilidad: string;
+  disponibilidad_real: string; // Defensive: cross-checked with indisponibilidades
   vehiculo_propio: boolean | null;
   rating_promedio: number | null;
   tasa_aceptacion: number | null;
@@ -109,45 +110,50 @@ function calculateActivityLevel(fechaUltimoServicio: string | null): {
 }
 
 export function useOperativeProfiles() {
-  // Fetch custodios operativos
+  // Fetch custodios operativos + active indisponibilidades for defensive cross-check
   const custodiosQuery = useQuery({
     queryKey: ['operative-profiles', 'custodios'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('custodios_operativos')
-        .select(`
-          id,
-          nombre,
-          telefono,
-          email,
-          zona_base,
-          estado,
-          disponibilidad,
-          vehiculo_propio,
-          rating_promedio,
-          tasa_aceptacion,
-          tasa_respuesta,
-          numero_servicios,
-          fecha_ultimo_servicio,
-          score_total,
-          created_at,
-          preferencia_tipo_servicio
-        `)
-        .in('estado', ['activo', 'suspendido'])
-        .order('nombre');
+      // Parallel: fetch custodios and active indisponibilidades
+      const [custodiosRes, indispRes] = await Promise.all([
+        supabase
+          .from('custodios_operativos')
+          .select(`
+            id, nombre, telefono, email, zona_base, estado, disponibilidad,
+            vehiculo_propio, rating_promedio, tasa_aceptacion, tasa_respuesta,
+            numero_servicios, fecha_ultimo_servicio, score_total, created_at,
+            preferencia_tipo_servicio
+          `)
+          .in('estado', ['activo', 'suspendido'])
+          .order('nombre'),
+        supabase
+          .from('custodio_indisponibilidades')
+          .select('custodio_id')
+          .eq('estado', 'activo')
+      ]);
       
-      if (error) throw error;
+      if (custodiosRes.error) throw custodiosRes.error;
       
-      return (data || []).map(c => {
+      // Build set of custodio IDs with active indisponibilidades
+      const indisponiblesSet = new Set(
+        (indispRes.data || []).map(r => (r as any).custodio_id as string)
+      );
+      
+      return (custodiosRes.data || []).map(c => {
         const { diasSinActividad, nivel } = calculateActivityLevel(c.fecha_ultimo_servicio);
+        // Defensive: if custodio has active indisponibilidad but disponibilidad says 'disponible', override
+        const disponibilidadReal = indisponiblesSet.has(c.id) 
+          ? 'temporalmente_indisponible' 
+          : c.disponibilidad;
         return {
           ...c,
+          disponibilidad_real: disponibilidadReal,
           dias_sin_actividad: diasSinActividad,
           nivel_actividad: nivel
         } as CustodioProfile;
       });
     },
-    staleTime: 1 * 60 * 1000 // 1 minute for better sync
+    staleTime: 1 * 60 * 1000
   });
   
   // Fetch armados operativos

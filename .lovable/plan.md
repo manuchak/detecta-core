@@ -1,71 +1,84 @@
+# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
+## Resumen ejecutivo
+Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
+Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-# Bug Analysis: Disparidad de Estado — Luis Gilberto González Jasso
+## Fase Dev 1 — Modelo de datos ✅
+- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
+- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
+- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
+- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
+- ✅ Índice `idx_wm_channel_sender` para queries de cliente
+- ✅ Backfill de registros existentes
 
-## Root Cause Identificado
+## Fase Dev 2 — Router de contexto en webhook ✅
+- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
+- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
+- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
+- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
+- ✅ Cliente con servicio activo → visible en tab, no crea ticket
+- ✅ Cliente sin servicio → crea ticket de atención
 
-Hay un **mismatch de valores entre el trigger y los datos reales** que causa una desincronización silenciosa.
+## Fase Dev 3 — Clasificación en mensajes salientes ✅
+- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
+- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
-### La cadena de fallo:
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
 
-1. **Datos en BD**: La tabla `custodio_indisponibilidades` usa `estado = 'activo'` (masculino)
-2. **Trigger `sync_custodio_disponibilidad`**: Verifica `NEW.estado = 'activa'` (femenino)
-3. **RPC `get_custodios_activos_disponibles`**: Filtra con `ci.estado = 'activo'` (masculino) ✅
+## Fase Dev 5 — Handoff Planeación → C4 ✅
+- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
+- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
+- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
+- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
 
-```text
-┌─────────────────────────────┐
-│  custodio_indisponibilidades │
-│  estado = 'activo'    ← dato real
-└────────┬────────────────────┘
-         │
-    ┌────▼─────────────────────────────┐
-    │ Trigger: IF estado = 'activa'    │ ← NUNCA MATCHEA
-    │ → NO actualiza disponibilidad    │
-    └──────────────────────────────────┘
-         │
-    ┌────▼─────────────────────────────┐
-    │ custodios_operativos             │
-    │ disponibilidad = 'disponible'    │ ← INCORRECTO, debería ser
-    │                                  │   'temporalmente_indisponible'
-    └────────┬─────────────────────────┘
-             │
-        ┌────▼───────────────────────────────┐
-        │ RPC: NOT EXISTS (estado='activo')  │ ✅ Filtra correctamente
-        │ → Custodio NO aparece en planning  │
-        └────────────────────────────────────┘
-             │
-        ┌────▼───────────────────────────────┐
-        │ UI Perfiles Operativos             │
-        │ Lee co.disponibilidad directamente │
-        │ → Muestra "disponible"  ← ENGAÑOSO │
-        └────────────────────────────────────┘
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
+
+## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
+- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
+- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
+- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
+- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
+- ✅ Fire-and-forget: no bloquea el flujo principal
+
+## Fase Dev 8 — Broadcast multi-contacto (pendiente)
+- Checkboxes de contactos en tab Cliente
+- Envío individual por contacto
+- Agrupación visual en timeline
+
+## Fase Dev 9 — Testing E2E (pendiente)
+- CommTestPanel: flujos por canal
+- Edge cases: multi-servicio, ventana 24h, handoff
+
+## Dependencias
+```
+Fase 1 → Fase 2, Fase 3 (paralelas)
+Fase 2+3 → Fase 4, Fase 6 (paralelas)
+Fase 4 → Fase 5
+Fase 5+6 → Fase 7
+Fase 6 → Fase 8
+Todas → Fase 9
 ```
 
-### Resultado:
-- **Planeación** no ve al custodio (RPC correcto, filtra por indisponibilidades)
-- **Perfiles Operativos** muestra "disponible" (lee `co.disponibilidad` que nunca fue actualizado por el trigger roto)
-- **El equipo se confunde**: el perfil dice disponible pero no aparece en asignación
-
-## Plan de Corrección
-
-### 1. Corregir el trigger `sync_custodio_disponibilidad`
-Cambiar `'activa'` → `'activo'` para que matchee con los datos reales. Aplicar la misma corrección en la rama de resolución que verifica `estado = 'activa'`.
-
-### 2. Migración de datos: sincronizar registros desincronizados
-UPDATE de todos los custodios con indisponibilidades activas cuya `disponibilidad` no refleje `temporalmente_indisponible`.
-
-### 3. Agregar validación defensiva en el frontend
-En `useOperativeProfiles.ts` (o donde se renderiza el badge de disponibilidad), cruzar `co.disponibilidad` con la existencia de indisponibilidades activas para mostrar el estado real, independientemente de si el trigger falló.
-
-### Archivos a modificar
-
-| Archivo/Recurso | Cambio |
+## Templates Meta pendientes
+| Template | Estado |
 |---|---|
-| Nueva migración SQL | Fix trigger: `'activa'` → `'activo'`; UPDATE masivo de custodios desincronizados |
-| `src/pages/PerfilesOperativos/` (componente de badge) | Validación defensiva: si hay indisponibilidades activas, mostrar "indisponible" sin importar `co.disponibilidad` |
-
-### Impacto
-- Corrige el caso de Luis Gilberto inmediatamente
-- Previene que **todos** los registros futuros de indisponibilidad fallen silenciosamente
-- El badge de Perfiles Operativos nunca más mostrará información contradictoria
-
+| posicionamiento_cliente | Por crear |
+| cierre_servicio_cliente | Por crear |
+| incidencia_servicio_cliente | Por crear |
+| nudge_status_custodio | No aprobado aún |
+| reporte_servicio_cliente | No aprobado aún |
