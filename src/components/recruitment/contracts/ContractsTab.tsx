@@ -58,7 +58,7 @@ const ESTADO_CONFIG: Record<EstadoContrato, { color: string; icon: React.Element
   vencido: { color: 'bg-muted text-muted-foreground', icon: Clock, label: 'Vencido' }
 };
 
-export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: initialVehiculoPropio = false }: Props) {
+export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: initialVehiculoPropio = false, tieneVehiculo = true }: Props) {
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState<TipoContrato | null>(null);
