@@ -27,6 +27,8 @@ interface CompactServiceCardProps {
   onStatusUpdate: (serviceId: string, action: 'mark_on_site' | 'revert_to_scheduled') => Promise<void>;
   onShowHistory: (service: ScheduledService) => void;
   onFalsePositioning?: (service: ScheduledService) => void;
+  onOptimisticChange?: (serviceId: string, arrival: string | null) => void;
+  optimisticArrival?: string | null;
   isCancelling?: boolean;
   isUpdatingStatus?: boolean;
 }
