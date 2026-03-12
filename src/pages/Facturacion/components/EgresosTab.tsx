@@ -82,7 +82,7 @@ export function EgresosTab() {
       {/* Content */}
       {segment === 'oca' && <CxPOperativoTab />}
       {segment === 'pe' && <CxPProveedoresTab />}
-      {segment === 'gastos' && <AprobacionGastosPanel />}
+      {segment === 'gastos' && <AprobacionGastosPanel mode="finanzas" />}
     </div>
   );
 }
