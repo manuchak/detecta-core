@@ -61,8 +61,8 @@ export const PoolReservaView = ({ searchTerm = "" }: PoolReservaViewProps) => {
 
   const handleBulkReactivate = async () => {
     if (selectedCandidates.length === 0) return;
-    
-    await bulkReactivateFromPool(selectedCandidates);
+    // Bulk reactivation uses 'en_revision' as safe default for mixed candidates
+    await bulkReactivateFromPool(selectedCandidates, 'en_revision');
     setSelectedCandidates([]);
   };
 
