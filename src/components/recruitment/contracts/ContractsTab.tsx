@@ -64,7 +64,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
   const [selectedTipo, setSelectedTipo] = useState<TipoContrato | null>(null);
   const [signContrato, setSignContrato] = useState<any>(null);
   const [previewContrato, setPreviewContrato] = useState<any>(null);
-  const [deleteContrato, setDeleteContrato] = useState<{ id: string; tipo: TipoContrato } | null>(null);
+  const [deleteContrato, setDeleteContrato] = useState<{ id: string; tipo: TipoContrato; firmado?: boolean } | null>(null);
   const [esNoPropietario, setEsNoPropietario] = useState(!initialVehiculoPropio);
 
   const vehiculoPropio = !esNoPropietario;
