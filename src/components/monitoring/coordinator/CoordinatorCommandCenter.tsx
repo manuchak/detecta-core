@@ -330,6 +330,28 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             </Badge>
           )}
           <AnomaliasBadge />
+          {/* WhatsApp feature toggles */}
+          <div className="flex items-center gap-1.5 ml-1 pl-1.5 border-l border-border/50">
+            <MessageCircle className="h-3 w-3 text-muted-foreground" />
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-muted-foreground">Plan</span>
+              <Switch
+                checked={isPlaneacionEnabled}
+                onCheckedChange={togglePlaneacion}
+                disabled={isToggling}
+                className="scale-[0.6] origin-left"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-muted-foreground">Mon</span>
+              <Switch
+                checked={isMonitoreoEnabled}
+                onCheckedChange={toggleMonitoreo}
+                disabled={isToggling}
+                className="scale-[0.6] origin-left"
+              />
+            </div>
+          </div>
           {isOverlay && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
               <X className="h-4 w-4" />
