@@ -40,6 +40,9 @@ export interface ClienteFiscal {
   observaciones_facturacion: string | null;
   facturacion_intercompania: boolean | null;
   tarifa_hora_estadia: number | null;
+  tarifa_sin_arma: number | null;
+  tarifa_con_arma: number | null;
+  cobra_gadgets: boolean | null;
 }
 
 export interface ClienteFiscalUpdate {
