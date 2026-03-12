@@ -176,6 +176,10 @@ export const CommTestPanel: React.FC = () => {
           <TabsTrigger value="persistence" className="gap-1.5">
             <Database className="h-3.5 w-3.5" /> Persistencia
           </TabsTrigger>
+          <TabsTrigger value="scenarios" className="gap-1.5">
+            <Play className="h-3.5 w-3.5" /> Escenarios
+          </TabsTrigger>
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Tab: Send ─── */}
