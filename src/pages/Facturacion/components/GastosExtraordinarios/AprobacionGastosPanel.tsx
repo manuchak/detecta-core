@@ -44,18 +44,89 @@ const urgenciaColors: Record<string, string> = {
 
 type SubTab = 'pendientes' | 'historico';
 
-const AprobacionGastosPanel = () => {
+interface ModeConfig {
+  pendingEstado: string;
+  approveTarget: string;
+  rejectTarget: string;
+  approveLabel: string;
+  rejectLabel: string;
+  historicoOptions: { value: string; label: string }[];
+  defaultHistorico: string;
+  countQueryKey: string;
+  emptyPendingMsg: string;
+}
+
+const MODE_CONFIG: Record<'ops' | 'finanzas', ModeConfig> = {
+  ops: {
+    pendingEstado: 'pendiente',
+    approveTarget: 'aprobado',
+    rejectTarget: 'rechazado',
+    approveLabel: 'Aprobar',
+    rejectLabel: 'Rechazar',
+    historicoOptions: [
+      { value: 'aprobado', label: 'Aprobados' },
+      { value: 'rechazado', label: 'Rechazados' },
+      { value: 'todos', label: 'Todos' },
+    ],
+    defaultHistorico: 'aprobado',
+    countQueryKey: 'gastos-pendientes-count',
+    emptyPendingMsg: 'No hay solicitudes pendientes — ¡todo al día!',
+  },
+  finanzas: {
+    pendingEstado: 'aprobado',
+    approveTarget: 'autorizado',
+    rejectTarget: 'rechazado_finanzas',
+    approveLabel: 'Autorizar Pago',
+    rejectLabel: 'Rechazar',
+    historicoOptions: [
+      { value: 'autorizado', label: 'Autorizados' },
+      { value: 'rechazado_finanzas', label: 'Rechazados Finanzas' },
+      { value: 'pagado', label: 'Pagados' },
+      { value: 'todos', label: 'Todos' },
+    ],
+    defaultHistorico: 'autorizado',
+    countQueryKey: 'gastos-pendientes-finanzas-count',
+    emptyPendingMsg: 'No hay solicitudes aprobadas por Ops pendientes de autorización.',
+  },
+};
+
+const estadoBadgeVariant = (estado: string | null): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' => {
+  switch (estado) {
+    case 'pendiente': return 'secondary';
+    case 'aprobado': return 'default';
+    case 'autorizado': return 'success';
+    case 'pagado': return 'success';
+    case 'rechazado':
+    case 'rechazado_finanzas': return 'destructive';
+    default: return 'outline';
+  }
+};
+
+const estadoLabel = (estado: string | null): string => {
+  switch (estado) {
+    case 'rechazado_finanzas': return 'Rechazado Finanzas';
+    case 'autorizado': return 'Autorizado';
+    default: return estado || '-';
+  }
+};
+
+interface Props {
+  mode?: 'ops' | 'finanzas';
+}
+
+const AprobacionGastosPanel = ({ mode = 'ops' }: Props) => {
+  const config = MODE_CONFIG[mode];
   const [subTab, setSubTab] = useState<SubTab>('pendientes');
-  const [filtroHistorico, setFiltroHistorico] = useState('aprobado');
+  const [filtroHistorico, setFiltroHistorico] = useState(config.defaultHistorico);
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | null>(null);
   const [montoAprobado, setMontoAprobado] = useState('');
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const queryClient = useQueryClient();
 
-  const estadoFiltro = subTab === 'pendientes' ? 'pendiente' : filtroHistorico;
+  const estadoFiltro = subTab === 'pendientes' ? config.pendingEstado : filtroHistorico;
 
   const { data: solicitudes, isLoading } = useQuery({
-    queryKey: [QUERY_KEY_APROBACION, estadoFiltro],
+    queryKey: [QUERY_KEY_APROBACION, mode, estadoFiltro],
     queryFn: async () => {
       let query = supabase
         .from('solicitudes_apoyo_extraordinario')
@@ -65,6 +136,12 @@ const AprobacionGastosPanel = () => {
 
       if (estadoFiltro !== 'todos') {
         query = query.eq('estado', estadoFiltro);
+      } else {
+        // For histórico "todos", filter only relevant states for this mode
+        const relevantStates = config.historicoOptions
+          .map(o => o.value)
+          .filter(v => v !== 'todos');
+        query = query.in('estado', relevantStates);
       }
 
       const { data, error } = await query;
@@ -76,43 +153,53 @@ const AprobacionGastosPanel = () => {
   const aprobarMutation = useMutation({
     mutationFn: async ({ id, monto }: { id: string; monto: number }) => {
       const { data: user } = await supabase.auth.getUser();
+      const updateData: Record<string, unknown> = {
+        estado: config.approveTarget,
+        monto_aprobado: monto,
+      };
+      if (mode === 'ops') {
+        updateData.aprobado_por = user.user?.id;
+        updateData.fecha_aprobacion = new Date().toISOString();
+      }
       const { error } = await supabase
         .from('solicitudes_apoyo_extraordinario')
-        .update({
-          estado: 'aprobado',
-          monto_aprobado: monto,
-          aprobado_por: user.user?.id,
-          fecha_aprobacion: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY_APROBACION] });
+      queryClient.invalidateQueries({ queryKey: [config.countQueryKey] });
       queryClient.invalidateQueries({ queryKey: ['gastos-pendientes-count'] });
-      toast.success('Solicitud aprobada');
+      queryClient.invalidateQueries({ queryKey: ['gastos-pendientes-finanzas-count'] });
+      toast.success(mode === 'finanzas' ? 'Pago autorizado' : 'Solicitud aprobada');
       setSelectedSolicitud(null);
     },
-    onError: () => toast.error('Error al aprobar'),
+    onError: () => toast.error('Error al procesar'),
   });
 
   const rechazarMutation = useMutation({
     mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
       const { data: user } = await supabase.auth.getUser();
+      const updateData: Record<string, unknown> = {
+        estado: config.rejectTarget,
+        motivo_rechazo: motivo,
+      };
+      if (mode === 'ops') {
+        updateData.aprobado_por = user.user?.id;
+        updateData.fecha_aprobacion = new Date().toISOString();
+      }
       const { error } = await supabase
         .from('solicitudes_apoyo_extraordinario')
-        .update({
-          estado: 'rechazado',
-          motivo_rechazo: motivo,
-          aprobado_por: user.user?.id,
-          fecha_aprobacion: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY_APROBACION] });
+      queryClient.invalidateQueries({ queryKey: [config.countQueryKey] });
       queryClient.invalidateQueries({ queryKey: ['gastos-pendientes-count'] });
+      queryClient.invalidateQueries({ queryKey: ['gastos-pendientes-finanzas-count'] });
       toast.success('Solicitud rechazada');
       setSelectedSolicitud(null);
     },
@@ -121,9 +208,11 @@ const AprobacionGastosPanel = () => {
 
   const handleOpenDetail = (s: Solicitud) => {
     setSelectedSolicitud(s);
-    setMontoAprobado(String(s.monto_solicitado));
+    setMontoAprobado(String(s.monto_aprobado ?? s.monto_solicitado));
     setMotivoRechazo('');
   };
+
+  const isPendingState = (s: Solicitud) => s.estado === config.pendingEstado;
 
   return (
     <div className="space-y-4">
@@ -162,14 +251,13 @@ const AprobacionGastosPanel = () => {
         {/* Filter only for histórico */}
         {subTab === 'historico' && (
           <Select value={filtroHistorico} onValueChange={setFiltroHistorico}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="aprobado">Aprobados</SelectItem>
-              <SelectItem value="rechazado">Rechazados</SelectItem>
-              <SelectItem value="pagado">Pagados</SelectItem>
-              <SelectItem value="todos">Todos</SelectItem>
+              {config.historicoOptions.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         )}
@@ -183,7 +271,7 @@ const AprobacionGastosPanel = () => {
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             {subTab === 'pendientes'
-              ? 'No hay solicitudes pendientes — ¡todo al día!'
+              ? config.emptyPendingMsg
               : `No hay solicitudes ${filtroHistorico !== 'todos' ? `en estado "${filtroHistorico}"` : ''}`}
           </CardContent>
         </Card>
@@ -204,8 +292,8 @@ const AprobacionGastosPanel = () => {
                             {s.urgencia}
                           </Badge>
                         )}
-                        <Badge variant={s.estado === 'pendiente' ? 'secondary' : s.estado === 'aprobado' ? 'default' : 'destructive'}>
-                          {s.estado}
+                        <Badge variant={estadoBadgeVariant(s.estado)}>
+                          {estadoLabel(s.estado)}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-1 mb-1">{s.motivo}</p>
@@ -261,12 +349,19 @@ const AprobacionGastosPanel = () => {
                   <div><span className="text-muted-foreground">Custodio:</span> <br/>{selectedSolicitud.custodio_nombre || '-'}</div>
                   <div><span className="text-muted-foreground">Monto solicitado:</span> <br/><strong>${selectedSolicitud.monto_solicitado.toLocaleString('es-MX')}</strong></div>
                   <div><span className="text-muted-foreground">Urgencia:</span> <br/>{selectedSolicitud.urgencia || 'normal'}</div>
-                  <div><span className="text-muted-foreground">Estado:</span> <br/>{selectedSolicitud.estado}</div>
+                  <div><span className="text-muted-foreground">Estado:</span> <br/>
+                    <Badge variant={estadoBadgeVariant(selectedSolicitud.estado)}>
+                      {estadoLabel(selectedSolicitud.estado)}
+                    </Badge>
+                  </div>
                   {selectedSolicitud.id_servicio && (
                     <div><span className="text-muted-foreground">ID Servicio:</span> <br/>{selectedSolicitud.id_servicio}</div>
                   )}
                   {selectedSolicitud.created_at && (
                     <div><span className="text-muted-foreground">Fecha:</span> <br/>{format(new Date(selectedSolicitud.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</div>
+                  )}
+                  {selectedSolicitud.monto_aprobado != null && mode === 'finanzas' && (
+                    <div><span className="text-muted-foreground">Monto aprobado (Ops):</span> <br/><strong>${selectedSolicitud.monto_aprobado.toLocaleString('es-MX')}</strong></div>
                   )}
                 </div>
 
@@ -302,15 +397,19 @@ const AprobacionGastosPanel = () => {
 
                 {selectedSolicitud.motivo_rechazo && (
                   <div className="bg-destructive/10 p-3 rounded-lg">
-                    <span className="text-sm font-medium text-destructive">Motivo de rechazo:</span>
+                    <span className="text-sm font-medium text-destructive">
+                      {selectedSolicitud.estado === 'rechazado_finanzas' ? 'Motivo de rechazo (Finanzas):' : 'Motivo de rechazo:'}
+                    </span>
                     <p className="text-sm mt-1">{selectedSolicitud.motivo_rechazo}</p>
                   </div>
                 )}
 
-                {selectedSolicitud.estado === 'pendiente' && (
+                {isPendingState(selectedSolicitud) && (
                   <div className="border-t border-border pt-4 space-y-3">
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium">Monto a aprobar (MXN)</label>
+                      <label className="text-sm font-medium">
+                        {mode === 'finanzas' ? 'Monto a autorizar (MXN)' : 'Monto a aprobar (MXN)'}
+                      </label>
                       <Input
                         type="number"
                         value={montoAprobado}
@@ -327,7 +426,7 @@ const AprobacionGastosPanel = () => {
                         onClick={() => aprobarMutation.mutate({ id: selectedSolicitud.id, monto: parseFloat(montoAprobado) })}
                       >
                         {aprobarMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <CheckCircle className="w-4 h-4 mr-1" />}
-                        Aprobar
+                        {config.approveLabel}
                       </Button>
                       <Button
                         variant="destructive"
@@ -342,14 +441,14 @@ const AprobacionGastosPanel = () => {
                         }}
                       >
                         {rechazarMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <XCircle className="w-4 h-4 mr-1" />}
-                        Rechazar
+                        {config.rejectLabel}
                       </Button>
                     </div>
 
                     <div className="space-y-1.5">
                       <label className="text-sm text-muted-foreground">Motivo de rechazo (requerido si rechazas)</label>
                       <Textarea
-                        placeholder="Indica por qué se rechaza..."
+                        placeholder={mode === 'finanzas' ? 'Indica por qué Finanzas rechaza (ej: falta comprobante, monto incorrecto)...' : 'Indica por qué se rechaza...'}
                         value={motivoRechazo}
                         onChange={(e) => setMotivoRechazo(e.target.value)}
                         rows={2}
