@@ -132,6 +132,7 @@ export function ContentRenderer({
         <CertificadoPlantillaViewer
           content={data as CertificadoPlantillaContent}
           inscripcionId={inscripcionId}
+          cursoTitulo={cursoTitulo}
           onComplete={onComplete}
         />
       );

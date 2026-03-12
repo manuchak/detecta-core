@@ -50,31 +50,50 @@ export function CertificadoPlantillaViewer({
         }
         setUserName(nombre);
 
-        const fecha = new Date().toLocaleDateString('es-MX', {
-          year: 'numeric', month: 'long', day: 'numeric',
-        });
-        setFechaCompletado(fecha);
-        setCodigoVerificacion(inscripcionId?.slice(0, 8).toUpperCase() ?? 'N/A');
-
-        // Load calificacion real from inscripcion
+        // Try to load persisted certificate data first
         if (inscripcionId) {
-          const { data: inscripcion } = await supabase
-            .from('lms_inscripciones')
-            .select('calificacion_final, progreso_porcentaje')
-            .eq('id', inscripcionId)
+          const { data: certificado } = await supabase
+            .from('lms_certificados')
+            .select('datos_certificado, codigo_verificacion, fecha_emision')
+            .eq('inscripcion_id', inscripcionId)
             .maybeSingle();
-          if (inscripcion) {
-            setCalificacion((inscripcion as any).calificacion_final ?? (inscripcion as any).progreso_porcentaje ?? 100);
+
+          if (certificado) {
+            const datos = certificado.datos_certificado as any;
+            if (datos?.fecha_completado) setFechaCompletado(datos.fecha_completado);
+            if (datos?.titulo_curso) setPlantillaNombre(datos.titulo_curso);
+            if (datos?.calificacion != null) setCalificacion(datos.calificacion);
+            setCodigoVerificacion(certificado.codigo_verificacion ?? 'N/A');
+          } else {
+            // No certificate yet — use inscription data with stable date
+            const { data: inscripcion } = await supabase
+              .from('lms_inscripciones')
+              .select('calificacion_final, progreso_porcentaje, fecha_completado, updated_at')
+              .eq('id', inscripcionId)
+              .maybeSingle();
+
+            if (inscripcion) {
+              setCalificacion((inscripcion as any).calificacion_final ?? (inscripcion as any).progreso_porcentaje ?? 100);
+              const fechaRaw = (inscripcion as any).fecha_completado || (inscripcion as any).updated_at;
+              if (fechaRaw) {
+                setFechaCompletado(new Date(fechaRaw).toLocaleDateString('es-MX', {
+                  year: 'numeric', month: 'long', day: 'numeric',
+                }));
+              }
+            }
+            setCodigoVerificacion('Pendiente');
           }
         }
 
-        // Load plantilla name
-        const { data: plantillaData } = await supabase
-          .from('lms_certificados_plantillas')
-          .select('nombre')
-          .eq('id', content.plantilla_id)
-          .single();
-        setPlantillaNombre(plantillaData?.nombre ?? content.plantilla_nombre ?? 'Constancia');
+        // Load plantilla name as fallback for course title
+        if (!cursoTitulo) {
+          const { data: plantillaData } = await supabase
+            .from('lms_certificados_plantillas')
+            .select('nombre')
+            .eq('id', content.plantilla_id)
+            .single();
+          setPlantillaNombre(prev => prev || plantillaData?.nombre ?? content.plantilla_nombre ?? 'Constancia');
+        }
       } catch (err) {
         console.error('Error loading certificate data:', err);
       } finally {
@@ -82,7 +101,7 @@ export function CertificadoPlantillaViewer({
       }
     };
     load();
-  }, [content.plantilla_id, inscripcionId]);
+  }, [content.plantilla_id, inscripcionId, cursoTitulo]);
 
   const titulo = cursoTitulo || content.plantilla_nombre || 'Curso';
 
