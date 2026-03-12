@@ -381,6 +381,35 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
                   <p className="text-[10px] text-muted-foreground">Si está activo, la pernocta se incluye en la factura del cliente</p>
                 </label>
               </div>
+
+              {/* Tarifas Servicio Armado */}
+              <div className="pt-2 border-t">
+                <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Tarifas Estadía con Armado</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Tarifa Sin Arma</Label>
+                    <Input type="number" placeholder="$0.00" value={formData.tarifa_sin_arma ?? ''} onChange={(e) => setFormData({ ...formData, tarifa_sin_arma: e.target.value ? parseFloat(e.target.value) : null })} />
+                    <p className="text-[10px] text-muted-foreground">Cobro por hora de estadía sin servicio armado</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tarifa Con Arma</Label>
+                    <Input type="number" placeholder="$0.00" value={formData.tarifa_con_arma ?? ''} onChange={(e) => setFormData({ ...formData, tarifa_con_arma: e.target.value ? parseFloat(e.target.value) : null })} />
+                    <p className="text-[10px] text-muted-foreground">Cobro por hora de estadía con servicio armado</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Gadgets */}
+              <div className="pt-2 border-t">
+                <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Gadgets</p>
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <input type="checkbox" id="cobra_gadgets" checked={formData.cobra_gadgets ?? true} onChange={(e) => setFormData({ ...formData, cobra_gadgets: e.target.checked })} className="h-4 w-4 rounded border-border" />
+                  <label htmlFor="cobra_gadgets" className="text-sm cursor-pointer">
+                    <span className="font-medium">Cobra gadgets a este cliente</span>
+                    <p className="text-[10px] text-muted-foreground">Si está activo, los gadgets asignados se facturan. Configura precios en la pestaña Gadgets.</p>
+                  </label>
+                </div>
+              </div>
             </TabsContent>
 
             {/* Reglas de Facturación (NEW) */}
