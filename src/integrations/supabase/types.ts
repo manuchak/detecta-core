@@ -21178,6 +21178,10 @@ export type Database = {
             Args: { p_lead_id: string; p_motivo?: string; p_zona_id: string }
             Returns: boolean
           }
+        | {
+            Args: { p_estado_id: string; p_lead_id: string; p_motivo?: string }
+            Returns: boolean
+          }
       move_lead_to_pool_v2: {
         Args: {
           p_estado_id: string
@@ -21241,10 +21245,15 @@ export type Database = {
       }
       procesar_indisponibilidades_expiradas: { Args: never; Returns: Json }
       puede_acceder_planeacion: { Args: never; Returns: boolean }
-      reactivate_lead_from_pool: {
-        Args: { p_lead_id: string; p_nuevo_estado?: string }
-        Returns: boolean
-      }
+      reactivate_lead_from_pool:
+        | {
+            Args: { p_lead_id: string; p_nuevo_estado?: string }
+            Returns: boolean
+          }
+        | {
+            Args: { p_lead_id: string; p_nuevo_estado?: string }
+            Returns: boolean
+          }
       reactivate_lead_from_pool_v2: {
         Args: { p_is_test?: boolean; p_lead_id: string; p_nuevo_estado: string }
         Returns: boolean
