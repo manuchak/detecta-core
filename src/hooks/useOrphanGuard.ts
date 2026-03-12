@@ -225,7 +225,7 @@ export function useOrphanGuard() {
         }
       }
     });
-  }, [pendingServiceIds, activeServiceIds, assignedServiceIds, serviceHoraCitaMap, enTurno, sinTurno, assignmentsByMonitorista, autoDistribute, reassignService]);
+  }, [pendingServiceIds, activeServiceIds, assignedServiceIds, serviceHoraCitaMap, enTurno, sinTurno, allEnTurno, pausedIds, assignmentsByMonitorista, autoDistribute, reassignService]);
 
   // ── BalanceGuard ──
   const prevEnTurnoRef = useRef<Set<string>>(new Set());
