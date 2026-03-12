@@ -38,8 +38,13 @@ export function buildCDMXTimestamp(dateStr: string, timeStr: string): string {
 /**
  * Gets the hour from a timestamp formatted in CDMX timezone
  */
-export function getCDMXHour(isoString: string): string {
-  return formatInTimeZone(isoString, TIMEZONE_CDMX, 'HH:mm', { locale: es });
+export function getCDMXHour(isoString: string | null | undefined): string {
+  if (!isoString) return '--:--';
+  try {
+    return formatInTimeZone(isoString, TIMEZONE_CDMX, 'HH:mm', { locale: es });
+  } catch {
+    return '--:--';
+  }
 }
 
 /**
