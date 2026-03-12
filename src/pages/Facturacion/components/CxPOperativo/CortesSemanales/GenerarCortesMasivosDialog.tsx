@@ -568,6 +568,11 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
           <div className="text-sm">
             <span className="text-muted-foreground">Seleccionados:</span>{' '}
             <strong>{selectedIds.size}</strong> · {fmt(totalEstimado)}
+            {selectedIds.size > 0 && (
+              <span className="text-muted-foreground text-xs ml-1">
+                ({selectedBreakdown.custodios} custodio{selectedBreakdown.custodios !== 1 ? 's' : ''} · {selectedBreakdown.armados} armado{selectedBreakdown.armados !== 1 ? 's' : ''})
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={generating}>
