@@ -1,94 +1,63 @@
-# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
-## Resumen ejecutivo
-Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
-Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-## Fase Dev 1 — Modelo de datos ✅
-- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
-- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
-- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
-- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
-- ✅ Índice `idx_wm_channel_sender` para queries de cliente
-- ✅ Backfill de registros existentes
+# Bug Report de Jennifer: No puede reactivar candidato desde Pool
 
-## Fase Dev 2 — Router de contexto en webhook ✅
-- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
-- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
-- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
-- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
-- ✅ Cliente con servicio activo → visible en tab, no crea ticket
-- ✅ Cliente sin servicio → crea ticket de atención
+## Causa Raíz
 
-## Fase Dev 3 — Clasificación en mensajes salientes ✅
-- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
-- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
+**Conflicto entre el trigger que acabamos de desplegar y el flujo de reactivación del pool.**
 
-## Fase Dev 4 — Chat de Planeación con custodio ✅
-- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
-- ✅ Filtra por `comm_channel='custodio_planeacion'`
-- ✅ Read-only después del handoff (`isHandedOff` prop)
-- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
-- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
+El trigger `check_lead_approval_has_candidato` (que corregimos hace minutos para el bug de Mariana) ahora bloquea CUALQUIER transición a `estado = 'aprobado'` si `candidato_custodio_id IS NULL`. Esto es correcto para aprobaciones nuevas, pero rompe la reactivación desde pool.
 
-## Fase Dev 5 — Handoff Planeación → C4 ✅
-- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
-- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
-- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
-- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
+### Flujo de Jennifer:
+1. Crea lead (estado: `nuevo`)
+2. Registra entrevista (estado: `contactado` o `en_revision`)
+3. Mueve a pool → RPC `move_lead_to_pool` cambia estado a `aprobado_en_espera`
+4. Intenta reactivar → RPC `reactivate_lead_from_pool` intenta poner `estado = 'aprobado'`
+5. **TRIGGER BLOQUEA**: `candidato_custodio_id IS NULL` → Error
 
-## Fase Dev 6 — Tab Cliente bidireccional ✅
-- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
-- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
-- ✅ WindowPill con countdown en tiempo real
-- ✅ Input deshabilitado cuando ventana cerrada, solo templates
-- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
-- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
-- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
+El lead nunca pasó por el flujo formal de aprobación (nunca se creó un candidato_custodio), así que el trigger lo rechaza legítimamente. Pero la reactivación desde pool es un caso válido que debería estar exento.
 
-## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
-- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
-- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
-- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
-- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
-- ✅ Fire-and-forget: no bloquea el flujo principal
+## Impacto
+- Todo candidato en pool que no haya sido formalmente aprobado NO puede ser reactivado
+- Afecta a Jennifer y cualquier analista que use el pool como "sala de espera" para candidatos en proceso
 
-## Fase Dev 8 — Broadcast multi-contacto ✅
-- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
-- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
-- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
-- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
-- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
+## Fix: Dos cambios
 
-## Fase Dev 9 — Testing E2E + Switch WhatsApp ✅
-- ✅ Tabla `app_feature_flags` con RLS (read: authenticated, write: admin/owner/coordinador)
-- ✅ Seeds: `whatsapp_planeacion` (OFF), `whatsapp_monitoreo` (OFF)
-- ✅ Realtime habilitado en `app_feature_flags`
-- ✅ Hook `useWhatsAppMode` con react-query + realtime subscription
-- ✅ Switches "WA Plan" y "WA Mon" en `CoordinatorCommandCenter` header
-- ✅ `CompactServiceCard`: botón chat condicionado a flag `whatsapp_planeacion`
-- ✅ `ServiceCommSheet`: placeholder "WhatsApp deshabilitado" cuando flag `whatsapp_monitoreo` está OFF
-- ✅ `CommScenarioSimulator` con 3 escenarios guiados (Planeación, Monitoreo, Cliente)
-- ✅ Cada escenario: pasos individuales + "Ejecutar Todo" con barra de progreso
-- ✅ Verificaciones de persistencia y comm_channel en cada escenario
+### 1. Modificar trigger `check_lead_approval_has_candidato`
+Agregar excepción para reactivación desde pool (`OLD.estado = 'aprobado_en_espera'`):
 
-## Dependencias
-```
-Fase 1 → Fase 2, Fase 3 (paralelas)
-Fase 2+3 → Fase 4, Fase 6 (paralelas)
-Fase 4 → Fase 5
-Fase 5+6 → Fase 7
-Fase 6 → Fase 8
-Todas → Fase 9
+```sql
+CREATE OR REPLACE FUNCTION check_lead_approval_has_candidato()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.estado = 'aprobado' AND OLD.estado IS DISTINCT FROM 'aprobado' THEN
+    -- Permitir reactivación desde pool (el candidato pudo no haber sido aprobado formalmente)
+    IF OLD.estado = 'aprobado_en_espera' THEN
+      RETURN NEW;
+    END IF;
+    -- Para nuevas aprobaciones, exigir vínculo con candidato
+    IF NEW.candidato_custodio_id IS NULL 
+       AND NOT EXISTS (SELECT 1 FROM candidatos_armados WHERE lead_id = NEW.id)
+    THEN
+      RAISE EXCEPTION 'No se puede aprobar un lead sin crear el registro de candidato.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
-## Templates Meta pendientes
-| Template | Estado |
-|---|---|
-| posicionamiento_cliente | Por crear |
-| cierre_servicio_cliente | Por crear |
-| incidencia_servicio_cliente | Por crear |
-| nudge_status_custodio | No aprobado aún |
-| reporte_servicio_cliente | No aprobado aún |
+### 2. Mejorar reactivación para ofrecer estado de retorno flexible
+Actualmente el botón "Reactivar" siempre fuerza `estado = 'aprobado'`. Para leads que nunca fueron aprobados formalmente, debería retornar a `en_revision` (estado pre-pool que permite enviar pruebas psicométricas).
+
+Modificar `PoolCandidateCard.tsx` y `PoolReservaView.tsx` para que el botón "Reactivar" permita elegir el estado destino (`aprobado` si ya tiene candidato, `en_revision` si no).
+
+### Archivos
+1. **SQL Migration**: Actualizar función `check_lead_approval_has_candidato` — agregar bypass para `aprobado_en_espera`
+2. **`src/components/leads/pool/PoolCandidateCard.tsx`**: Agregar lógica condicional al botón Reactivar según si el candidato tiene `candidato_custodio_id`
+3. **`src/hooks/usePoolReserva.ts`**: Ajustar estado default de reactivación basado en contexto del candidato
+
+### Respuesta para Jennifer
+
+> Jennifer, ya identifiqué el problema. El candidato fue movido al pool sin haber pasado por el flujo formal de aprobación, y el sistema ahora valida eso al reactivar. Ya estamos desplegando el fix — en unos minutos podrás reactivar candidatos desde el pool sin problema. Si el candidato no fue aprobado formalmente, se reactivará en estado "En revisión" para que puedas enviarle la prueba.
+
