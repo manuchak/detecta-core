@@ -1,94 +1,140 @@
-# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
-## Resumen ejecutivo
-Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
-Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-## Fase Dev 1 — Modelo de datos ✅
-- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
-- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
-- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
-- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
-- ✅ Índice `idx_wm_channel_sender` para queries de cliente
-- ✅ Backfill de registros existentes
+# Implementación: Fix armados en cortes — cálculo por km con tarifas escalonadas
 
-## Fase Dev 2 — Router de contexto en webhook ✅
-- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
-- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
-- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
-- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
-- ✅ Cliente con servicio activo → visible en tab, no crea ticket
-- ✅ Cliente sin servicio → crea ticket de atención
+## 3 archivos a modificar
 
-## Fase Dev 3 — Clasificación en mensajes salientes ✅
-- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
-- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
+### 1. `GenerarCortesMasivosDialog.tsx` (preview masivo)
 
-## Fase Dev 4 — Chat de Planeación con custodio ✅
-- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
-- ✅ Filtra por `comm_channel='custodio_planeacion'`
-- ✅ Read-only después del handoff (`isHandedOff` prop)
-- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
-- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
+**Importar** `fetchTarifasKm` y `calcularCostoPlano` de `@/utils/tarifasKmUtils`.
 
-## Fase Dev 5 — Handoff Planeación → C4 ✅
-- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
-- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
-- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
-- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
+**Query de armados (líneas 55-72):** Eliminar filtro por `hora_encuentro`. Traer `asignacion_armados` sin filtro de fecha. Agregar `km_recorridos` al SELECT de `servicios_custodia`.
 
-## Fase Dev 6 — Tab Cliente bidireccional ✅
-- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
-- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
-- ✅ WindowPill con countdown en tiempo real
-- ✅ Input deshabilitado cuando ventana cerrada, solo templates
-- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
-- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
-- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
+**Agrupación de armados (líneas 114-140):** Cross-referenciar cada asignación con el servicio vinculado via `servicio_custodia_id` → `id_servicio`. Si el servicio no está en la semana o no está finalizado, se ignora. Calcular costo con `calcularCostoPlano(km_recorridos, tarifasKm)`. Enriquecer cada detalle con fecha, origen, destino y km del servicio padre.
 
-## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
-- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
-- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
-- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
-- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
-- ✅ Fire-and-forget: no bloquea el flujo principal
+```typescript
+// Import añadido
+import { fetchTarifasKm, calcularCostoPlano } from '@/utils/tarifasKmUtils';
 
-## Fase Dev 8 — Broadcast multi-contacto ✅
-- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
-- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
-- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
-- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
-- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
+// En la queryFn:
+// 1) Query servicios incluyendo km_recorridos y id_servicio
+const { data: servicios } = await supabase
+  .from('servicios_custodia')
+  .select('id, id_servicio, id_custodio, nombre_custodio, costo_custodio, casetas, fecha_hora_cita, origen, destino, km_recorridos')
+  .eq('estado', 'Finalizado')
+  .gte('fecha_hora_cita', `${semanaInicio}T00:00:00`)
+  .lte('fecha_hora_cita', `${semanaFin}T23:59:59`);
 
-## Fase Dev 9 — Testing E2E + Switch WhatsApp ✅
-- ✅ Tabla `app_feature_flags` con RLS (read: authenticated, write: admin/owner/coordinador)
-- ✅ Seeds: `whatsapp_planeacion` (OFF), `whatsapp_monitoreo` (OFF)
-- ✅ Realtime habilitado en `app_feature_flags`
-- ✅ Hook `useWhatsAppMode` con react-query + realtime subscription
-- ✅ Switches "WA Plan" y "WA Mon" en `CoordinatorCommandCenter` header
-- ✅ `CompactServiceCard`: botón chat condicionado a flag `whatsapp_planeacion`
-- ✅ `ServiceCommSheet`: placeholder "WhatsApp deshabilitado" cuando flag `whatsapp_monitoreo` está OFF
-- ✅ `CommScenarioSimulator` con 3 escenarios guiados (Planeación, Monitoreo, Cliente)
-- ✅ Cada escenario: pasos individuales + "Ejecutar Todo" con barra de progreso
-- ✅ Verificaciones de persistencia y comm_channel en cada escenario
+// 2) Query asignaciones SIN filtro de fecha
+const { data: asignaciones } = await supabase
+  .from('asignacion_armados')
+  .select('id, armado_id, armado_nombre_verificado, servicio_custodia_id, estado_asignacion')
+  .eq('tipo_asignacion', 'interno')
+  .in('estado_asignacion', ['completado', 'confirmado', 'pendiente'])
+  .not('armado_id', 'is', null);
 
-## Dependencias
-```
-Fase 1 → Fase 2, Fase 3 (paralelas)
-Fase 2+3 → Fase 4, Fase 6 (paralelas)
-Fase 4 → Fase 5
-Fase 5+6 → Fase 7
-Fase 6 → Fase 8
-Todas → Fase 9
+// Map servicios por id_servicio para cross-ref
+const svcMap = new Map((servicios || []).filter(s => s.id_servicio).map(s => [s.id_servicio, s]));
+const tarifasKm = await fetchTarifasKm();
+
+// Agrupar armados: solo los que tienen servicio en la semana
+for (const a of asignaciones || []) {
+  if (!a.armado_id || !a.servicio_custodia_id) continue;
+  const svc = svcMap.get(a.servicio_custodia_id);
+  if (!svc) continue; // servicio no está en la semana
+  
+  const km = Number(svc.km_recorridos) || 0;
+  const { costo } = calcularCostoPlano(km, tarifasKm);
+  // ... agrupar por armado_id con costo calculado, fecha/origen/destino del servicio
+}
 ```
 
-## Templates Meta pendientes
-| Template | Estado |
-|---|---|
-| posicionamiento_cliente | Por crear |
-| cierre_servicio_cliente | Por crear |
-| incidencia_servicio_cliente | Por crear |
-| nudge_status_custodio | No aprobado aún |
-| reporte_servicio_cliente | No aprobado aún |
+### 2. `useCxPCortesSemanales.ts` (creación real del corte)
+
+**Bloque armado_interno (líneas 153-176):** Mismo fix:
+- Query `asignacion_armados` sin filtro `hora_encuentro`
+- Traer servicios finalizados de la semana para este armado via JOIN manual
+- Calcular monto con `calcularCostoPlano(km, tarifas)`
+- Descripción del detalle incluye km y tarifa: `"Servicio FOLIO — 180 km × $5.50/km"`
+
+```typescript
+import { fetchTarifasKm, calcularCostoPlano } from '@/utils/tarifasKmUtils';
+
+// En el bloque armado_interno:
+const { data: asignaciones } = await supabase
+  .from('asignacion_armados')
+  .select('id, armado_id, servicio_custodia_id')
+  .eq('armado_id', data.operativo_id)
+  .eq('tipo_asignacion', 'interno')
+  .in('estado_asignacion', ['completado', 'confirmado', 'pendiente']);
+
+// Traer servicios vinculados finalizados en la semana
+const svcIds = (asignaciones || []).map(a => a.servicio_custodia_id).filter(Boolean);
+const { data: svcs } = await supabase
+  .from('servicios_custodia')
+  .select('id, id_servicio, km_recorridos, nombre_cliente')
+  .in('id_servicio', svcIds)
+  .eq('estado', 'Finalizado')
+  .gte('fecha_hora_cita', `${data.semana_inicio}T00:00:00`)
+  .lte('fecha_hora_cita', `${data.semana_fin}T23:59:59`);
+
+const tarifas = await fetchTarifasKm();
+const svcMap = new Map((svcs || []).map(s => [s.id_servicio, s]));
+
+for (const a of asignaciones || []) {
+  const svc = svcMap.get(a.servicio_custodia_id);
+  if (!svc) continue;
+  const km = Number(svc.km_recorridos) || 0;
+  const { costo, tarifa } = calcularCostoPlano(km, tarifas);
+  montoServicios += costo;
+  totalServicios++;
+  detalles.push({
+    concepto: 'servicio',
+    descripcion: `Servicio ${svc.id_servicio} — ${km} km × $${tarifa}/km`,
+    monto: costo,
+    servicio_custodia_id: svc.id,
+  });
+}
+```
+
+### 3. `GenerarCorteDialog.tsx` (preview individual)
+
+**Bloque armado (líneas 103-116):** Mismo patrón: query sin `hora_encuentro`, cross-ref con servicios, calcular por km.
+
+```typescript
+// Reemplazar bloque else (líneas 103-116)
+const { data: asignaciones } = await supabase
+  .from('asignacion_armados')
+  .select('id, servicio_custodia_id')
+  .eq('armado_id', operativoId)
+  .eq('tipo_asignacion', 'interno')
+  .in('estado_asignacion', ['completado', 'confirmado', 'pendiente']);
+
+const svcIds = (asignaciones || []).map(a => a.servicio_custodia_id).filter(Boolean);
+if (svcIds.length > 0) {
+  const { data: svcs } = await supabase
+    .from('servicios_custodia')
+    .select('id, id_servicio, km_recorridos')
+    .in('id_servicio', svcIds)
+    .eq('estado', 'Finalizado')
+    .gte('fecha_hora_cita', `${semanaInicio}T00:00:00`)
+    .lte('fecha_hora_cita', `${semanaFin}T23:59:59`);
+
+  const tarifas = await fetchTarifasKm();
+  for (const svc of svcs || []) {
+    const km = Number(svc.km_recorridos) || 0;
+    const { costo } = calcularCostoPlano(km, tarifas);
+    montoServicios += costo;
+    totalServicios++;
+  }
+}
+```
+
+## Resumen del cambio
+
+| Antes | Después |
+|-------|---------|
+| Filtra por `hora_encuentro` (siempre NULL) | Cross-ref con `servicios_custodia.fecha_hora_cita` |
+| Usa `tarifa_acordada` (siempre NULL → $0) | `calcularCostoPlano(km_recorridos, tarifas_km)` |
+| Armados muestran 0 svcs / $0.00 | Armados muestran servicios reales con costo por km |
+
