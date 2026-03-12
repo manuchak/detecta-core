@@ -298,7 +298,6 @@ export function CompactServiceCard({
             disabled={isCancelling}
             horaLlegadaCustodio={service.hora_llegada_custodio}
           />
-          />
           <CancelServiceButton
             serviceId={service.id}
             serviceName={service.cliente_nombre || service.nombre_cliente || ''}
