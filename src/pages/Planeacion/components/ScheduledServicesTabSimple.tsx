@@ -971,6 +971,7 @@ export function ScheduledServicesTab() {
                     ? { ...service, hora_llegada_custodio: optimisticArrival }
                     : service;
                   const operationalStatus = getOperationalStatus(effectiveService);
+                  const OperationalIcon = operationalStatus.icon;
                   const citaTime = new Date(service.fecha_hora_cita);
                   const upcomingHighlight = getUpcomingHighlightClass(citaTime, now);
                   
