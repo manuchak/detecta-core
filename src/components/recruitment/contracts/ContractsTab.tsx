@@ -59,7 +59,7 @@ const ESTADO_CONFIG: Record<EstadoContrato, { color: string; icon: React.Element
   vencido: { color: 'bg-muted text-muted-foreground', icon: Clock, label: 'Vencido' }
 };
 
-export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: initialVehiculoPropio = false, tieneVehiculo = true }: Props) {
+export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: initialVehiculoPropio = false, tieneVehiculo = true, isArmado = false }: Props) {
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState<TipoContrato | null>(null);
@@ -72,10 +72,10 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
 
   const { data: contratos, isLoading } = useContratosCandidato(candidatoId);
   const { data: plantillas } = usePlantillasContrato();
-  const { firmados, totalRequeridos, porcentaje, contratosFaltantes } = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo);
+  const { firmados, totalRequeridos, porcentaje, contratosFaltantes } = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo, isArmado);
   const eliminarContrato = useEliminarContrato();
 
-  const contratosRequeridos = getContratosRequeridosParaCandidato(vehiculoPropio, tieneVehiculo);
+  const contratosRequeridos = getContratosRequeridosParaCandidato(vehiculoPropio, tieneVehiculo, isArmado);
 
   const getContratoPorTipo = (tipo: TipoContrato) => {
     return contratos?.find(c => c.tipo_contrato === tipo && c.estado !== 'rechazado' && c.estado !== 'vencido');
