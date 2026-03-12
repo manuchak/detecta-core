@@ -1,69 +1,94 @@
+# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
+## Resumen ejecutivo
+Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
+Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-# Causa Raíz: Trigger con columna inexistente
+## Fase Dev 1 — Modelo de datos ✅
+- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
+- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
+- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
+- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
+- ✅ Índice `idx_wm_channel_sender` para queries de cliente
+- ✅ Backfill de registros existentes
 
-## El Bug
+## Fase Dev 2 — Router de contexto en webhook ✅
+- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
+- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
+- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
+- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
+- ✅ Cliente con servicio activo → visible en tab, no crea ticket
+- ✅ Cliente sin servicio → crea ticket de atención
 
-El trigger `trg_check_lead_approval` ejecuta la función `check_lead_approval_has_candidato()` que contiene:
+## Fase Dev 3 — Clasificación en mensajes salientes ✅
+- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
+- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
-```sql
-SELECT 1 FROM candidatos_custodios WHERE lead_id = NEW.id
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
+
+## Fase Dev 5 — Handoff Planeación → C4 ✅
+- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
+- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
+- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
+- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
+
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
+
+## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
+- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
+- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
+- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
+- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
+- ✅ Fire-and-forget: no bloquea el flujo principal
+
+## Fase Dev 8 — Broadcast multi-contacto ✅
+- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
+- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
+- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
+- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
+- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
+
+## Fase Dev 9 — Testing E2E + Switch WhatsApp ✅
+- ✅ Tabla `app_feature_flags` con RLS (read: authenticated, write: admin/owner/coordinador)
+- ✅ Seeds: `whatsapp_planeacion` (OFF), `whatsapp_monitoreo` (OFF)
+- ✅ Realtime habilitado en `app_feature_flags`
+- ✅ Hook `useWhatsAppMode` con react-query + realtime subscription
+- ✅ Switches "WA Plan" y "WA Mon" en `CoordinatorCommandCenter` header
+- ✅ `CompactServiceCard`: botón chat condicionado a flag `whatsapp_planeacion`
+- ✅ `ServiceCommSheet`: placeholder "WhatsApp deshabilitado" cuando flag `whatsapp_monitoreo` está OFF
+- ✅ `CommScenarioSimulator` con 3 escenarios guiados (Planeación, Monitoreo, Cliente)
+- ✅ Cada escenario: pasos individuales + "Ejecutar Todo" con barra de progreso
+- ✅ Verificaciones de persistencia y comm_channel en cada escenario
+
+## Dependencias
+```
+Fase 1 → Fase 2, Fase 3 (paralelas)
+Fase 2+3 → Fase 4, Fase 6 (paralelas)
+Fase 4 → Fase 5
+Fase 5+6 → Fase 7
+Fase 6 → Fase 8
+Todas → Fase 9
 ```
 
-**Pero `candidatos_custodios` NO tiene columna `lead_id`.** La relación es inversa: `leads.candidato_custodio_id → candidatos_custodios.id`.
-
-## Flujo que falla
-
-1. Analista clickea "Aprobar" en un lead
-2. `useLeadApprovals.handleApproval()` ejecuta exitosamente:
-   - ✅ Upsert en `lead_approval_process`
-   - ✅ RPC `sync_lead_to_candidato` → crea candidato y setea `leads.candidato_custodio_id`
-   - ✅ Migración de datos vehiculares
-3. ❌ `sbx.update('leads', { estado: 'aprobado' })` → dispara el trigger
-4. ❌ Trigger intenta `WHERE lead_id = NEW.id` → **column "lead_id" does not exist**
-
-## Impacto en otros workflows
-
-| Workflow | ¿Afectado? | Detalle |
-|----------|-----------|---------|
-| **Aprobación de custodios** | ❌ Bloqueado | Error impide cambiar estado a 'aprobado' |
-| **Aprobación de armados** | ❌ Bloqueado | Mismo trigger se ejecuta; además `sync_lead_to_candidato_armado` no existe como RPC |
-| **Rechazo de leads** | ✅ OK | Estado 'rechazado' no dispara la validación del trigger |
-| **2da Entrevista** | ✅ OK | No cambia estado a 'aprobado' |
-| **Pool de Reserva** | ⚠️ Parcial | Si el lead se aprueba desde pool, mismo error |
-| **Evaluaciones/Liberación** | ⚠️ Indirecto | Sin aprobaciones, no llegan candidatos al pipeline de evaluación |
-
-## Problema secundario: Armados sin RPC
-
-La función `sync_lead_to_candidato_armado` se invoca en el código pero **no existe en la base de datos**. Los armados no pueden ser aprobados por doble fallo (RPC inexistente + trigger roto).
-
-## Fix
-
-Corregir el trigger para usar la relación correcta (`leads.candidato_custodio_id`) y también buscar en `candidatos_armados`:
-
-```sql
-CREATE OR REPLACE FUNCTION check_lead_approval_has_candidato()
-RETURNS trigger AS $$
-BEGIN
-  IF NEW.estado = 'aprobado' AND OLD.estado IS DISTINCT FROM 'aprobado' THEN
-    IF NEW.candidato_custodio_id IS NULL THEN
-      RAISE EXCEPTION 'No se puede aprobar un lead sin crear el registro de candidato.';
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-```
-
-Esto valida que `candidato_custodio_id` esté seteado (lo cual `sync_lead_to_candidato` ya hace justo antes) sin necesidad de query a otra tabla.
-
-Y crear la RPC faltante `sync_lead_to_candidato_armado` para el flujo de armados.
-
-### Archivos a modificar
-- **SQL**: Reemplazar función `check_lead_approval_has_candidato` del trigger
-- **SQL**: Crear RPC `sync_lead_to_candidato_armado`
-
-### Respuesta para Mariana
-
-> Mariana, ya identifiqué el problema. Es un trigger de validación en la base de datos que busca una columna que no existe. Por eso no se pueden aprobar candidatos. Ya lo estamos corrigiendo — una vez aplicado el fix, el botón "Aprobar" funcionará correctamente.
-
+## Templates Meta pendientes
+| Template | Estado |
+|---|---|
+| posicionamiento_cliente | Por crear |
+| cierre_servicio_cliente | Por crear |
+| incidencia_servicio_cliente | Por crear |
+| nudge_status_custodio | No aprobado aún |
+| reporte_servicio_cliente | No aprobado aún |
