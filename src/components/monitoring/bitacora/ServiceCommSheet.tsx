@@ -186,26 +186,16 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
 
         {/* ── Content area ── */}
         <div className="flex-1 min-h-0 flex flex-col">
-          {activeTab === 'chat' ? (
-            <CustodioChat
-              messages={messages}
-              isLoading={messagesLoading}
-              custodioName={service.custodio_asignado || 'Sin custodio'}
-              onSendNudge={handleSendNudge}
-              onSendMessage={handleSendMessage}
-            />
-          ) : (
-            <ClientChat
-              servicioId={service.id}
-              clienteName={service.nombre_cliente}
-              folioServicio={service.id_servicio}
-              custodioName={service.custodio_asignado || 'Sin custodio'}
-              clienteId={(service as any).cliente_id || null}
-              contactoWhatsapp={service.telefono_cliente}
-              media={media}
-              onValidateMedia={validateMedia}
-            />
-          )}
+          <MonitoreoContent
+            activeTab={activeTab}
+            service={service}
+            messages={messages}
+            messagesLoading={messagesLoading}
+            media={media}
+            handleSendNudge={handleSendNudge}
+            handleSendMessage={handleSendMessage}
+            validateMedia={validateMedia}
+          />
         </div>
       </SheetContent>
     </Sheet>
