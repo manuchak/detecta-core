@@ -20,7 +20,7 @@ interface PoolCandidateCardProps {
   candidate: AssignedLead;
   selected: boolean;
   onSelect: (selected: boolean) => void;
-  onReactivate: () => void;
+  onReactivate: (targetState: string) => void;
 }
 
 export const PoolCandidateCard = ({ 
