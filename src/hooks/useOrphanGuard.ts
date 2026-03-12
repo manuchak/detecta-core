@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno } from '@/hooks/useMonitoristaAssignment';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
+import { isServiceLocked } from '@/lib/handoffLock';
 
 /**
  * Standalone OrphanGuard + BalanceGuard hook.
@@ -101,7 +102,7 @@ export function useOrphanGuard() {
       const FOUR_HOURS = 4 * 60 * 60 * 1000;
       const SIXTY_MIN_AGO = -60 * 60 * 1000;
       const eligiblePending = pendingServiceIds.filter(id => {
-        if (effectiveAssigned.has(id) || isRecentlyAutoAssigned(id)) return false;
+        if (effectiveAssigned.has(id) || isRecentlyAutoAssigned(id) || isServiceLocked(id)) return false;
         const citaStr = serviceHoraCitaMap[id];
         if (!citaStr) return false;
         const timeUntil = new Date(citaStr).getTime() - now;
@@ -110,7 +111,7 @@ export function useOrphanGuard() {
 
       // Rule 2: Active services without any assignment (already started, urgent)
       const unassignedActive = activeServiceIds.filter(id =>
-        !effectiveAssigned.has(id) && !isRecentlyAutoAssigned(id)
+        !effectiveAssigned.has(id) && !isRecentlyAutoAssigned(id) && !isServiceLocked(id)
       );
 
       const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
@@ -151,6 +152,8 @@ export function useOrphanGuard() {
           if (activeServiceIds.includes(a.servicio_id)) continue;
           // Skip manual assignments (coordinator-assigned) — they are protected
           if (a.asignado_por) continue;
+          // Skip services locked by active handoff
+          if (isServiceLocked(a.servicio_id)) continue;
           const citaStr = serviceHoraCitaMap[a.servicio_id];
           if (!citaStr) continue;
           const timeUntil = new Date(citaStr).getTime() - now;
@@ -181,6 +184,8 @@ export function useOrphanGuard() {
         for (const offlineM of offlineWithServices) {
           const assignments = (assignmentsByMonitorista[offlineM.id] || []).filter(a => a.activo);
           for (const assignment of assignments) {
+            // Skip services locked by active handoff
+            if (isServiceLocked(assignment.servicio_id)) continue;
             const guardKey = `${assignment.servicio_id}-${offlineM.id}`;
             if (orphanGuardRef.current.has(guardKey)) continue;
             orphanGuardRef.current.add(guardKey);

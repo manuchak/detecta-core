@@ -54,32 +54,45 @@ export function useRevertHandoff() {
       if (entrega.estado === 'revertida') throw new Error('Esta entrega ya fue revertida');
 
       const transferidos = (entrega.servicios_transferidos || []) as Array<{
-        servicioId: string;
-        fromMonitorista: string;
-        toMonitorista: string;
+        servicio_id: string;
+        fromMonitoristaId: string;
+        toMonitoristaId: string;
+        [key: string]: any;
       }>;
 
-      // 2. For each transferred service: deactivate incoming assignment, restore outgoing
+      // 2. For each transferred service: deactivate incoming assignment by servicio_id, restore outgoing
       for (const t of transferidos) {
-        // Deactivate the assignment created by handoff (entrante)
-        await supabase
+        if (!t.servicio_id || !t.fromMonitoristaId || !t.toMonitoristaId) {
+          console.warn('[Revert] Skipping entry with missing IDs:', t);
+          continue;
+        }
+
+        // Deactivate by servicio_id (safe pattern) — catches whatever is currently active
+        await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .update({ activo: false, fin_turno: new Date().toISOString() })
-          .eq('servicio_id', t.servicioId)
-          .eq('monitorista_id', t.toMonitorista)
+          .eq('servicio_id', t.servicio_id)
           .eq('activo', true);
 
-        // Reactivate the original assignment (saliente)
-        await supabase
-          .from('bitacora_asignaciones_monitorista')
-          .insert({
-            servicio_id: t.servicioId,
-            monitorista_id: t.fromMonitorista,
-            turno: entrega.turno_saliente,
-            activo: true,
-            inicio_turno: new Date().toISOString(),
-            notas_handoff: `Restaurado por reversión de entrega ${entregaId.slice(0, 8)}`,
-          });
+        // Reactivate the original assignment (saliente) with 23505 handling
+        try {
+          await (supabase as any)
+            .from('bitacora_asignaciones_monitorista')
+            .insert({
+              servicio_id: t.servicio_id,
+              monitorista_id: t.fromMonitoristaId,
+              turno: entrega.turno_saliente,
+              activo: true,
+              inicio_turno: new Date().toISOString(),
+              notas_handoff: `Restaurado por reversión de entrega ${entregaId.slice(0, 8)}`,
+            });
+        } catch (err: any) {
+          if (err?.code === '23505') {
+            console.warn(`[Revert] 23505 conflict for ${t.servicio_id}, already has active assignment`);
+          } else {
+            throw err;
+          }
+        }
       }
 
       // 3. Mark handoff as reverted

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import type { HandoffResult } from '@/hooks/useShiftHandoff';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -54,6 +55,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
   const [manualDistribucion, setManualDistribucion] = useState<Record<string, string>>({});
   const [firmaEntrega, setFirmaEntrega] = useState<string | null>(null);
   const [firmaEntrante, setFirmaEntrante] = useState<string | null>(null);
+  const [handoffResult, setHandoffResult] = useState<HandoffResult | null>(null);
 
   // Reset on open
   useEffect(() => {
@@ -66,6 +68,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       setManualDistribucion({});
       setFirmaEntrega(null);
       setFirmaEntrante(null);
+      setHandoffResult(null);
     }
   }, [open, effectiveSelfId]);
 
@@ -123,6 +126,9 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       firmaEntranteDataUrl: firmaEntrante || undefined,
     }, {
       onSuccess: async (result) => {
+        // Show post-handoff summary
+        setHandoffResult(result);
+
         // Generate and download PDF
         try {
           const actaData: HandoffActaData = {
@@ -149,7 +155,9 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
         } catch (e) {
           console.error('Error generando PDF del acta:', e);
         }
-        onOpenChange(false);
+
+        // Auto-close after 3s so coordinator can see summary
+        setTimeout(() => onOpenChange(false), 3000);
       },
     });
   };
@@ -448,6 +456,41 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
                 </div>
               )}
 
+            </div>
+          )}
+
+          {/* ─── POST-HANDOFF SUMMARY ─── */}
+          {handoffResult && (
+            <div className="space-y-3 animate-in fade-in-0 slide-in-from-bottom-2">
+              <div className="rounded-lg border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-800 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <h4 className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Entrega completada</h4>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center p-2 rounded-md bg-background/60">
+                    <p className="text-lg font-bold text-foreground">{handoffResult.transferredCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Transferidos</p>
+                  </div>
+                  <div className="text-center p-2 rounded-md bg-background/60">
+                    <p className="text-lg font-bold text-foreground">{handoffResult.closedCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Cerrados</p>
+                  </div>
+                  <div className="text-center p-2 rounded-md bg-background/60">
+                    <p className="text-lg font-bold text-foreground">{handoffResult.incidentesAbiertos.length}</p>
+                    <p className="text-[10px] text-muted-foreground">Incidentes heredados</p>
+                  </div>
+                </div>
+                {handoffResult.conflictsResolved > 0 && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {handoffResult.conflictsResolved} conflicto(s) de asignación resueltos automáticamente
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Cerrando automáticamente...
+                </p>
+              </div>
             </div>
           )}
         </ScrollArea>

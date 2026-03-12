@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getCurrentTurno, type MonitoristaProfile } from './useMonitoristaAssignment';
+import { lockServices, unlockAllServices } from '@/lib/handoffLock';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface ServiceContext {
   servicio_id: string;
   assignment_id: string;
+  monitorista_id: string; // outgoing monitorista ID
   cliente: string;
   fase: string;
   ultimo_evento?: string;
@@ -36,6 +38,17 @@ export interface HandoffPayload {
   notasGenerales: string;
   firmaDataUrl?: string;
   firmaEntranteDataUrl?: string;
+}
+
+export interface HandoffResult {
+  closedCount: number;
+  transferredCount: number;
+  conflictsResolved: number;
+  serviciosTransferidos: any[];
+  serviciosCerrados: any[];
+  incidentesAbiertos: any[];
+  payload: HandoffPayload;
+  userEmail?: string;
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -154,6 +167,7 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
     return {
       servicio_id: a.servicio_id,
       assignment_id: a.id,
+      monitorista_id: a.monitorista_id, // preserve outgoing monitorista ID
       cliente: svc?.cliente_nombre || a.servicio_id.slice(0, 12),
       fase: svc?.estado_planeacion || 'desconocido',
       ultimo_evento: lastEvent?.tipo_evento,
@@ -175,119 +189,153 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
 
   // Execute handoff mutation
   const executeHandoff = useMutation({
-    mutationFn: async (payload: HandoffPayload) => {
+    mutationFn: async (payload: HandoffPayload): Promise<HandoffResult> => {
       const nowTs = new Date().toISOString();
       const { data: { user } } = await supabase.auth.getUser();
       const sixHoursAgo = new Date(Date.now() - 6 * 3600_000).toISOString();
 
+      // Lock services to freeze guards
+      const allServiceIds = payload.servicios.map(s => s.servicio_id);
+      lockServices(allServiceIds);
+
       let closedCount = 0;
       let transferredCount = 0;
+      let conflictsResolved = 0;
       const serviciosTransferidos: any[] = [];
       const serviciosCerrados: any[] = [];
 
-      for (const svc of payload.servicios) {
-        const targetMonitoristaId = payload.distribucion[svc.servicio_id];
-        if (!targetMonitoristaId) continue;
+      try {
+        for (const svc of payload.servicios) {
+          const targetMonitoristaId = payload.distribucion[svc.servicio_id];
+          if (!targetMonitoristaId) continue;
 
-        // Check for inactivity > 6h → auto-close
-        const { data: recentEvents } = await (supabase as any)
-          .from('servicio_eventos_ruta')
-          .select('id')
-          .eq('servicio_id', svc.servicio_id)
-          .gte('hora_inicio', sixHoursAgo)
-          .limit(1);
-
-        if (!recentEvents || recentEvents.length === 0) {
-          // Auto-close inactive service
-          await (supabase as any)
-            .from('servicios_planificados')
-            .update({ hora_fin_real: nowTs, estado_planeacion: 'completado' })
-            .eq('id_servicio', svc.servicio_id)
-            .is('hora_fin_real', null);
-
-          await (supabase as any)
+          // Check for inactivity > 6h → auto-close
+          const { data: recentEvents } = await (supabase as any)
             .from('servicio_eventos_ruta')
-            .insert({
+            .select('id')
+            .eq('servicio_id', svc.servicio_id)
+            .gte('hora_inicio', sixHoursAgo)
+            .limit(1);
+
+          if (!recentEvents || recentEvents.length === 0) {
+            // Auto-close inactive service
+            await (supabase as any)
+              .from('servicios_planificados')
+              .update({ hora_fin_real: nowTs, estado_planeacion: 'completado' })
+              .eq('id_servicio', svc.servicio_id)
+              .is('hora_fin_real', null);
+
+            await (supabase as any)
+              .from('servicio_eventos_ruta')
+              .insert({
+                servicio_id: svc.servicio_id,
+                tipo_evento: 'fin_servicio',
+                descripcion: 'Cerrado automáticamente en cambio de turno (>6h sin actividad)',
+                registrado_por: user?.id || null,
+                hora_inicio: nowTs,
+                hora_fin: nowTs,
+              });
+
+            // Deactivate by servicio_id (safe pattern)
+            await (supabase as any)
+              .from('bitacora_asignaciones_monitorista')
+              .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
+              .eq('servicio_id', svc.servicio_id)
+              .eq('activo', true);
+
+            serviciosCerrados.push({
               servicio_id: svc.servicio_id,
-              tipo_evento: 'fin_servicio',
-              descripcion: 'Cerrado automáticamente en cambio de turno (>6h sin actividad)',
-              registrado_por: user?.id || null,
-              hora_inicio: nowTs,
-              hora_fin: nowTs,
+              cliente: svc.cliente,
+              razon: 'inactividad_6h',
             });
+            closedCount++;
+          } else {
+            // Transfer: deactivate by servicio_id (safe pattern), then create new
+            await (supabase as any)
+              .from('bitacora_asignaciones_monitorista')
+              .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
+              .eq('servicio_id', svc.servicio_id)
+              .eq('activo', true);
 
-          await (supabase as any)
-            .from('bitacora_asignaciones_monitorista')
-            .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
-            .eq('id', svc.assignment_id);
+            // Insert new assignment with 23505 conflict handling
+            try {
+              const { error } = await (supabase as any)
+                .from('bitacora_asignaciones_monitorista')
+                .insert({
+                  servicio_id: svc.servicio_id,
+                  monitorista_id: targetMonitoristaId,
+                  asignado_por: user?.id || null,
+                  turno: payload.turnoEntrante,
+                  notas_handoff: svc.notas_servicio || payload.notasGenerales,
+                });
+              if (error) {
+                if (error.code === '23505') {
+                  // Unique violation — service already has active assignment, skip
+                  conflictsResolved++;
+                  console.warn(`[Handoff] 23505 conflict for ${svc.servicio_id}, skipping insert`);
+                } else {
+                  throw error;
+                }
+              }
+            } catch (insertErr: any) {
+              if (insertErr?.code === '23505') {
+                conflictsResolved++;
+                console.warn(`[Handoff] 23505 conflict for ${svc.servicio_id}, skipping insert`);
+              } else {
+                throw insertErr;
+              }
+            }
 
-          serviciosCerrados.push({
-            servicio_id: svc.servicio_id,
-            cliente: svc.cliente,
-            razon: 'inactividad_6h',
-          });
-          closedCount++;
-        } else {
-          // Transfer: close old assignment, create new one
-          await (supabase as any)
-            .from('bitacora_asignaciones_monitorista')
-            .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
-            .eq('id', svc.assignment_id);
-
-          const { error } = await (supabase as any)
-            .from('bitacora_asignaciones_monitorista')
-            .insert({
+            const targetName = payload.entrantes.find(e => e.id === targetMonitoristaId)?.display_name || '';
+            serviciosTransferidos.push({
               servicio_id: svc.servicio_id,
-              monitorista_id: targetMonitoristaId,
-              asignado_por: user?.id || null,
-              turno: payload.turnoEntrante,
-              notas_handoff: svc.notas_servicio || payload.notasGenerales,
+              cliente: svc.cliente,
+              fase: svc.fase,
+              notas_servicio: svc.notas_servicio,
+              asignado_a: targetName,
+              fromMonitoristaId: svc.monitorista_id, // outgoing ID for revert
+              toMonitoristaId: targetMonitoristaId,   // incoming ID for revert
+              incidentes: svc.incidentes.length,
             });
-          if (error) throw error;
-
-          const targetName = payload.entrantes.find(e => e.id === targetMonitoristaId)?.display_name || '';
-          serviciosTransferidos.push({
-            servicio_id: svc.servicio_id,
-            cliente: svc.cliente,
-            fase: svc.fase,
-            notas_servicio: svc.notas_servicio,
-            asignado_a: targetName,
-            incidentes: svc.incidentes.length,
-          });
-          transferredCount++;
+            transferredCount++;
+          }
         }
+
+        // Create acta de entrega
+        const allIncidents = payload.servicios
+          .flatMap(s => s.incidentes)
+          .map(i => ({ incidente_id: i.id, tipo: i.tipo, severidad: i.severidad }));
+
+        await (supabase as any)
+          .from('bitacora_entregas_turno')
+          .insert({
+            turno_saliente: getCurrentTurno(),
+            turno_entrante: payload.turnoEntrante,
+            ejecutado_por: user?.id || null,
+            monitoristas_salientes: payload.salientes.map(m => ({ id: m.id, display_name: m.display_name })),
+            monitoristas_entrantes: payload.entrantes.map(m => ({ id: m.id, display_name: m.display_name })),
+            servicios_transferidos: serviciosTransferidos,
+            servicios_cerrados: serviciosCerrados,
+            incidentes_abiertos: allIncidents,
+            notas_generales: payload.notasGenerales,
+            firma_data_url: payload.firmaDataUrl || null,
+            firma_entrante_data_url: payload.firmaEntranteDataUrl || null,
+          });
+
+        return {
+          closedCount,
+          transferredCount,
+          conflictsResolved,
+          serviciosTransferidos,
+          serviciosCerrados,
+          incidentesAbiertos: allIncidents,
+          payload,
+          userEmail: user?.email,
+        };
+      } finally {
+        // Always unlock, even on error
+        unlockAllServices();
       }
-
-      // Create acta de entrega
-      const allIncidents = payload.servicios
-        .flatMap(s => s.incidentes)
-        .map(i => ({ incidente_id: i.id, tipo: i.tipo, severidad: i.severidad }));
-
-      await (supabase as any)
-        .from('bitacora_entregas_turno')
-        .insert({
-          turno_saliente: getCurrentTurno(),
-          turno_entrante: payload.turnoEntrante,
-          ejecutado_por: user?.id || null,
-          monitoristas_salientes: payload.salientes.map(m => ({ id: m.id, display_name: m.display_name })),
-          monitoristas_entrantes: payload.entrantes.map(m => ({ id: m.id, display_name: m.display_name })),
-          servicios_transferidos: serviciosTransferidos,
-          servicios_cerrados: serviciosCerrados,
-          incidentes_abiertos: allIncidents,
-          notas_generales: payload.notasGenerales,
-          firma_data_url: payload.firmaDataUrl || null,
-          firma_entrante_data_url: payload.firmaEntranteDataUrl || null,
-        });
-
-      return {
-        closedCount,
-        transferredCount,
-        serviciosTransferidos,
-        serviciosCerrados,
-        incidentesAbiertos: allIncidents,
-        payload,
-        userEmail: user?.email,
-      };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['monitorista-assignments'] });
@@ -295,9 +343,13 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
       const parts: string[] = ['✅ Turno entregado'];
       if (result.transferredCount > 0) parts.push(`${result.transferredCount} transferidos`);
       if (result.closedCount > 0) parts.push(`${result.closedCount} cerrados por inactividad`);
+      if (result.conflictsResolved > 0) parts.push(`${result.conflictsResolved} conflictos resueltos`);
       toast.success(parts.join(' · '));
     },
-    onError: () => toast.error('Error en cambio de turno'),
+    onError: () => {
+      unlockAllServices();
+      toast.error('Error en cambio de turno');
+    },
   });
 
   return {
