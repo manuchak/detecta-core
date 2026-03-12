@@ -370,7 +370,7 @@ export function ReassignmentModal({
       await onReassign({
         serviceId: service.id,
         newName: selectedName,
-        newId: selectedId || undefined,
+        newId: selectedType === 'proveedor' ? undefined : (selectedId || undefined),
         reason: reason.trim(),
         assignmentType: selectedType,
         providerId: selectedType === 'proveedor' ? selectedProviderId : undefined,
