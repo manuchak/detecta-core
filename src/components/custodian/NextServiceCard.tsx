@@ -20,7 +20,7 @@ interface NextServiceCardProps {
   isRetorno?: boolean;
 }
 
- const NextServiceCard = ({ service, onViewDetails, onStartChecklist, checklistCompleted }: NextServiceCardProps) => {
+ const NextServiceCard = ({ service, onViewDetails, onStartChecklist, checklistCompleted, isRetorno }: NextServiceCardProps) => {
   if (!service) {
     return (
       <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-6 text-center">
