@@ -19,6 +19,7 @@ interface CustodianService {
 interface NextServiceResult {
   service: CustodianService | null;
   checklistStatus: 'pendiente' | 'completo' | null;
+  isRetorno: boolean;
   isLoading: boolean;
   refetch: () => void;
 }
