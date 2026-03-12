@@ -223,7 +223,7 @@ export const PoolReservaView = ({ searchTerm = "" }: PoolReservaViewProps) => {
                 candidate={candidate}
                 selected={selectedCandidates.includes(candidate.lead_id)}
                 onSelect={(selected) => handleSelectCandidate(candidate.lead_id, selected)}
-                onReactivate={() => reactivateFromPool(candidate.lead_id)}
+                onReactivate={(targetState) => reactivateFromPool(candidate.lead_id, targetState)}
               />
             ))}
           </>
