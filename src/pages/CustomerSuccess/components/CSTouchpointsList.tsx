@@ -64,7 +64,7 @@ export function CSTouchpointsList({ onClienteClick, initialTab }: Props) {
 
   // New touchpoint form
   const [tpClienteId, setTpClienteId] = useState('');
-  const [tpTipo, setTpTipo] = useState('llamada');
+  const [tpTipo, setTpTipo] = useState('llamada_seguimiento');
   const [tpDireccion, setTpDireccion] = useState('saliente');
   const [tpContacto, setTpContacto] = useState('');
   const [tpResumen, setTpResumen] = useState('');
@@ -128,7 +128,7 @@ export function CSTouchpointsList({ onClienteClick, initialTab }: Props) {
   const resetNewTp = () => {
     setNewTpOpen(false);
     setTpClienteId('');
-    setTpTipo('llamada');
+    setTpTipo('llamada_seguimiento');
     setTpDireccion('saliente');
     setTpContacto('');
     setTpResumen('');
@@ -302,11 +302,12 @@ export function CSTouchpointsList({ onClienteClick, initialTab }: Props) {
             <SelectTrigger className="w-[140px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos los tipos</SelectItem>
-              <SelectItem value="llamada">Llamada</SelectItem>
+              <SelectItem value="llamada_seguimiento">Llamada</SelectItem>
               <SelectItem value="email">Email</SelectItem>
               <SelectItem value="whatsapp">WhatsApp</SelectItem>
               <SelectItem value="reunion">Reunión</SelectItem>
               <SelectItem value="visita">Visita</SelectItem>
+              <SelectItem value="nota_interna">Nota Interna</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterCSM} onValueChange={setFilterCSM}>
@@ -377,11 +378,12 @@ export function CSTouchpointsList({ onClienteClick, initialTab }: Props) {
                 <Select value={tpTipo} onValueChange={setTpTipo}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="llamada">Llamada</SelectItem>
+                    <SelectItem value="llamada_seguimiento">Llamada</SelectItem>
                     <SelectItem value="email">Email</SelectItem>
                     <SelectItem value="whatsapp">WhatsApp</SelectItem>
                     <SelectItem value="reunion">Reunión</SelectItem>
                     <SelectItem value="visita">Visita</SelectItem>
+                    <SelectItem value="nota_interna">Nota Interna</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
