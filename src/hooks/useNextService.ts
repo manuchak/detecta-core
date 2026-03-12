@@ -182,6 +182,7 @@ export function useNextService(custodianPhone: string | undefined, custodioId?: 
   return {
     service: query.data?.service || null,
     checklistStatus: query.data?.checklistStatus || null,
+    isRetorno: query.data?.service?.isRetorno || false,
     isLoading: query.isLoading,
     refetch: query.refetch
   };
