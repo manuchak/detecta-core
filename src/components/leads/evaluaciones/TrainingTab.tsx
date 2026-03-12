@@ -109,7 +109,7 @@ export const TrainingTab = ({ candidatoId }: TrainingTabProps) => {
       handleRemoveFile();
     } catch (error) {
       console.error('Error completing training:', error);
-      toast({ title: 'Error', description: 'No se pudo completar la capacitación. Intenta de nuevo.', variant: 'destructive' });
+      // Toast is handled by mutation's onError — avoid duplicate
     }
   };
 
