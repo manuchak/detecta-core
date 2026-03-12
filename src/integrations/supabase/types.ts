@@ -13981,27 +13981,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "progreso_capacitacion_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "progreso_capacitacion_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "progreso_capacitacion_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
-          {
             foreignKeyName: "progreso_capacitacion_modulo_id_fkey"
             columns: ["modulo_id"]
             isOneToOne: false
