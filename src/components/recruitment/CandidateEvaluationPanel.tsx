@@ -145,6 +145,8 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   });
 
   const vehiculoPropio = candidatoData?.vehiculo_propio ?? false;
+  // Armados sin vehículo no requieren contrato vehicular
+  const tieneVehiculo = isArmado ? vehiculoPropio : true;
   const latestInterview = interviews?.[0];
 
   // Training
