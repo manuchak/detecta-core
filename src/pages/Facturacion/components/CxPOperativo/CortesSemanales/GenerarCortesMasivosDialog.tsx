@@ -251,6 +251,22 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
   const yaGenerados = useMemo(() => operativos.filter(o => o.yaGenerado), [operativos]);
   const sinServicios = useMemo(() => operativos.filter(o => !o.yaGenerado && o.totalServicios === 0), [operativos]);
 
+  const subtotalesPorTipo = useMemo(() => {
+    const custodios = pendientes.filter(o => o.tipo === 'custodio');
+    const armados = pendientes.filter(o => o.tipo === 'armado_interno');
+    return {
+      custodios: { count: custodios.length, servicios: custodios.reduce((s, o) => s + o.totalServicios, 0), monto: custodios.reduce((s, o) => s + o.montoEstimado, 0) },
+      armados: { count: armados.length, servicios: armados.reduce((s, o) => s + o.totalServicios, 0), monto: armados.reduce((s, o) => s + o.montoEstimado, 0) },
+    };
+  }, [pendientes]);
+
+  const selectedBreakdown = useMemo(() => {
+    const selected = pendientes.filter(o => selectedIds.has(o.id));
+    const cust = selected.filter(o => o.tipo === 'custodio').length;
+    const arm = selected.filter(o => o.tipo === 'armado_interno').length;
+    return { custodios: cust, armados: arm };
+  }, [pendientes, selectedIds]);
+
   const allPendientesSelected = pendientes.length > 0 && pendientes.every(o => selectedIds.has(o.id));
 
   const toggleAll = () => {
@@ -340,21 +356,42 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
           <DialogDescription className="capitalize">{weekLabel}</DialogDescription>
         </DialogHeader>
 
-        {/* Summary badges */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="text-xs">
-            {pendientes.length} pendiente{pendientes.length !== 1 ? 's' : ''}
-          </Badge>
-          {yaGenerados.length > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              {yaGenerados.length} ya generado{yaGenerados.length !== 1 ? 's' : ''}
-            </Badge>
-          )}
-          {sinServicios.length > 0 && (
-            <Badge variant="outline" className="text-xs text-muted-foreground">
-              {sinServicios.length} sin servicios
-            </Badge>
-          )}
+        {/* Summary by type */}
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="border rounded-md px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium">Custodios</span>
+              </div>
+              <div className="text-sm font-bold">{fmt(subtotalesPorTipo.custodios.monto)}</div>
+              <div className="text-[10px] text-muted-foreground">
+                {subtotalesPorTipo.custodios.count} operativos · {subtotalesPorTipo.custodios.servicios} svcs
+              </div>
+            </div>
+            <div className="border rounded-md px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/40 text-primary">Armado</Badge>
+                <span className="text-xs font-medium">Armados Int.</span>
+              </div>
+              <div className="text-sm font-bold">{fmt(subtotalesPorTipo.armados.monto)}</div>
+              <div className="text-[10px] text-muted-foreground">
+                {subtotalesPorTipo.armados.count} operativos · {subtotalesPorTipo.armados.servicios} svcs
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {yaGenerados.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {yaGenerados.length} ya generado{yaGenerados.length !== 1 ? 's' : ''}
+              </Badge>
+            )}
+            {sinServicios.length > 0 && (
+              <Badge variant="outline" className="text-xs text-muted-foreground">
+                {sinServicios.length} sin servicios
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Progress bar during generation */}
@@ -531,6 +568,11 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
           <div className="text-sm">
             <span className="text-muted-foreground">Seleccionados:</span>{' '}
             <strong>{selectedIds.size}</strong> · {fmt(totalEstimado)}
+            {selectedIds.size > 0 && (
+              <span className="text-muted-foreground text-xs ml-1">
+                ({selectedBreakdown.custodios} custodio{selectedBreakdown.custodios !== 1 ? 's' : ''} · {selectedBreakdown.armados} armado{selectedBreakdown.armados !== 1 ? 's' : ''})
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={generating}>
