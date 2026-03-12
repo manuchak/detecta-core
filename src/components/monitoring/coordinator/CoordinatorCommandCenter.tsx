@@ -189,7 +189,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     const eventoServiceIds = new Set(eventoEspecialServices.map(s => s.id_servicio));
 
     const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
-    for (const m of enTurno) {
+    for (const m of rebalanceEligible) {
       for (const a of (filteredAssignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
         if (eventoServiceIds.has(a.servicio_id)) continue;
         allFormalActive.push({
@@ -202,9 +202,9 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     const totalServices = allFormalActive.length;
     if (totalServices === 0) return;
 
-    const totalStaff = enTurno.length;
+    const totalStaff = rebalanceEligible.length;
     const loadByM: Record<string, number> = {};
-    for (const m of enTurno) loadByM[m.id] = 0;
+    for (const m of rebalanceEligible) loadByM[m.id] = 0;
     for (const a of allFormalActive) loadByM[a.monitoristaId]++;
 
     const servicioIds = allFormalActive.map(a => a.servicioId);
@@ -223,7 +223,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     const targetLoad = Math.floor(totalServices / totalStaff);
     const remainder = totalServices % totalStaff;
     const targetByM: Record<string, number> = {};
-    const sorted = enTurno.slice().sort((a, b) => (loadByM[b.id] || 0) - (loadByM[a.id] || 0));
+    const sorted = rebalanceEligible.slice().sort((a, b) => (loadByM[b.id] || 0) - (loadByM[a.id] || 0));
     sorted.forEach((m, i) => { targetByM[m.id] = targetLoad + (i < remainder ? 1 : 0); });
 
     const reassignments: { fromAssignmentId: string; toMonitoristaId: string; servicioId: string }[] = [];
@@ -255,7 +255,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         toast.info(`⚖️ Carga rebalanceada: ~${perPerson} servicios c/u (${reassignments.length} fríos movidos)`, { duration: 8000 });
       },
     });
-  }, [enTurno, filteredAssignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
+  }, [rebalanceEligible, filteredAssignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
 
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));

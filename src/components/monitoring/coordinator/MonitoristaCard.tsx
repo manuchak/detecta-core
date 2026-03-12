@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { User, Circle, Zap, Plus, Clock } from 'lucide-react';
 import type { MonitoristaProfile, MonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
 import { cn } from '@/lib/utils';
+import { Coffee } from 'lucide-react';
 
 interface UnassignedService {
   id: string;
