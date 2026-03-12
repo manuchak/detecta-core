@@ -57,7 +57,7 @@ const MobileDashboardLayout = () => {
   const [dismissedTickets, setDismissedTickets] = useState<Set<string>>(new Set());
   const [realCustodioId, setRealCustodioId] = useState<string | null>(null);
   const [isAdminMode, setIsAdminMode] = useState(false);
-  const { service: nextService, checklistStatus, refetch: refetchNextService } = useNextService(profile?.phone, realCustodioId);
+  const { service: nextService, checklistStatus, isRetorno, refetch: refetchNextService } = useNextService(profile?.phone, realCustodioId);
   
   // Phone update flow state
   const [showPhoneUpdatePrompt, setShowPhoneUpdatePrompt] = useState(false);
