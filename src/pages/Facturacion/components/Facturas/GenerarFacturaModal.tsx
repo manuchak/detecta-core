@@ -188,10 +188,17 @@ export function GenerarFacturaModal({
   const subtotal = allConceptos.reduce((sum, c) => sum + getImporte(c), 0);
   const iva = subtotal * IVA_RATE;
   const total = subtotal + iva;
-  const fechaVencimiento = format(
-    addDays(new Date(fechaEmision), diasCredito),
-    'yyyy-MM-dd'
+
+  // Recalcular vencimiento cuando cambie fecha de emisión o días crédito
+  const fiscal = clientesFiscales.find(
+    c => c.nombre.toLowerCase() === cliente.cliente.toLowerCase()
   );
+  const currentCalc = calcularFechaVencimientoReal(new Date(fechaEmision), {
+    dias_credito: diasCredito,
+    dia_corte: fiscal?.dia_corte,
+    dia_pago: fiscal?.dia_pago,
+  });
+  const fechaVencimiento = vencimientoOverride || currentCalc.fechaVencimientoStr;
 
   // Summary by type
   const summaryByType = (tipo: string) =>
