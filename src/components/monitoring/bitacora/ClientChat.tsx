@@ -1,10 +1,10 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Send, Clock, Check, CheckCheck, MessageSquare,
-  ArrowUp, Zap, User, AlertCircle, Timer
+  ArrowUp, Zap, User, AlertCircle, Timer, Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useServicioComm } from '@/hooks/useServicioComm';
@@ -54,7 +54,6 @@ function DateSeparator({ date }: { date: Date }) {
 function WindowPill({ lastClientMsg }: { lastClientMsg: Date | null }) {
   const [, setTick] = useState(0);
 
-  // Refresh every minute
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 60_000);
     return () => clearInterval(id);
@@ -99,8 +98,18 @@ function WindowPill({ lastClientMsg }: { lastClientMsg: Date | null }) {
   );
 }
 
+/* ── Broadcast badge ── */
+function BroadcastBadge({ count }: { count: number }) {
+  return (
+    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-chart-2/10 border border-chart-2/20">
+      <Users className="h-2.5 w-2.5 text-chart-2" />
+      <span className="text-[9px] font-medium text-chart-2">Enviado a {count} contactos</span>
+    </div>
+  );
+}
+
 /* ── Message bubble ── */
-function ClientBubble({ msg, showTail }: { msg: CommMessage; showTail: boolean }) {
+function ClientBubble({ msg, showTail, broadcastCount }: { msg: CommMessage; showTail: boolean; broadcastCount?: number }) {
   const isBot = msg.is_from_bot;
   const isClient = msg.sender_type === 'cliente';
   const time = format(new Date(msg.created_at), 'HH:mm');
@@ -109,7 +118,6 @@ function ClientBubble({ msg, showTail }: { msg: CommMessage; showTail: boolean }
 
   return (
     <div className={cn('flex flex-col max-w-[82%] gap-0.5 group', isBot ? 'ml-auto items-end' : 'mr-auto items-start')}>
-      {/* Sender label for client messages */}
       {isClient && showTail && (
         <span className="text-[9px] font-medium text-chart-2/70 px-2 mb-0.5 flex items-center gap-1">
           <User className="h-2.5 w-2.5" /> Cliente
@@ -131,12 +139,57 @@ function ClientBubble({ msg, showTail }: { msg: CommMessage; showTail: boolean }
         )}
       </div>
 
-      <div className={cn('flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity', showTail && 'opacity-100')}>
+      <div className={cn('flex items-center gap-1 px-1', showTail ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 transition-opacity')}>
         <span className="text-[9px] text-muted-foreground/50 tabular-nums">{time}</span>
         {isBot && <DeliveryTicks status={msg.delivery_status} />}
+        {broadcastCount && broadcastCount > 1 && <BroadcastBadge count={broadcastCount} />}
       </div>
     </div>
   );
+}
+
+/* ── Group broadcast messages ── */
+interface DisplayMessage {
+  msg: CommMessage;
+  broadcastCount: number;
+}
+
+function groupBroadcastMessages(messages: CommMessage[]): DisplayMessage[] {
+  const result: DisplayMessage[] = [];
+  let i = 0;
+
+  while (i < messages.length) {
+    const current = messages[i];
+
+    // Only group outgoing (is_from_bot) messages
+    if (!current.is_from_bot) {
+      result.push({ msg: current, broadcastCount: 1 });
+      i++;
+      continue;
+    }
+
+    // Collect consecutive outgoing msgs with same text within 5s window
+    let groupCount = 1;
+    let j = i + 1;
+    while (j < messages.length) {
+      const next = messages[j];
+      if (!next.is_from_bot) break;
+      if (next.message_text !== current.message_text) break;
+
+      const timeDiff = Math.abs(
+        new Date(next.created_at).getTime() - new Date(current.created_at).getTime()
+      );
+      if (timeDiff > 5000) break;
+
+      groupCount++;
+      j++;
+    }
+
+    result.push({ msg: current, broadcastCount: groupCount });
+    i = j; // skip grouped messages
+  }
+
+  return result;
 }
 
 /* ══════════════════════════════════════════════════ */
@@ -151,9 +204,9 @@ export const ClientChat: React.FC<ClientChatProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [selectedContact, setSelectedContact] = useState<string>(contactoWhatsapp || '');
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
 
-  // Build contact list: service phone + pc_clientes_contactos
+  // Build contact list
   const allContacts = useMemo(() => {
     const list: { phone: string; label: string; isPrimary: boolean }[] = [];
     const seen = new Set<string>();
@@ -179,14 +232,31 @@ export const ClientChat: React.FC<ClientChatProps> = ({
     return list;
   }, [contactoWhatsapp, contactos]);
 
-  // Set default contact
+  // Set default selected contacts (all selected initially)
   useEffect(() => {
-    if (!selectedContact && allContacts.length > 0) {
-      setSelectedContact(allContacts[0].phone);
+    if (selectedContacts.size === 0 && allContacts.length > 0) {
+      setSelectedContacts(new Set(allContacts.map(c => c.phone)));
     }
-  }, [allContacts, selectedContact]);
+  }, [allContacts, selectedContacts.size]);
 
-  // Calculate 24h window
+  const toggleContact = useCallback((phone: string) => {
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      if (next.has(phone)) next.delete(phone);
+      else next.add(phone);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedContacts(new Set(allContacts.map(c => c.phone)));
+  }, [allContacts]);
+
+  const selectNone = useCallback(() => {
+    setSelectedContacts(new Set());
+  }, []);
+
+  // 24h window
   const lastClientMessage = useMemo(() => {
     const clientMsgs = messages.filter(m => m.sender_type === 'cliente');
     if (clientMsgs.length === 0) return null;
@@ -209,71 +279,110 @@ export const ClientChat: React.FC<ClientChatProps> = ({
     if (unread > 0) markAsRead();
   }, [messages, markAsRead]);
 
+  // ── Broadcast send: text message ──
   const handleSendMessage = async (text: string) => {
-    if (!selectedContact) { toast.error('Selecciona un contacto'); return; }
+    const targets = Array.from(selectedContacts);
+    if (targets.length === 0) { toast.error('Selecciona al menos un contacto'); return; }
     if (!windowOpen) { toast.error('Ventana 24h cerrada — usa un template'); return; }
-    setSending(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.functions.invoke('kapso-send-message', {
-        body: {
-          to: selectedContact,
-          type: 'text',
-          text,
-          sent_by_user_id: user?.id || null,
-          context: { servicio_id: servicioId, comm_channel: 'cliente_c4' },
-        },
-      });
-      if (error) throw error;
-      setDraft('');
-      toast.success('Mensaje enviado al cliente');
-    } catch { toast.error('Error al enviar mensaje'); }
-    finally { setSending(false); }
-  };
 
-  const handleSendTemplate = async (templateName: string) => {
-    if (!selectedContact) { toast.error('Selecciona un contacto'); return; }
     setSending(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.functions.invoke('kapso-send-template', {
-        body: {
-          to: selectedContact,
-          templateName,
-          languageCode: 'es_MX',
-          sent_by_user_id: user?.id || null,
-          components: {
+      const results = await Promise.allSettled(
+        targets.map(phone =>
+          supabase.functions.invoke('kapso-send-message', {
             body: {
-              parameters: [
-                { type: 'text', text: clienteName },
-                { type: 'text', text: folioServicio },
-                { type: 'text', text: 'en curso' },
-                { type: 'text', text: custodioName },
-              ],
+              to: phone,
+              type: 'text',
+              text,
+              sent_by_user_id: user?.id || null,
+              context: { servicio_id: servicioId, comm_channel: 'cliente_c4' },
             },
-          },
-          context: { servicio_id: servicioId, comm_channel: 'cliente_c4' },
-        },
-      });
-      if (error) throw error;
-      toast.success('Template enviado al cliente');
-    } catch { toast.error('Error al enviar template'); }
-    finally { setSending(false); }
+          }).then(res => { if (res.error) throw res.error; })
+        )
+      );
+
+      const ok = results.filter(r => r.status === 'fulfilled').length;
+      const fail = results.filter(r => r.status === 'rejected').length;
+
+      if (fail === 0) {
+        toast.success(targets.length === 1 ? 'Mensaje enviado' : `Enviado a ${ok} contactos`);
+      } else {
+        toast.warning(`Enviado a ${ok}/${targets.length} contactos (${fail} fallaron)`);
+      }
+      setDraft('');
+    } catch {
+      toast.error('Error al enviar mensajes');
+    } finally {
+      setSending(false);
+    }
   };
 
-  // Group messages by date
+  // ── Broadcast send: template ──
+  const handleSendTemplate = async (templateName: string) => {
+    const targets = Array.from(selectedContacts);
+    if (targets.length === 0) { toast.error('Selecciona al menos un contacto'); return; }
+
+    setSending(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const results = await Promise.allSettled(
+        targets.map(phone =>
+          supabase.functions.invoke('kapso-send-template', {
+            body: {
+              to: phone,
+              templateName,
+              languageCode: 'es_MX',
+              sent_by_user_id: user?.id || null,
+              components: {
+                body: {
+                  parameters: [
+                    { type: 'text', text: clienteName },
+                    { type: 'text', text: folioServicio },
+                    { type: 'text', text: 'en curso' },
+                    { type: 'text', text: custodioName },
+                  ],
+                },
+              },
+              context: { servicio_id: servicioId, comm_channel: 'cliente_c4' },
+            },
+          }).then(res => { if (res.error) throw res.error; })
+        )
+      );
+
+      const ok = results.filter(r => r.status === 'fulfilled').length;
+      const fail = results.filter(r => r.status === 'rejected').length;
+
+      if (fail === 0) {
+        toast.success(targets.length === 1 ? 'Template enviado' : `Template enviado a ${ok} contactos`);
+      } else {
+        toast.warning(`Enviado a ${ok}/${targets.length} contactos (${fail} fallaron)`);
+      }
+    } catch {
+      toast.error('Error al enviar template');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Group messages by date, then group broadcasts within each day
   const grouped = useMemo(() => {
-    const groups: { date: string; msgs: CommMessage[] }[] = [];
+    const groups: { date: string; msgs: DisplayMessage[] }[] = [];
     let cur = '';
+    const dateGroups: { date: string; rawMsgs: CommMessage[] }[] = [];
+
     messages.forEach(m => {
       const d = format(new Date(m.created_at), 'yyyy-MM-dd');
-      if (d !== cur) { cur = d; groups.push({ date: d, msgs: [m] }); }
-      else groups[groups.length - 1].msgs.push(m);
+      if (d !== cur) { cur = d; dateGroups.push({ date: d, rawMsgs: [m] }); }
+      else dateGroups[dateGroups.length - 1].rawMsgs.push(m);
     });
+
+    dateGroups.forEach(({ date, rawMsgs }) => {
+      groups.push({ date, msgs: groupBroadcastMessages(rawMsgs) });
+    });
+
     return groups;
   }, [messages]);
-
-  const clientUnread = messages.filter(m => !m.is_read && m.sender_type === 'cliente').length;
 
   if (messagesLoading) {
     return (
@@ -284,28 +393,65 @@ export const ClientChat: React.FC<ClientChatProps> = ({
     );
   }
 
+  const hasSelected = selectedContacts.size > 0;
+
   return (
     <div className="flex flex-col h-full">
-      {/* ── Contact selector + 24h window ── */}
+      {/* ── Contact multi-selector + 24h window ── */}
       <div className="px-4 py-3 space-y-2 border-b border-border/20">
-        {allContacts.length > 1 ? (
-          <Select value={selectedContact} onValueChange={setSelectedContact}>
-            <SelectTrigger className="h-8 text-xs rounded-lg">
-              <SelectValue placeholder="Seleccionar contacto" />
-            </SelectTrigger>
-            <SelectContent>
+        {allContacts.length > 0 ? (
+          <div className="space-y-1.5">
+            {/* Header with select all/none */}
+            {allContacts.length > 1 && (
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  Destinatarios ({selectedContacts.size}/{allContacts.length})
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={selectAll}
+                    className="text-[9px] text-chart-2 hover:underline font-medium"
+                  >
+                    Todos
+                  </button>
+                  <span className="text-[9px] text-muted-foreground/40">|</span>
+                  <button
+                    onClick={selectNone}
+                    className="text-[9px] text-muted-foreground hover:underline font-medium"
+                  >
+                    Ninguno
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Contact checkboxes */}
+            <div className="space-y-1 max-h-[120px] overflow-y-auto">
               {allContacts.map(c => (
-                <SelectItem key={c.phone} value={c.phone} className="text-xs">
-                  {c.label} — {c.phone}
-                  {c.isPrimary && ' ★'}
-                </SelectItem>
+                <label
+                  key={c.phone}
+                  className={cn(
+                    'flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors',
+                    selectedContacts.has(c.phone)
+                      ? 'bg-chart-2/5 border border-chart-2/20'
+                      : 'bg-muted/20 border border-border/10 hover:bg-muted/40'
+                  )}
+                >
+                  <Checkbox
+                    checked={selectedContacts.has(c.phone)}
+                    onCheckedChange={() => toggleContact(c.phone)}
+                    className="h-3.5 w-3.5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[11px] truncate block">
+                      {c.label}
+                      {c.isPrimary && <span className="text-chart-5 ml-1">★</span>}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground tabular-nums">{c.phone}</span>
+                  </div>
+                </label>
               ))}
-            </SelectContent>
-          </Select>
-        ) : allContacts.length === 1 ? (
-          <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-muted/30 border border-border/20">
-            <User className="h-3 w-3 text-muted-foreground" />
-            <span className="text-[11px] truncate">{allContacts[0].label} — {allContacts[0].phone}</span>
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-destructive/5 border border-destructive/20">
@@ -328,7 +474,7 @@ export const ClientChat: React.FC<ClientChatProps> = ({
               <p className="text-xs text-foreground/60">Sin mensajes con el cliente</p>
               <p className="text-[10px]">Envía un reporte para iniciar la conversación</p>
             </div>
-            {selectedContact && (
+            {hasSelected && (
               <Button variant="outline" size="sm"
                 className="h-8 text-xs gap-1.5 rounded-full px-4 mt-2 border-chart-2/30 text-chart-2 hover:bg-chart-2/10"
                 onClick={() => handleSendTemplate('reporte_servicio_cliente')}
@@ -341,10 +487,17 @@ export const ClientChat: React.FC<ClientChatProps> = ({
           grouped.map(({ date, msgs }) => (
             <React.Fragment key={date}>
               <DateSeparator date={new Date(date)} />
-              {msgs.map((msg, i) => {
+              {msgs.map(({ msg, broadcastCount }, i) => {
                 const isLast = i === msgs.length - 1;
-                const nextDiff = isLast || msgs[i + 1].is_from_bot !== msg.is_from_bot;
-                return <ClientBubble key={msg.id} msg={msg} showTail={nextDiff} />;
+                const nextDiff = isLast || msgs[i + 1].msg.is_from_bot !== msg.is_from_bot;
+                return (
+                  <ClientBubble
+                    key={msg.id}
+                    msg={msg}
+                    showTail={nextDiff}
+                    broadcastCount={broadcastCount}
+                  />
+                );
               })}
             </React.Fragment>
           ))
@@ -358,23 +511,29 @@ export const ClientChat: React.FC<ClientChatProps> = ({
           <Button variant="outline" size="sm"
             className="h-7 text-[10px] gap-1 px-2.5 rounded-full whitespace-nowrap shrink-0 border-chart-2/30 text-chart-2 hover:bg-chart-2/10"
             onClick={() => handleSendTemplate('reporte_servicio_cliente')}
-            disabled={sending || !selectedContact}>
+            disabled={sending || !hasSelected}>
             <Send className="h-3 w-3" /> Reporte
           </Button>
           <Button variant="outline" size="sm"
             className="h-7 text-[10px] gap-1 px-2.5 rounded-full whitespace-nowrap shrink-0"
             onClick={() => handleSendTemplate('cierre_servicio_cliente')}
-            disabled={sending || !selectedContact}>
+            disabled={sending || !hasSelected}>
             <Check className="h-3 w-3" /> Cierre
           </Button>
+          {selectedContacts.size > 1 && (
+            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-5 self-center shrink-0">
+              <Users className="h-2.5 w-2.5 mr-0.5" />
+              {selectedContacts.size} dest.
+            </Badge>
+          )}
         </div>
 
-        {/* Free text input (only when window is open) */}
+        {/* Free text input */}
         <div className="px-3 pb-3 pt-1">
           <div className="flex items-end gap-2">
             <div className={cn(
               'flex-1 flex items-end rounded-full px-3 py-1 border transition-colors',
-              windowOpen
+              windowOpen && hasSelected
                 ? 'bg-muted/40 border-border/30 focus-within:border-chart-2/40'
                 : 'bg-muted/20 border-border/20 opacity-60'
             )}>
@@ -383,17 +542,23 @@ export const ClientChat: React.FC<ClientChatProps> = ({
                 value={draft}
                 onChange={e => setDraft(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && draft.trim() && handleSendMessage(draft.trim())}
-                placeholder={windowOpen ? 'Mensaje al cliente…' : 'Ventana cerrada — usa templates'}
+                placeholder={
+                  !hasSelected
+                    ? 'Selecciona contactos…'
+                    : windowOpen
+                      ? `Mensaje a ${selectedContacts.size} contacto${selectedContacts.size > 1 ? 's' : ''}…`
+                      : 'Ventana cerrada — usa templates'
+                }
                 className="flex-1 bg-transparent border-0 outline-none text-xs py-1 placeholder:text-muted-foreground/50"
-                disabled={!windowOpen || !selectedContact}
+                disabled={!windowOpen || !hasSelected}
               />
             </div>
             <button
               onClick={() => draft.trim() && handleSendMessage(draft.trim())}
-              disabled={!draft.trim() || sending || !windowOpen || !selectedContact}
+              disabled={!draft.trim() || sending || !windowOpen || !hasSelected}
               className={cn(
                 'h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all',
-                draft.trim() && windowOpen ? 'bg-chart-2 text-white scale-100' : 'bg-muted/40 text-muted-foreground/30 scale-90'
+                draft.trim() && windowOpen && hasSelected ? 'bg-chart-2 text-white scale-100' : 'bg-muted/40 text-muted-foreground/30 scale-90'
               )}
             >
               <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
