@@ -251,6 +251,22 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
   const yaGenerados = useMemo(() => operativos.filter(o => o.yaGenerado), [operativos]);
   const sinServicios = useMemo(() => operativos.filter(o => !o.yaGenerado && o.totalServicios === 0), [operativos]);
 
+  const subtotalesPorTipo = useMemo(() => {
+    const custodios = pendientes.filter(o => o.tipo === 'custodio');
+    const armados = pendientes.filter(o => o.tipo === 'armado_interno');
+    return {
+      custodios: { count: custodios.length, servicios: custodios.reduce((s, o) => s + o.totalServicios, 0), monto: custodios.reduce((s, o) => s + o.montoEstimado, 0) },
+      armados: { count: armados.length, servicios: armados.reduce((s, o) => s + o.totalServicios, 0), monto: armados.reduce((s, o) => s + o.montoEstimado, 0) },
+    };
+  }, [pendientes]);
+
+  const selectedBreakdown = useMemo(() => {
+    const selected = pendientes.filter(o => selectedIds.has(o.id));
+    const cust = selected.filter(o => o.tipo === 'custodio').length;
+    const arm = selected.filter(o => o.tipo === 'armado_interno').length;
+    return { custodios: cust, armados: arm };
+  }, [pendientes, selectedIds]);
+
   const allPendientesSelected = pendientes.length > 0 && pendientes.every(o => selectedIds.has(o.id));
 
   const toggleAll = () => {
