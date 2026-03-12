@@ -44,7 +44,8 @@ export function useNextService(custodianPhone: string | undefined, custodioId?: 
           destino,
           fecha_hora_cita,
           estado_planeacion,
-          tipo_servicio
+          tipo_servicio,
+          observaciones
         `;
 
       // 1. Query servicios_planificados por teléfono
