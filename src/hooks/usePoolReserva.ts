@@ -12,28 +12,35 @@ export const usePoolReserva = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // Fetch candidates in pool
+  // Fetch candidates in pool - direct query instead of broken RPC
   const fetchPoolCandidates = async () => {
     try {
-      const { data, error } = await sbx.rpc('get_analyst_assigned_leads', {
-        p_limit: 1000,
-        p_offset: 0,
-        p_date_from: null,
-        p_date_to: null
-      });
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id, nombre, email, telefono, estado, fecha_creacion, created_at, updated_at, fecha_entrada_pool, motivo_pool, zona_preferida_id, candidato_custodio_id, asignado_a, notas')
+        .not('fecha_entrada_pool', 'is', null)
+        .order('fecha_entrada_pool', { ascending: true });
       
       if (error) throw error;
       
-      // Filtrar solo los candidatos que están en el pool (tienen fecha_entrada_pool)
-      const poolLeads = (data || []).filter((lead: any) => lead.fecha_entrada_pool !== null)
-        .map((lead: any) => ({
-          ...lead,
-          lead_estado: lead.lead_estado as LeadEstado,
-          // Compatibilidad con campos legacy si es necesario
-          analyst_name: lead.analista_nombre,
-          analyst_email: lead.analista_email
-        }));
+      // Map to AssignedLead format expected by UI
+      const poolLeads: AssignedLead[] = (data || []).map((lead: any) => ({
+        lead_id: lead.id,
+        lead_nombre: lead.nombre,
+        lead_email: lead.email,
+        lead_telefono: lead.telefono || '',
+        lead_estado: lead.estado as LeadEstado,
+        lead_fecha_creacion: lead.fecha_creacion || lead.created_at,
+        fecha_entrada_pool: lead.fecha_entrada_pool,
+        motivo_pool: lead.motivo_pool,
+        zona_preferida_id: lead.zona_preferida_id,
+        candidato_custodio_id: lead.candidato_custodio_id,
+        asignado_a: lead.asignado_a,
+        notas: lead.notas,
+        final_decision: null,
+      }));
       setPoolCandidates(poolLeads);
+      console.log(`✅ Pool: ${poolLeads.length} candidatos cargados`);
     } catch (error) {
       console.error('Error fetching pool candidates:', error);
       toast({
@@ -179,21 +186,27 @@ export const usePoolReserva = () => {
     try {
       setLoading(true);
       
+      // Optimistic removal from UI
+      setPoolCandidates(prev => prev.filter(c => c.lead_id !== leadId));
+      
       const { data, error } = await sbx.rpc('reactivate_lead_from_pool', {
         p_lead_id: leadId,
         p_nuevo_estado: nuevoEstado
       });
       
-      if (error) throw error;
+      if (error) {
+        // Revert optimistic removal on error
+        await fetchPoolCandidates();
+        throw error;
+      }
       
       toast({
         title: "Candidato reactivado",
         description: "El candidato ha sido reactivado desde el pool exitosamente.",
       });
       
-      // Refresh data
+      // Refresh remaining data
       await Promise.all([
-        fetchPoolCandidates(),
         fetchZoneCapacities(),
         fetchPoolMovements()
       ]);
