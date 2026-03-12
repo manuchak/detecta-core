@@ -15,6 +15,7 @@ interface StatusUpdateButtonProps {
   serviceId: string;
   currentStatus: OperationalStatus;
   onStatusChange: (serviceId: string, action: 'mark_on_site' | 'revert_to_scheduled') => Promise<void>;
+  onOptimisticChange?: (serviceId: string, arrival: string | null) => void;
   disabled?: boolean;
   /** @deprecated Use local loading — this prop is ignored now */
   isLoading?: boolean;
