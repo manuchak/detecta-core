@@ -15,8 +15,9 @@ interface CustodianService {
 interface NextServiceCardProps {
   service: CustodianService | null;
   onViewDetails?: () => void;
-   onStartChecklist?: (serviceId: string) => void;
-   checklistCompleted?: boolean;
+  onStartChecklist?: (serviceId: string) => void;
+  checklistCompleted?: boolean;
+  isRetorno?: boolean;
 }
 
  const NextServiceCard = ({ service, onViewDetails, onStartChecklist, checklistCompleted }: NextServiceCardProps) => {
