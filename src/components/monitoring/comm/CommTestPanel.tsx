@@ -43,7 +43,9 @@ import {
   ChevronDown,
   ChevronRight,
   Play,
+  ClipboardCheck,
 } from 'lucide-react';
+import { QAChecklistPanel } from './QAChecklistPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { normalizePhone } from '@/lib/phoneUtils';
