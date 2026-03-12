@@ -1035,6 +1035,27 @@ export function useServiciosPlanificados() {
       toast.success(message);
       queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
 
+      // Fase 5: Insert handoff system message when marking "En Sitio"
+      if (variables.action === 'mark_on_site') {
+        supabase
+          .from('whatsapp_messages')
+          .insert({
+            chat_id: `system-handoff-${variables.serviceId}`,
+            message_text: '🔄 Servicio transferido a Monitoreo (C4)',
+            message_type: 'text',
+            is_from_bot: true,
+            is_read: true,
+            servicio_id: variables.serviceId,
+            comm_channel: 'sistema',
+            comm_phase: 'en_servicio',
+            sender_type: 'sistema',
+          } as any)
+          .then(({ error: insertErr }) => {
+            if (insertErr) logger.error('handoff-system-message', 'Failed to insert handoff message', insertErr);
+            else logger.operation('handoff-system-message', 'success', { serviceId: variables.serviceId });
+          });
+      }
+
       // Fase 7: Auto-envío posicionamiento_cliente al marcar "En Sitio"
       if (variables.action === 'mark_on_site' && result?.idServicio) {
         sendPositioningNotification(result.idServicio, variables.serviceId);

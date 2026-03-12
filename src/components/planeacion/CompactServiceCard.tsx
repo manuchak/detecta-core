@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { 
   MapPin, User, Shield, CheckCircle2, AlertCircle, 
   Clock, MapPinCheck, Calendar, CircleDot, History, Car,
-  Cpu, Lock
+  Cpu, Lock, MessageCircle
 } from 'lucide-react';
+import { PlanningCustodioComm } from './PlanningCustodioComm';
+import { useUnreadCounts } from '@/hooks/useServicioComm';
 import { CancelServiceButton } from './CancelServiceButton';
 import { QuickCommentButton } from './QuickCommentButton';
 import { StatusUpdateButton, type OperationalStatus } from './StatusUpdateButton';
