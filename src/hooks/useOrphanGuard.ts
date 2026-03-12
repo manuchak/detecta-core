@@ -166,14 +166,23 @@ export function useOrphanGuard() {
           });
       }
 
-      // Rule 3: Services assigned to offline monitoristas → reassign
+      // Rule 3: Services assigned to offline OR paused monitoristas → reassign
       const offlineWithServices = sinTurno.filter(m => {
         const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo);
         return assignments.length > 0;
       });
+      // Paused monitoristas still have heartbeat (en_turno=true) but should have services redistributed
+      const pausedWithServices = allEnTurno
+        .filter(m => pausedIds?.has(m.id))
+        .filter(m => {
+          const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo);
+          return assignments.length > 0;
+        });
+      const offlineOrPaused = [...offlineWithServices, ...pausedWithServices];
 
-      if (offlineWithServices.length > 0 && enTurno.length > 0) {
-        for (const offlineM of offlineWithServices) {
+      if (offlineOrPaused.length > 0 && enTurno.length > 0) {
+        for (const offlineM of offlineOrPaused) {
+          const isPaused = pausedIds?.has(offlineM.id);
           const assignments = (assignmentsByMonitorista[offlineM.id] || []).filter(a => a.activo);
           for (const assignment of assignments) {
             // Skip services locked by active handoff
@@ -189,18 +198,19 @@ export function useOrphanGuard() {
             const target = loads.sort((a, b) => a.load - b.load)[0];
             if (!target) continue;
 
+            const reason = isPaused ? 'en pausa' : 'offline';
             reassignService.mutate(
               { assignmentId: assignment.id, newMonitoristaId: target.id, servicioId: assignment.servicio_id, turno },
               {
                 onSuccess: () => {
                   toast.warning(
-                    `⚠️ Servicio ${assignment.servicio_id.slice(0, 8)} reasignado: ${offlineM.display_name} (offline) → monitorista en turno`,
+                    `⚠️ Servicio ${assignment.servicio_id.slice(0, 8)} reasignado: ${offlineM.display_name} (${reason}) → monitorista en turno`,
                     { duration: 8000 }
                   );
                   supabase.auth.getUser().then(({ data: { user } }) => {
                     (supabase as any).from('bitacora_anomalias_turno').insert({
-                      tipo: 'servicio_huerfano_auto_reasignado',
-                      descripcion: `Servicio reasignado automáticamente porque ${offlineM.display_name} está fuera de turno`,
+                      tipo: isPaused ? 'servicio_pausa_redistribuido' : 'servicio_huerfano_auto_reasignado',
+                      descripcion: `Servicio reasignado automáticamente porque ${offlineM.display_name} está ${reason}`,
                       servicio_id: assignment.servicio_id,
                       monitorista_original: offlineM.id,
                       monitorista_reasignado: target.id,
@@ -215,7 +225,7 @@ export function useOrphanGuard() {
         }
       }
     });
-  }, [pendingServiceIds, activeServiceIds, assignedServiceIds, serviceHoraCitaMap, enTurno, sinTurno, assignmentsByMonitorista, autoDistribute, reassignService]);
+  }, [pendingServiceIds, activeServiceIds, assignedServiceIds, serviceHoraCitaMap, enTurno, sinTurno, allEnTurno, pausedIds, assignmentsByMonitorista, autoDistribute, reassignService]);
 
   // ── BalanceGuard ──
   const prevEnTurnoRef = useRef<Set<string>>(new Set());

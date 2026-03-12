@@ -149,11 +149,23 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     return merged;
   }, [boardLabelMap, missingLabels]);
 
+  // Query active pauses to exclude paused monitoristas from manual actions
+  const { data: pausedIds } = useQuery({
+    queryKey: ['paused-monitorista-ids'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('bitacora_pausas_monitorista')
+        .select('monitorista_id')
+        .eq('estado', 'activa');
+      return new Set<string>((data || []).map((p: any) => p.monitorista_id));
+    },
+    refetchInterval: 15_000,
+  });
+
   const enTurno = monitoristas.filter(m => m.en_turno);
   const sinTurno = monitoristas.filter(m => !m.en_turno);
-  const eligibleForAssignment = enTurno.length > 0
-    ? enTurno
-    : monitoristas.filter(m => (m.event_count || 0) > 0);
+  const eligibleForAssignment = enTurno
+    .filter(m => !pausedIds?.has(m.id));
 
   // ── Equity calculation ──
   const { loadGap, minLoad, maxLoad: maxLoadVal, equityLevel } = useMemo(() => {
@@ -168,15 +180,16 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     return { loadGap: gap, minLoad: min, maxLoad: max, equityLevel: level };
   }, [enTurno, filteredAssignmentsByMonitorista]);
 
-  // ── Manual safe rebalance ──
+  // Use only non-paused en-turno for manual rebalance too
+  const rebalanceEligible = eligibleForAssignment;
   const handleManualRebalance = useCallback(async () => {
-    if (enTurno.length < 2) return;
+    if (rebalanceEligible.length < 2) return;
 
     const enCursoServiceIds = new Set(enCursoServices.map(s => s.id_servicio));
     const eventoServiceIds = new Set(eventoEspecialServices.map(s => s.id_servicio));
 
     const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
-    for (const m of enTurno) {
+    for (const m of rebalanceEligible) {
       for (const a of (filteredAssignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
         if (eventoServiceIds.has(a.servicio_id)) continue;
         allFormalActive.push({
@@ -189,9 +202,9 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     const totalServices = allFormalActive.length;
     if (totalServices === 0) return;
 
-    const totalStaff = enTurno.length;
+    const totalStaff = rebalanceEligible.length;
     const loadByM: Record<string, number> = {};
-    for (const m of enTurno) loadByM[m.id] = 0;
+    for (const m of rebalanceEligible) loadByM[m.id] = 0;
     for (const a of allFormalActive) loadByM[a.monitoristaId]++;
 
     const servicioIds = allFormalActive.map(a => a.servicioId);
@@ -210,7 +223,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     const targetLoad = Math.floor(totalServices / totalStaff);
     const remainder = totalServices % totalStaff;
     const targetByM: Record<string, number> = {};
-    const sorted = enTurno.slice().sort((a, b) => (loadByM[b.id] || 0) - (loadByM[a.id] || 0));
+    const sorted = rebalanceEligible.slice().sort((a, b) => (loadByM[b.id] || 0) - (loadByM[a.id] || 0));
     sorted.forEach((m, i) => { targetByM[m.id] = targetLoad + (i < remainder ? 1 : 0); });
 
     const reassignments: { fromAssignmentId: string; toMonitoristaId: string; servicioId: string }[] = [];
@@ -242,7 +255,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         toast.info(`⚖️ Carga rebalanceada: ~${perPerson} servicios c/u (${reassignments.length} fríos movidos)`, { duration: 8000 });
       },
     });
-  }, [enTurno, filteredAssignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
+  }, [rebalanceEligible, filteredAssignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
 
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
@@ -453,6 +466,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                 unassignedServices={unassignedForPopover}
                 onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
                 isAssigning={assignService.isPending}
+                isPaused={pausedIds?.has(m.id)}
               />
             ))}
           </div>

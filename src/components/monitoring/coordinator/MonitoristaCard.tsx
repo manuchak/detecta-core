@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { User, Circle, Zap, Plus, Clock } from 'lucide-react';
 import type { MonitoristaProfile, MonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
 import { cn } from '@/lib/utils';
+import { Coffee } from 'lucide-react';
 
 interface UnassignedService {
   id: string;
@@ -27,6 +28,7 @@ interface Props {
   unassignedServices?: UnassignedService[];
   onAssign?: (servicioId: string, monitoristaId: string) => void;
   isAssigning?: boolean;
+  isPaused?: boolean;
 }
 
 function timeAgo(isoDate?: string): string {
@@ -58,7 +60,7 @@ function loadBorderColor(count: number, maxLoad: number): string {
 
 export const MonitoristaCard: React.FC<Props> = ({
   monitorista, assignments, maxLoad, serviceLabelMap, phaseBreakdown,
-  unassignedServices = [], onAssign, isAssigning,
+  unassignedServices = [], onAssign, isAssigning, isPaused,
 }) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const count = assignments.length;
@@ -91,6 +93,12 @@ export const MonitoristaCard: React.FC<Props> = ({
             <span className="text-sm font-medium truncate">
               {monitorista.display_name.split(' ').slice(0, 2).join(' ')}
             </span>
+            {isPaused && (
+              <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5 border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                <Coffee className="h-2.5 w-2.5" />
+                Pausa
+              </Badge>
+            )}
             {ago && (
               <span className="text-[9px] text-muted-foreground shrink-0">{ago}</span>
             )}
