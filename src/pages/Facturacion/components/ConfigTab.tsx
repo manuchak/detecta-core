@@ -1,8 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Clock, HelpCircle } from 'lucide-react';
+import { Users, Clock, HelpCircle, Package } from 'lucide-react';
 import { GestionClientesTab } from './GestionClientes/GestionClientesTab';
 import { EstadiasPanel } from './CxPOperativo/Estadias/EstadiasPanel';
 import { ManualFacturacionTab } from './Manual/ManualFacturacionTab';
+import { GadgetsConsolidadoTab } from './Config/GadgetsConsolidadoTab';
 
 export function ConfigTab() {
   return (
