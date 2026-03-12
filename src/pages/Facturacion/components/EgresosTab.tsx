@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { CxPOperativoTab } from './CxPOperativo/CxPOperativoTab';
 import { CxPProveedoresTab } from './CxPProveedores/CxPProveedoresTab';
 
-type Segment = 'oca' | 'pe';
+type Segment = 'oca' | 'pe' | 'gastos';
 
 export function EgresosTab() {
   const [segment, setSegment] = useState<Segment>('oca');
