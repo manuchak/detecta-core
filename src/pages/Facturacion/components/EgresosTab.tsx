@@ -13,12 +13,12 @@ export function EgresosTab() {
   const [segment, setSegment] = useState<Segment>('oca');
 
   const { data: pendingCount = 0 } = useQuery({
-    queryKey: ['gastos-pendientes-count'],
+    queryKey: ['gastos-pendientes-finanzas-count'],
     queryFn: async () => {
       const { count, error } = await supabase
         .from('solicitudes_apoyo_extraordinario')
         .select('*', { count: 'exact', head: true })
-        .eq('estado', 'pendiente');
+        .eq('estado', 'aprobado');
       if (error) throw error;
       return count || 0;
     },
@@ -82,7 +82,7 @@ export function EgresosTab() {
       {/* Content */}
       {segment === 'oca' && <CxPOperativoTab />}
       {segment === 'pe' && <CxPProveedoresTab />}
-      {segment === 'gastos' && <AprobacionGastosPanel />}
+      {segment === 'gastos' && <AprobacionGastosPanel mode="finanzas" />}
     </div>
   );
 }
