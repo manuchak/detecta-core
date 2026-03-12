@@ -126,6 +126,9 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       firmaEntranteDataUrl: firmaEntrante || undefined,
     }, {
       onSuccess: async (result) => {
+        // Show post-handoff summary
+        setHandoffResult(result);
+
         // Generate and download PDF
         try {
           const actaData: HandoffActaData = {
@@ -152,7 +155,9 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
         } catch (e) {
           console.error('Error generando PDF del acta:', e);
         }
-        onOpenChange(false);
+
+        // Auto-close after 3s so coordinator can see summary
+        setTimeout(() => onOpenChange(false), 3000);
       },
     });
   };

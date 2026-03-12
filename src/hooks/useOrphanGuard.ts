@@ -184,6 +184,8 @@ export function useOrphanGuard() {
         for (const offlineM of offlineWithServices) {
           const assignments = (assignmentsByMonitorista[offlineM.id] || []).filter(a => a.activo);
           for (const assignment of assignments) {
+            // Skip services locked by active handoff
+            if (isServiceLocked(assignment.servicio_id)) continue;
             const guardKey = `${assignment.servicio_id}-${offlineM.id}`;
             if (orphanGuardRef.current.has(guardKey)) continue;
             orphanGuardRef.current.add(guardKey);
