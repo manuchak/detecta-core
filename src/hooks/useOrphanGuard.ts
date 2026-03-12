@@ -114,15 +114,10 @@ export function useOrphanGuard() {
       const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
 
       // Build operational board set for weighted load calculation
+      // All board-visible services count toward operational load
       const operationalBoardIds = new Set<string>([
         ...activeServiceIds,
-        ...eligiblePending,
-        ...pendingServiceIds.filter(id => {
-          const citaStr = serviceHoraCitaMap[id];
-          if (!citaStr) return false;
-          const timeUntil = new Date(citaStr).getTime() - now;
-          return timeUntil <= FOUR_HOURS && timeUntil > SIXTY_MIN_AGO;
-        }),
+        ...pendingServiceIds,
       ]);
 
       if (allEligible.length > 0) {
