@@ -257,22 +257,42 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteContrato} onOpenChange={(open) => !open && setDeleteContrato(null)}>
+      <AlertDialog open={!!deleteContrato} onOpenChange={(open) => !open && !eliminarContrato.isPending && setDeleteContrato(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar contrato?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminará el {deleteContrato ? CONTRATO_LABELS[deleteContrato.tipo] : ''} generado. 
-              Esta acción no se puede deshacer.
+              {deleteContrato?.firmado ? (
+                <>
+                  <span className="font-semibold text-destructive">⚠️ Este contrato ya está firmado.</span>{' '}
+                  Se eliminará el {deleteContrato ? CONTRATO_LABELS[deleteContrato.tipo] : ''} y su archivo asociado. 
+                  Podrás generar o subir uno nuevo después. Esta acción no se puede deshacer.
+                </>
+              ) : (
+                <>
+                  Se eliminará el {deleteContrato ? CONTRATO_LABELS[deleteContrato.tipo] : ''} generado. 
+                  Esta acción no se puede deshacer.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={(e) => e.preventDefault()} disabled={eliminarContrato.isPending}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleEliminar}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={eliminarContrato.isPending}
             >
-              Eliminar
+              {eliminarContrato.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
