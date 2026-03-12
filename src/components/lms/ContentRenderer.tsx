@@ -26,6 +26,7 @@ interface ContentRendererProps {
   onComplete?: () => void;
   onVideoProgress?: (posicion: number, porcentaje: number) => void;
   initialVideoPosition?: number;
+  cursoTitulo?: string;
 }
 
 export function ContentRenderer({ 
