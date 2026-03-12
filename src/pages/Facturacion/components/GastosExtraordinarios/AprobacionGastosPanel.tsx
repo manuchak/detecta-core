@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { CheckCircle, XCircle, Clock, ExternalLink, Loader2, DollarSign, AlertTriangle, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { TIPOS_APOYO_CUSTODIO } from '@/hooks/useCustodianExpenses';
+import { TIPOS_APOYO_CUSTODIO, parseComprobantes } from '@/hooks/useCustodianExpenses';
 
 const QUERY_KEY = 'aprobacion-gastos';
 
@@ -188,9 +188,13 @@ const AprobacionGastosPanel = () => {
                         )}
                       </div>
                     </div>
-                    {s.comprobante_url && (
-                      <div className="w-10 h-10 rounded bg-muted overflow-hidden shrink-0">
-                        <img src={s.comprobante_url} alt="" className="w-full h-full object-cover" />
+                    {parseComprobantes(s.comprobante_url).length > 0 && (
+                      <div className="flex -space-x-1.5 shrink-0">
+                        {parseComprobantes(s.comprobante_url).slice(0, 3).map((url, i) => (
+                          <div key={i} className="w-10 h-10 rounded bg-muted overflow-hidden border-2 border-background">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -238,15 +242,21 @@ const AprobacionGastosPanel = () => {
                   </div>
                 )}
 
-                {selectedSolicitud.comprobante_url && (
+                {parseComprobantes(selectedSolicitud.comprobante_url).length > 0 && (
                   <div>
-                    <span className="text-sm text-muted-foreground">Comprobante:</span>
-                    <a href={selectedSolicitud.comprobante_url} target="_blank" rel="noopener noreferrer" className="block mt-1">
-                      <img src={selectedSolicitud.comprobante_url} alt="Comprobante" className="max-h-48 rounded-lg border border-border object-contain" />
-                      <span className="text-xs text-primary flex items-center gap-1 mt-1">
-                        <ExternalLink className="w-3 h-3" /> Ver tamaño completo
-                      </span>
-                    </a>
+                    <span className="text-sm text-muted-foreground">
+                      Comprobantes ({parseComprobantes(selectedSolicitud.comprobante_url).length})
+                    </span>
+                    <div className="flex gap-2 mt-1 overflow-x-auto">
+                      {parseComprobantes(selectedSolicitud.comprobante_url).map((url, i) => (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                          <img src={url} alt={`Comprobante ${i + 1}`} className="max-h-48 rounded-lg border border-border object-contain" />
+                          <span className="text-xs text-primary flex items-center gap-1 mt-1">
+                            <ExternalLink className="w-3 h-3" /> Ver completo
+                          </span>
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 )}
 

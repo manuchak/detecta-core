@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { TIPOS_APOYO_CUSTODIO } from '@/hooks/useCustodianExpenses';
+import { TIPOS_APOYO_CUSTODIO, parseComprobantes } from '@/hooks/useCustodianExpenses';
 
 const QUERY_KEY = 'coord-gastos-pendientes';
 
@@ -175,9 +175,13 @@ export const GastosAprobacionSection: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {s.comprobante_url && (
-                      <div className="w-9 h-9 rounded-lg bg-muted overflow-hidden">
-                        <img src={s.comprobante_url} alt="" className="w-full h-full object-cover" />
+                    {parseComprobantes(s.comprobante_url).length > 0 && (
+                      <div className="flex -space-x-1.5">
+                        {parseComprobantes(s.comprobante_url).slice(0, 3).map((url, i) => (
+                          <div key={i} className="w-9 h-9 rounded-lg bg-muted overflow-hidden border-2 border-background">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
                       </div>
                     )}
                     <DollarSign className="h-4 w-4 text-muted-foreground/40" />
@@ -234,19 +238,25 @@ export const GastosAprobacionSection: React.FC = () => {
                   </div>
                 )}
 
-                {selected.comprobante_url && (
+                {parseComprobantes(selected.comprobante_url).length > 0 && (
                   <div>
-                    <span className="text-xs text-muted-foreground">Comprobante</span>
-                    <a href={selected.comprobante_url} target="_blank" rel="noopener noreferrer" className="block mt-1">
-                      <img
-                        src={selected.comprobante_url}
-                        alt="Comprobante"
-                        className="max-h-40 rounded-lg border border-border object-contain"
-                      />
-                      <span className="text-xs text-primary flex items-center gap-1 mt-1">
-                        <ExternalLink className="w-3 h-3" /> Ver completo
-                      </span>
-                    </a>
+                    <span className="text-xs text-muted-foreground">
+                      Comprobantes ({parseComprobantes(selected.comprobante_url).length})
+                    </span>
+                    <div className="flex gap-2 mt-1 overflow-x-auto">
+                      {parseComprobantes(selected.comprobante_url).map((url, i) => (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                          <img
+                            src={url}
+                            alt={`Comprobante ${i + 1}`}
+                            className="h-32 rounded-lg border border-border object-contain"
+                          />
+                          <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5">
+                            <ExternalLink className="w-2.5 h-2.5" /> Ver
+                          </span>
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 )}
 

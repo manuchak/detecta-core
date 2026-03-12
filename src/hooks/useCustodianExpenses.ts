@@ -41,6 +41,24 @@ export const TIPOS_APOYO_CUSTODIO = [
 
 const QUERY_KEY = 'custodian-expenses';
 
+/**
+ * Parse comprobante_url which may be a single URL string or a JSON array of URLs.
+ * Returns an array of URL strings for backward compatibility.
+ */
+export function parseComprobantes(url: string | null): string[] {
+  if (!url) return [];
+  const trimmed = url.trim();
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.filter((u: unknown) => typeof u === 'string' && u.length > 0);
+    } catch {
+      // fall through
+    }
+  }
+  return [trimmed];
+}
+
 /** Compress an image file via Canvas API (~400KB target) */
 async function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
@@ -111,7 +129,7 @@ export interface CreateExpenseInput {
   custodio_nombre?: string;
   cliente_nombre?: string;
   notas?: string;
-  archivo?: File;
+  archivos?: File[];
 }
 
 export function useCreateCustodianExpense() {
@@ -123,25 +141,44 @@ export function useCreateCustodianExpense() {
       const userId = userData.user?.id;
       if (!userId) throw new Error('No autenticado');
 
+      // Validate unique folio
+      const folioTrimmed = input.notas?.trim();
+      if (folioTrimmed) {
+        const { data: existing } = await supabase
+          .from('solicitudes_apoyo_extraordinario')
+          .select('id')
+          .eq('notas', folioTrimmed)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          throw new Error('FOLIO_DUPLICADO');
+        }
+      }
+
       let comprobanteUrl: string | null = null;
 
-      // Upload receipt photo
-      if (input.archivo) {
-        const compressed = await compressImage(input.archivo);
-        const ext = compressed.name.split('.').pop() || 'jpg';
-        const fileName = `${userId}/${Date.now()}.${ext}`;
+      // Upload receipt photos (up to 3) in parallel
+      if (input.archivos && input.archivos.length > 0) {
+        const uploadPromises = input.archivos.map(async (file) => {
+          const compressed = await compressImage(file);
+          const ext = compressed.name.split('.').pop() || 'jpg';
+          const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('comprobantes-gastos')
-          .upload(fileName, compressed);
+          const { error: uploadError } = await supabase.storage
+            .from('comprobantes-gastos')
+            .upload(fileName, compressed);
 
-        if (uploadError) throw uploadError;
+          if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage
-          .from('comprobantes-gastos')
-          .getPublicUrl(fileName);
+          const { data: urlData } = supabase.storage
+            .from('comprobantes-gastos')
+            .getPublicUrl(fileName);
 
-        comprobanteUrl = urlData.publicUrl;
+          return urlData.publicUrl;
+        });
+
+        const urls = await Promise.all(uploadPromises);
+        comprobanteUrl = urls.length === 1 ? urls[0] : JSON.stringify(urls);
       }
 
       const { data, error } = await supabase
@@ -158,7 +195,7 @@ export function useCreateCustodianExpense() {
           cliente_nombre: input.cliente_nombre || null,
           solicitado_por: userId,
           comprobante_url: comprobanteUrl,
-          notas: input.notas || null,
+          notas: folioTrimmed || null,
           estado: 'pendiente',
         })
         .select()
@@ -171,6 +208,12 @@ export function useCreateCustodianExpense() {
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });
       toast.success('Solicitud de apoyo enviada correctamente');
     },
-    onError: (e: Error) => toast.error(`Error: ${e.message}`),
+    onError: (e: Error) => {
+      if (e.message === 'FOLIO_DUPLICADO') {
+        toast.error('Este folio ya fue registrado. Verifica el número e intenta de nuevo.');
+      } else {
+        toast.error(`Error: ${e.message}`);
+      }
+    },
   });
 }
