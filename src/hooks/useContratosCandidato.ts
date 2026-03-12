@@ -11,6 +11,7 @@ export type TipoContrato =
   | 'responsiva_equipo'
   | 'prestacion_servicios_propietario'
   | 'prestacion_servicios_no_propietario'
+  | 'prestacion_servicios_armado'
   | 'anexo_gps';
 
 export type EstadoContrato = 'pendiente' | 'enviado' | 'visto' | 'firmado' | 'rechazado' | 'vencido';
@@ -63,25 +64,48 @@ export const CONTRATO_LABELS: Record<TipoContrato, string> = {
   responsiva_equipo: 'Responsiva de Equipo',
   prestacion_servicios_propietario: 'Contrato Custodio',
   prestacion_servicios_no_propietario: 'Contrato Custodio',
+  prestacion_servicios_armado: 'Contrato Armado',
   anexo_gps: 'Anexo GPS'
 };
 
-export const CONTRATOS_REQUERIDOS: TipoContrato[] = [
+// Base contracts required for everyone (no GPS, no vehicle contract)
+export const CONTRATOS_BASE: TipoContrato[] = [
   'confidencialidad',
   'aviso_privacidad',
-  'anexo_gps'
 ];
+
+// Keep for backward compat — alias to base
+export const CONTRATOS_REQUERIDOS = CONTRATOS_BASE;
 
 export const CONTRATOS_CONDICIONALES: { propietario: TipoContrato; noPropietario: TipoContrato } = {
   propietario: 'prestacion_servicios_propietario',
   noPropietario: 'prestacion_servicios_no_propietario'
 };
 
-export function getContratosRequeridosParaCandidato(vehiculoPropio: boolean, tieneVehiculo: boolean = true): TipoContrato[] {
-  const base = [...CONTRATOS_REQUERIDOS];
+export function getContratosRequeridosParaCandidato(
+  vehiculoPropio: boolean,
+  tieneVehiculo: boolean = true,
+  isArmado: boolean = false
+): TipoContrato[] {
+  const base = [...CONTRATOS_BASE];
+
+  // GPS annex only when candidate has a vehicle
   if (tieneVehiculo) {
-    base.push(vehiculoPropio ? CONTRATOS_CONDICIONALES.propietario : CONTRATOS_CONDICIONALES.noPropietario);
+    base.push('anexo_gps');
+    // Vehicle contract (propietario/no propietario) only for custodios with vehicle
+    if (!isArmado) {
+      base.push(vehiculoPropio ? CONTRATOS_CONDICIONALES.propietario : CONTRATOS_CONDICIONALES.noPropietario);
+    }
   }
+
+  // Service contract: armado gets its own type, custodios get vehicle-based type
+  if (isArmado) {
+    base.push('prestacion_servicios_armado');
+  } else if (!tieneVehiculo) {
+    // Custodio without vehicle — still needs a service contract
+    base.push(CONTRATOS_CONDICIONALES.noPropietario);
+  }
+
   return base;
 }
 
@@ -403,10 +427,10 @@ async function compressImage(file: File): Promise<Blob> {
   });
 }
 
-export function useContratosProgress(candidatoId: string, vehiculoPropio: boolean = false, tieneVehiculo: boolean = true) {
+export function useContratosProgress(candidatoId: string, vehiculoPropio: boolean = false, tieneVehiculo: boolean = true, isArmado: boolean = false) {
   const { data: contratos } = useContratosCandidato(candidatoId);
 
-  const requeridos = getContratosRequeridosParaCandidato(vehiculoPropio, tieneVehiculo);
+  const requeridos = getContratosRequeridosParaCandidato(vehiculoPropio, tieneVehiculo, isArmado);
   const contratosFirmados = contratos?.filter(c => c.firmado) || [];
   const totalRequeridos = requeridos.length;
   const firmados = requeridos.filter(tipo => 

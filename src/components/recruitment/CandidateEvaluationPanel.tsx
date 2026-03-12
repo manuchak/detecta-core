@@ -122,7 +122,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   // Armados sin vehículo no requieren contrato vehicular
   const tieneVehiculo = isArmado ? vehiculoPropio : true;
 
-  const contractsProgress = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo);
+  const contractsProgress = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo, isArmado);
 
   const { data: liberacionRecord, isLoading: loadingLib } = useQuery({
     queryKey: ['custodio-liberacion-by-candidato', candidatoId],
@@ -386,9 +386,9 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
     },
     {
       id: 'contracts', label: 'Contratos', icon: <FileSignature className="h-4 w-4" />,
-      badge: <ContractsProgressBadge candidatoId={candidatoId} size="sm" vehiculoPropio={vehiculoPropio} tieneVehiculo={tieneVehiculo} />,
+      badge: <ContractsProgressBadge candidatoId={candidatoId} size="sm" vehiculoPropio={vehiculoPropio} tieneVehiculo={tieneVehiculo} isArmado={isArmado} />,
       gate: gates.find(g => g.id === 'contracts'),
-      content: <ContractsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} vehiculoPropio={vehiculoPropio} tieneVehiculo={tieneVehiculo} />,
+      content: <ContractsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} vehiculoPropio={vehiculoPropio} tieneVehiculo={tieneVehiculo} isArmado={isArmado} />,
     },
     {
       id: 'references', label: 'Referencias', icon: <Users className="h-4 w-4" />,

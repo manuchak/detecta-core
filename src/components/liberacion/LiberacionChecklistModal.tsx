@@ -92,7 +92,7 @@ const LiberacionChecklistModal = ({
   const esArmadoLib = initialLiberacion.tipo_operativo === 'armado';
   const vehiculoPropioLib = initialLiberacion.candidato?.vehiculo_propio ?? false;
   const tieneVehiculoLib = esArmadoLib ? vehiculoPropioLib : true;
-  const { isComplete: contratosCompletos } = useContratosProgress(initialLiberacion.candidato_id, vehiculoPropioLib, tieneVehiculoLib);
+  const { isComplete: contratosCompletos } = useContratosProgress(initialLiberacion.candidato_id, vehiculoPropioLib, tieneVehiculoLib, esArmadoLib);
   const { calcularProgresoGeneral } = useCapacitacion(initialLiberacion.candidato_id);
   const latestSocioeconomico = useLatestEstudioSocioeconomico(initialLiberacion.candidato_id);
   
