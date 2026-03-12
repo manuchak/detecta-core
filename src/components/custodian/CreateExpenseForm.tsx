@@ -5,9 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Camera, Upload, Loader2 } from 'lucide-react';
+import { Plus, Camera, Upload, Loader2, X } from 'lucide-react';
 import { useCreateCustodianExpense, TIPOS_APOYO_CUSTODIO } from '@/hooks/useCustodianExpenses';
 import { useCustodianProfile } from '@/hooks/useCustodianProfile';
+
+const MAX_PHOTOS = 3;
+
+interface PhotoPreview {
+  file: File;
+  url: string;
+}
 
 const CreateExpenseForm = () => {
   const [open, setOpen] = useState(false);
@@ -15,8 +22,7 @@ const CreateExpenseForm = () => {
   const [motivo, setMotivo] = useState('');
   const [monto, setMonto] = useState('');
   const [folio, setFolio] = useState('');
-  const [archivo, setArchivo] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<PhotoPreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,32 +34,50 @@ const CreateExpenseForm = () => {
     setMotivo('');
     setMonto('');
     setFolio('');
+    photos.forEach(p => URL.revokeObjectURL(p.url));
+    setPhotos([]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setArchivo(file);
-      const url = URL.createObjectURL(file);
-      setPreview(url);
+    const files = e.target.files;
+    if (!files) return;
+    const remaining = MAX_PHOTOS - photos.length;
+    const newPhotos: PhotoPreview[] = [];
+    for (let i = 0; i < Math.min(files.length, remaining); i++) {
+      newPhotos.push({ file: files[i], url: URL.createObjectURL(files[i]) });
     }
+    setPhotos(prev => [...prev, ...newPhotos]);
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos(prev => {
+      const copy = [...prev];
+      URL.revokeObjectURL(copy[index].url);
+      copy.splice(index, 1);
+      return copy;
+    });
   };
 
   const handleSubmit = async () => {
     if (!tipo || !motivo || !monto || !folio.trim()) return;
 
-    await createExpense.mutateAsync({
+    const result = await createExpense.mutateAsync({
       tipo_apoyo: tipo,
       motivo,
       monto_solicitado: parseFloat(monto),
       urgencia: 'normal',
       custodio_nombre: profile?.display_name || undefined,
       notas: folio.trim(),
-      archivo: archivo || undefined,
-    });
+      archivos: photos.length > 0 ? photos.map(p => p.file) : undefined,
+    }).catch(() => null);
 
-    resetForm();
-    setOpen(false);
+    // Only close if successful (folio duplicado keeps form open)
+    if (result) {
+      resetForm();
+      setOpen(false);
+    }
   };
 
   const isValid = tipo && motivo.trim() && monto && parseFloat(monto) > 0 && folio.trim();
@@ -123,22 +147,30 @@ const CreateExpenseForm = () => {
             />
           </div>
 
-          {/* Foto */}
+          {/* Fotos */}
           <div className="space-y-1.5">
-            <Label>Comprobante (foto/imagen)</Label>
-            {preview ? (
-              <div className="relative">
-                <img src={preview} alt="Preview" className="w-full h-40 object-cover rounded-lg border border-border" />
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="absolute top-2 right-2"
-                  onClick={() => { setArchivo(null); setPreview(null); }}
-                >
-                  Quitar
-                </Button>
+            <Label>Comprobantes ({photos.length}/{MAX_PHOTOS})</Label>
+            
+            {/* Photo grid */}
+            {photos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {photos.map((photo, idx) => (
+                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted">
+                    <img src={photo.url} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      className="absolute top-1 right-1 bg-destructive/80 text-white rounded-full p-0.5"
+                      onClick={() => removePhoto(idx)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ) : (
+            )}
+
+            {/* Add photo buttons */}
+            {photos.length < MAX_PHOTOS && (
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -161,7 +193,7 @@ const CreateExpenseForm = () => {
               </div>
             )}
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
           </div>
 
           {/* Submit */}
