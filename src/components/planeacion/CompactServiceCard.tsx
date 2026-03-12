@@ -16,6 +16,7 @@ import { UpcomingServiceBadge, getUpcomingHighlightClass } from './UpcomingServi
 import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 import { cn } from '@/lib/utils';
 import { formatCDMXTime, getZonedCDMXTime } from '@/utils/cdmxTimezone';
+import { useWhatsAppMode } from '@/hooks/useWhatsAppMode';
 import type { ScheduledService } from '@/hooks/useScheduledServices';
 
 interface CompactServiceCardProps {
@@ -299,25 +300,12 @@ export function CompactServiceCard({
             serviceId={service.id}
             currentComment={service.comentarios_planeacion}
           />
-          {/* Fase 5: Chat with custodian */}
-          {service.custodio_nombre && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCommOpen(true);
-              }}
-              className="h-7 w-7 p-0 relative opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-destructive text-[8px] text-destructive-foreground flex items-center justify-center font-bold">
-                  {unreadCount}
-                </span>
-              )}
-            </Button>
-          )}
+          {/* Fase 5: Chat with custodian — controlled by WA Planeación flag */}
+          <WhatsAppChatButton
+            custodioNombre={service.custodio_nombre}
+            unreadCount={unreadCount}
+            onOpen={() => setCommOpen(true)}
+          />
         </div>
       </div>
       
@@ -406,5 +394,26 @@ export function CompactServiceCard({
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+/** Sub-component: conditionally renders chat button based on WA flag */
+function WhatsAppChatButton({ custodioNombre, unreadCount, onOpen }: { custodioNombre?: string | null; unreadCount: number; onOpen: () => void }) {
+  const { isPlaneacionEnabled } = useWhatsAppMode();
+  if (!isPlaneacionEnabled || !custodioNombre) return null;
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={(e) => { e.stopPropagation(); onOpen(); }}
+      className="h-7 w-7 p-0 relative opacity-0 group-hover:opacity-100 transition-opacity"
+    >
+      <MessageCircle className="h-3.5 w-3.5" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-destructive text-[8px] text-destructive-foreground flex items-center justify-center font-bold">
+          {unreadCount}
+        </span>
+      )}
+    </Button>
   );
 }

@@ -400,6 +400,27 @@ export type Database = {
           },
         ]
       }
+      app_feature_flags: {
+        Row: {
+          enabled: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       aprobacion_coordinador: {
         Row: {
           acceso_instalacion_disponible: boolean | null

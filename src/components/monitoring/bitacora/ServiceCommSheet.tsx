@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, FileText, Shield, User, MapPin } from 'lucide-react';
+import { MessageCircle, FileText, Shield, User, MapPin, AlertTriangle } from 'lucide-react';
 import { CustodioChat } from './CustodioChat';
 import { ClientChat } from './ClientChat';
 import { useServicioComm } from '@/hooks/useServicioComm';
+import { useWhatsAppMode } from '@/hooks/useWhatsAppMode';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
@@ -185,28 +186,63 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
 
         {/* ── Content area ── */}
         <div className="flex-1 min-h-0 flex flex-col">
-          {activeTab === 'chat' ? (
-            <CustodioChat
-              messages={messages}
-              isLoading={messagesLoading}
-              custodioName={service.custodio_asignado || 'Sin custodio'}
-              onSendNudge={handleSendNudge}
-              onSendMessage={handleSendMessage}
-            />
-          ) : (
-            <ClientChat
-              servicioId={service.id}
-              clienteName={service.nombre_cliente}
-              folioServicio={service.id_servicio}
-              custodioName={service.custodio_asignado || 'Sin custodio'}
-              clienteId={(service as any).cliente_id || null}
-              contactoWhatsapp={service.telefono_cliente}
-              media={media}
-              onValidateMedia={validateMedia}
-            />
-          )}
+          <MonitoreoContent
+            activeTab={activeTab}
+            service={service}
+            messages={messages}
+            messagesLoading={messagesLoading}
+            media={media}
+            handleSendNudge={handleSendNudge}
+            handleSendMessage={handleSendMessage}
+            validateMedia={validateMedia}
+          />
         </div>
       </SheetContent>
     </Sheet>
   );
 };
+
+/** Sub-component that checks WA Monitoreo flag before rendering chat content */
+function MonitoreoContent({ activeTab, service, messages, messagesLoading, media, handleSendNudge, handleSendMessage, validateMedia }: any) {
+  const { isMonitoreoEnabled } = useWhatsAppMode();
+
+  if (!isMonitoreoEnabled) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8 text-center">
+        <AlertTriangle className="h-10 w-10 text-muted-foreground/50" />
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">WhatsApp deshabilitado</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            El módulo de comunicación WhatsApp está desactivado por coordinación.
+            Contacta al coordinador de operaciones para habilitarlo.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === 'chat') {
+    return (
+      <CustodioChat
+        messages={messages}
+        isLoading={messagesLoading}
+        custodioName={service.custodio_asignado || 'Sin custodio'}
+        onSendNudge={handleSendNudge}
+        onSendMessage={handleSendMessage}
+      />
+    );
+  }
+
+  return (
+    <ClientChat
+      servicioId={service.id}
+      clienteName={service.nombre_cliente}
+      folioServicio={service.id_servicio}
+      custodioName={service.custodio_asignado || 'Sin custodio'}
+      clienteId={(service as any).cliente_id || null}
+      contactoWhatsapp={service.telefono_cliente}
+      media={media}
+      onValidateMedia={validateMedia}
+    />
+  );
+}

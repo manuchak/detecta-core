@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { CommScenarioSimulator } from './ScenarioSimulator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -41,6 +42,7 @@ import {
   Database,
   ChevronDown,
   ChevronRight,
+  Play,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -174,6 +176,9 @@ export const CommTestPanel: React.FC = () => {
           <TabsTrigger value="persistence" className="gap-1.5">
             <Database className="h-3.5 w-3.5" /> Persistencia
           </TabsTrigger>
+          <TabsTrigger value="scenarios" className="gap-1.5">
+            <Play className="h-3.5 w-3.5" /> Escenarios
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Tab: Send ─── */}
@@ -199,6 +204,21 @@ export const CommTestPanel: React.FC = () => {
         {/* ─── Tab: Persistence ─── */}
         <TabsContent value="persistence">
           <PersistenceSection phone={normalizedPhone} />
+        </TabsContent>
+
+        {/* ─── Tab: Scenarios ─── */}
+        <TabsContent value="scenarios">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Escenarios de Simulación E2E</CardTitle>
+              <CardDescription className="text-xs">
+                Flujos guiados que insertan mensajes simulados para probar cada canal de comunicación
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CommScenarioSimulator servicioId={servicioId} phone={normalizedPhone} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
