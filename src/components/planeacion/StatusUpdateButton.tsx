@@ -68,6 +68,7 @@ export function StatusUpdateButton({
   const handleRevert = async () => {
     setIsLocalLoading(true);
     setOptimisticArrival(null);
+    onOptimisticChange?.(serviceId, null);
     try {
       await onStatusChange(serviceId, 'revert_to_scheduled');
     } catch (error) {
