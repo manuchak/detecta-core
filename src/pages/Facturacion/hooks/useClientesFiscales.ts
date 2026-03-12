@@ -79,6 +79,9 @@ export interface ClienteFiscalUpdate {
   evidencia_requerida?: string[];
   observaciones_facturacion?: string;
   facturacion_intercompania?: boolean;
+  tarifa_sin_arma?: number | null;
+  tarifa_con_arma?: number | null;
+  cobra_gadgets?: boolean | null;
 }
 
 export function useClientesFiscales() {
