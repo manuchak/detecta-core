@@ -18,7 +18,7 @@ export function EgresosTab() {
       const { count, error } = await supabase
         .from('solicitudes_apoyo_extraordinario')
         .select('*', { count: 'exact', head: true })
-        .eq('estado', 'pendiente');
+        .eq('estado', 'aprobado');
       if (error) throw error;
       return count || 0;
     },
