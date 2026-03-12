@@ -237,8 +237,9 @@ export function ScheduledServicesTab() {
       };
     }
     
-    // En sitio - custodio llegó al punto (hora_llegada_custodio) pero monitoreo aún no inicia (hora_inicio_real)
-    if (service.hora_llegada_custodio && !service.hora_inicio_real) {
+    // En sitio - custodio llegó al punto. Para Planeación, "Arribado" es un hecho inmutable
+    // que persiste aunque Monitoreo inicie el servicio (hora_inicio_real)
+    if (service.hora_llegada_custodio) {
       return { 
         status: 'en_sitio', 
         color: 'bg-emerald-500', 
@@ -246,7 +247,8 @@ export function ScheduledServicesTab() {
         bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
         icon: MapPinCheck, 
         label: 'En sitio',
-        priority: 4
+        priority: 4,
+        isBeingMonitored: !!service.hora_inicio_real
       };
     }
     
