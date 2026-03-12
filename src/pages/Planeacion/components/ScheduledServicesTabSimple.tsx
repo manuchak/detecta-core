@@ -1054,8 +1054,8 @@ export function ScheduledServicesTab() {
                             serviceId={service.id}
                             currentStatus={operationalStatus.status as OperationalStatus}
                             onStatusChange={handleStatusUpdate}
-                            disabled={isCancelling || isUpdatingOperationalStatus}
-                            isLoading={isUpdatingOperationalStatus}
+                            disabled={isCancelling}
+                            horaLlegadaCustodio={service.hora_llegada_custodio}
                           />
                           <CancelServiceButton
                             serviceId={service.id}

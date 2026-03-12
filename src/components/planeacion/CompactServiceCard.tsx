@@ -275,8 +275,8 @@ export function CompactServiceCard({
             serviceId={service.id}
             currentStatus={operationalStatus.status as OperationalStatus}
             onStatusChange={onStatusUpdate}
-            disabled={isCancelling || isUpdatingStatus}
-            isLoading={isUpdatingStatus}
+            disabled={isCancelling}
+            horaLlegadaCustodio={service.hora_llegada_custodio}
           />
           <CancelServiceButton
             serviceId={service.id}

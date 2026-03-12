@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MapPinCheck, RotateCcw, ChevronDown } from 'lucide-react';
+import { MapPinCheck, RotateCcw, ChevronDown, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatCDMXTime } from '@/utils/cdmxTimezone';
 
 export type OperationalStatus = 'sin_asignar' | 'programado' | 'armado_pendiente' | 'pendiente_inicio' | 'en_sitio' | 'en_curso' | 'completado';
 
@@ -16,36 +18,42 @@ interface StatusUpdateButtonProps {
   currentStatus: OperationalStatus;
   onStatusChange: (serviceId: string, action: 'mark_on_site' | 'revert_to_scheduled') => Promise<void>;
   disabled?: boolean;
+  /** @deprecated Use local loading — this prop is ignored now */
   isLoading?: boolean;
   className?: string;
+  /** Hora real de llegada del custodio para mostrar en badge "Arribado" */
+  horaLlegadaCustodio?: string | null;
 }
 
 /**
  * Botón para cambiar el estado operativo de un servicio.
- * Permite marcar como "En sitio" o revertir a "Programado".
+ * Usa loading LOCAL por servicio para no bloquear otros botones.
  */
 export function StatusUpdateButton({
   serviceId,
   currentStatus,
   onStatusChange,
   disabled = false,
-  isLoading = false,
-  className
+  className,
+  horaLlegadaCustodio
 }: StatusUpdateButtonProps) {
-  // Solo mostrar para estados donde el cambio manual tiene sentido
+  const [isLocalLoading, setIsLocalLoading] = useState(false);
+
   const canMarkOnSite = ['programado', 'armado_pendiente', 'pendiente_inicio', 'en_curso'].includes(currentStatus);
   const canRevert = currentStatus === 'en_sitio';
   
-  // No mostrar para estados que no permiten cambio manual
   if (!canMarkOnSite && !canRevert) {
     return null;
   }
 
   const handleAction = async (action: 'mark_on_site' | 'revert_to_scheduled') => {
+    setIsLocalLoading(true);
     try {
       await onStatusChange(serviceId, action);
     } catch (error) {
       console.error('Error updating status:', error);
+    } finally {
+      setIsLocalLoading(false);
     }
   };
 
@@ -59,35 +67,39 @@ export function StatusUpdateButton({
           e.stopPropagation();
           handleAction('mark_on_site');
         }}
-        disabled={disabled || isLoading}
+        disabled={disabled || isLocalLoading}
         className={cn(
           "h-7 px-2 text-xs gap-1 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/30",
           className
         )}
       >
         <MapPinCheck className="w-3 h-3" />
-        En sitio
+        {isLocalLoading ? 'Marcando...' : 'En sitio'}
       </Button>
     );
   }
 
-  // Si está "En sitio" y puede revertir
+  // Si está "En sitio" → Badge "Arribado" prominente + dropdown para revertir
   if (canRevert) {
+    const arrivalTimeDisplay = horaLlegadaCustodio
+      ? formatCDMXTime(horaLlegadaCustodio, 'HH:mm')
+      : null;
+
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
             size="sm"
-            disabled={disabled || isLoading}
+            disabled={disabled || isLocalLoading}
             className={cn(
-              "h-7 px-2 text-xs gap-1 border-slate-200 dark:border-slate-700",
+              "h-7 px-2 text-xs gap-1 bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/50 font-medium",
               className
             )}
             onClick={(e) => e.stopPropagation()}
           >
-            <MapPinCheck className="w-3 h-3 text-blue-500" />
-            En sitio
+            <CheckCircle className="w-3 h-3" />
+            Arribado{arrivalTimeDisplay ? ` ${arrivalTimeDisplay}` : ''}
             <ChevronDown className="w-3 h-3 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
