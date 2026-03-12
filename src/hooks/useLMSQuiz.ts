@@ -188,9 +188,9 @@ export function useLMSGuardarQuiz() {
 // Verificar si puede reintentar
 export function puedeReintentar(
   intentosUsados: number,
-  intentosPermitidos: number
+  intentosPermitidos: number | undefined | null
 ): boolean {
-  if (intentosPermitidos === 0) return true; // 0 = ilimitados
+  if (!intentosPermitidos || intentosPermitidos <= 0) return true; // undefined/null/0 = ilimitados
   return intentosUsados < intentosPermitidos;
 }
 

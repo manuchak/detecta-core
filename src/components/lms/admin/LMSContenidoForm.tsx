@@ -744,7 +744,7 @@ export function LMSContenidoForm({
                             <Label className="text-xs text-muted-foreground">Intentos máximos</Label>
                             <Input
                               type="number"
-                              min={1}
+                              min={0}
                               value={quizConfig.intentos_permitidos}
                               onChange={(e) => setQuizConfig({ ...quizConfig, intentos_permitidos: parseInt(e.target.value) || 3 })}
                               className="h-9"
