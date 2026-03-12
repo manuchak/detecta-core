@@ -44,21 +44,8 @@ export function getOperationalStatus(service: any, nowOverride?: Date) {
   const needsArmedGuard = service.incluye_armado || service.requiere_armado;
   const isFullyAssigned = service.custodio_nombre && (!needsArmedGuard || hasArmedGuard);
   
-  // Completado
-  if (service.hora_fin_real) {
-    return { 
-      status: 'completado', 
-      color: 'bg-emerald-500', 
-      textColor: 'text-emerald-700 dark:text-emerald-400',
-      bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
-      icon: CheckCircle2, 
-      label: 'Completado',
-      priority: 5
-    };
-  }
-  
   // En sitio - custodio llegó al punto. Para Planeación, "Arribado" es un hecho inmutable
-  // que persiste aunque Monitoreo inicie el servicio (hora_inicio_real)
+  // que persiste aunque Monitoreo inicie o finalice el servicio
   if (service.hora_llegada_custodio) {
     return { 
       status: 'en_sitio', 
@@ -68,7 +55,21 @@ export function getOperationalStatus(service: any, nowOverride?: Date) {
       icon: MapPinCheck, 
       label: 'En sitio',
       priority: 5,
-      isBeingMonitored: !!service.hora_inicio_real
+      isBeingMonitored: !!service.hora_inicio_real && !service.hora_fin_real,
+      isCompleted: !!service.hora_fin_real
+    };
+  }
+
+  // Completado - caso edge: finalizado sin hora_llegada_custodio registrada
+  if (service.hora_fin_real) {
+    return { 
+      status: 'completado', 
+      color: 'bg-emerald-500', 
+      textColor: 'text-emerald-700 dark:text-emerald-400',
+      bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
+      icon: CheckCircle2, 
+      label: 'Completado',
+      priority: 5
     };
   }
 
@@ -264,7 +265,15 @@ export function CompactServiceCard({
                 <CheckCircle2 className="w-3 h-3" />
                 Arribado {(service.hora_llegada_custodio?.substring(0, 5) || optimisticArrival) ?? '--:--'}
               </Badge>
-              {operationalStatus.isBeingMonitored && (
+              {operationalStatus.isCompleted ? (
+                <Badge 
+                  variant="secondary" 
+                  className="bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600 gap-1 text-[10px] font-medium px-1.5 py-0.5 flex-shrink-0"
+                >
+                  <CheckCircle2 className="w-3 h-3" />
+                  Finalizado
+                </Badge>
+              ) : operationalStatus.isBeingMonitored ? (
                 <Badge 
                   variant="secondary" 
                   className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-700 gap-1 text-[10px] font-medium px-1.5 py-0.5 flex-shrink-0"
@@ -272,7 +281,7 @@ export function CompactServiceCard({
                   <Clock className="w-3 h-3" />
                   En monitoreo
                 </Badge>
-              )}
+              ) : null}
             </>
           ) : (
             <Badge 
