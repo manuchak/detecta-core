@@ -13,11 +13,13 @@ interface CustodianService {
   source: 'planificado' | 'legacy';
   origen_lat: number | null;
   origen_lng: number | null;
+  isRetorno: boolean;
 }
 
 interface NextServiceResult {
   service: CustodianService | null;
   checklistStatus: 'pendiente' | 'completo' | null;
+  isRetorno: boolean;
   isLoading: boolean;
   refetch: () => void;
 }
@@ -43,7 +45,8 @@ export function useNextService(custodianPhone: string | undefined, custodioId?: 
           destino,
           fecha_hora_cita,
           estado_planeacion,
-          tipo_servicio
+          tipo_servicio,
+          observaciones
         `;
 
       // 1. Query servicios_planificados por teléfono
@@ -124,7 +127,8 @@ export function useNextService(custodianPhone: string | undefined, custodioId?: 
           tipo_servicio: p.tipo_servicio || 'custodia',
           source: 'planificado',
           origen_lat: null,
-          origen_lng: null
+          origen_lng: null,
+          isRetorno: (p.observaciones || '').includes('[RETORNO]')
         });
       }
       
@@ -141,7 +145,8 @@ export function useNextService(custodianPhone: string | undefined, custodioId?: 
           tipo_servicio: l.tipo_servicio || 'custodia',
           source: 'legacy',
           origen_lat: l.origen_lat ?? null,
-          origen_lng: l.origen_lng ?? null
+          origen_lng: l.origen_lng ?? null,
+          isRetorno: false
         });
       }
 
@@ -177,6 +182,7 @@ export function useNextService(custodianPhone: string | undefined, custodioId?: 
   return {
     service: query.data?.service || null,
     checklistStatus: query.data?.checklistStatus || null,
+    isRetorno: query.data?.service?.isRetorno || false,
     isLoading: query.isLoading,
     refetch: query.refetch
   };
