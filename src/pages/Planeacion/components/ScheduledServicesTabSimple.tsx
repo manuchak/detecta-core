@@ -1078,6 +1078,7 @@ export function ScheduledServicesTab() {
                             serviceId={service.id}
                             currentStatus={operationalStatus.status as OperationalStatus}
                             onStatusChange={handleStatusUpdate}
+                            onOptimisticChange={handleOptimisticChange}
                             disabled={isCancelling}
                             horaLlegadaCustodio={service.hora_llegada_custodio}
                           />
