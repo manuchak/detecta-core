@@ -160,6 +160,9 @@ export function CompactServiceCard({
   isCancelling = false,
   isUpdatingStatus = false
 }: CompactServiceCardProps) {
+  const [commOpen, setCommOpen] = useState(false);
+  const unreadMap = useUnreadCounts();
+  const unreadCount = unreadMap.get(service.id) || 0;
   const operationalStatus = getOperationalStatus(service, now);
   const OperationalIcon = operationalStatus.icon;
   // For time comparison (upcoming badge), use raw Date since both are in same timezone context
