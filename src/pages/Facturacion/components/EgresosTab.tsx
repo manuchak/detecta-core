@@ -44,10 +44,23 @@ export function EgresosTab() {
         >
           PE — Proveedores Externos
         </button>
+        <button
+          onClick={() => setSegment('gastos')}
+          className={cn(
+            'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
+            segment === 'gastos'
+              ? 'bg-background shadow-sm text-foreground'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Gastos Custodios
+        </button>
       </div>
 
       {/* Content */}
-      {segment === 'oca' ? <CxPOperativoTab /> : <CxPProveedoresTab />}
+      {segment === 'oca' && <CxPOperativoTab />}
+      {segment === 'pe' && <CxPProveedoresTab />}
+      {segment === 'gastos' && <AprobacionGastosPanel />}
     </div>
   );
 }

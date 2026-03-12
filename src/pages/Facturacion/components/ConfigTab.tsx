@@ -41,6 +41,9 @@ export function ConfigTab() {
         <TabsContent value="estadias" className="mt-4">
           <EstadiasPanel />
         </TabsContent>
+        <TabsContent value="gadgets" className="mt-4">
+          <GadgetsConsolidadoTab />
+        </TabsContent>
         <TabsContent value="manual" className="mt-4">
           <ManualFacturacionTab />
         </TabsContent>

@@ -126,7 +126,10 @@ export function useClientesFiscales() {
           evidencia_requerida,
           observaciones_facturacion,
           facturacion_intercompania,
-          tarifa_hora_estadia
+          tarifa_hora_estadia,
+          tarifa_sin_arma,
+          tarifa_con_arma,
+          cobra_gadgets
         `)
         .order('nombre');
 

@@ -126,6 +126,9 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
         evidencia_requerida: cliente.evidencia_requerida || [],
         observaciones_facturacion: cliente.observaciones_facturacion || '',
         facturacion_intercompania: cliente.facturacion_intercompania ?? false,
+        tarifa_sin_arma: cliente.tarifa_sin_arma ?? null,
+        tarifa_con_arma: cliente.tarifa_con_arma ?? null,
+        cobra_gadgets: cliente.cobra_gadgets ?? true,
       });
     }
   }, [cliente]);
