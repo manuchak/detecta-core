@@ -1,94 +1,79 @@
-# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
-## Resumen ejecutivo
-Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
-Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-## Fase Dev 1 — Modelo de datos ✅
-- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
-- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
-- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
-- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
-- ✅ Índice `idx_wm_channel_sender` para queries de cliente
-- ✅ Backfill de registros existentes
+# Mapa de Casos de Uso: Gestión de Cuentas por Cobrar (AR Management)
 
-## Fase Dev 2 — Router de contexto en webhook ✅
-- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
-- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
-- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
-- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
-- ✅ Cliente con servicio activo → visible en tab, no crea ticket
-- ✅ Cliente sin servicio → crea ticket de atención
+## Hallazgo Clave
 
-## Fase Dev 3 — Clasificación en mensajes salientes ✅
-- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
-- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
+Los campos `dia_corte` y `dia_pago` existen en `pc_clientes` y se muestran en el formulario de cliente, pero **no se usan en ningún cálculo**. La `fecha_vencimiento` de facturas se captura manualmente. Esto significa que el sistema no refleja la realidad operativa del stakeholder.
 
-## Fase Dev 4 — Chat de Planeación con custodio ✅
-- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
-- ✅ Filtra por `comm_channel='custodio_planeacion'`
-- ✅ Read-only después del handoff (`isHandedOff` prop)
-- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
-- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
+---
 
-## Fase Dev 5 — Handoff Planeación → C4 ✅
-- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
-- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
-- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
-- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
+## Contexto del Stakeholder (Osvaldo)
 
-## Fase Dev 6 — Tab Cliente bidireccional ✅
-- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
-- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
-- ✅ WindowPill con countdown en tiempo real
-- ✅ Input deshabilitado cuando ventana cerrada, solo templates
-- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
-- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
-- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
+El problema real: un cliente con "7 días de crédito" facturado el lunes debería pagar el lunes siguiente. Pero si su corte de finanzas es viernes, realmente paga hasta el viernes siguiente (11 días reales). El sistema debe calcular el **vencimiento real** basado en `dia_corte` + `dia_pago`, no solo `dias_credito`.
 
-## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
-- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
-- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
-- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
-- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
-- ✅ Fire-and-forget: no bloquea el flujo principal
+---
 
-## Fase Dev 8 — Broadcast multi-contacto ✅
-- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
-- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
-- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
-- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
-- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
+## Mapa de Casos de Uso (basado en mejores prácticas AR)
 
-## Fase Dev 9 — Testing E2E + Switch WhatsApp ✅
-- ✅ Tabla `app_feature_flags` con RLS (read: authenticated, write: admin/owner/coordinador)
-- ✅ Seeds: `whatsapp_planeacion` (OFF), `whatsapp_monitoreo` (OFF)
-- ✅ Realtime habilitado en `app_feature_flags`
-- ✅ Hook `useWhatsAppMode` con react-query + realtime subscription
-- ✅ Switches "WA Plan" y "WA Mon" en `CoordinatorCommandCenter` header
-- ✅ `CompactServiceCard`: botón chat condicionado a flag `whatsapp_planeacion`
-- ✅ `ServiceCommSheet`: placeholder "WhatsApp deshabilitado" cuando flag `whatsapp_monitoreo` está OFF
-- ✅ `CommScenarioSimulator` con 3 escenarios guiados (Planeación, Monitoreo, Cliente)
-- ✅ Cada escenario: pasos individuales + "Ejecutar Todo" con barra de progreso
-- ✅ Verificaciones de persistencia y comm_channel en cada escenario
+### UC1: Cálculo Inteligente de Fecha de Vencimiento
+**Problema**: `fecha_vencimiento` se pone manualmente; no considera el ciclo fiscal del cliente.
+**Solución**: Función utilitaria `calcularFechaVencimientoReal(fechaEmision, cliente)` que:
+1. Toma `fecha_emision` y busca el siguiente `dia_corte` del cliente
+2. A partir de ese corte, suma hasta el `dia_pago`
+3. Si no hay `dia_corte`/`dia_pago`, usa fallback `fecha_emision + dias_credito`
 
-## Dependencias
-```
-Fase 1 → Fase 2, Fase 3 (paralelas)
-Fase 2+3 → Fase 4, Fase 6 (paralelas)
-Fase 4 → Fase 5
-Fase 5+6 → Fase 7
-Fase 6 → Fase 8
-Todas → Fase 9
+```text
+Ejemplo: Factura emitida Lunes 10/Mar, cliente con dia_corte=15, dia_pago=30
+→ Siguiente corte: 15/Mar
+→ Fecha pago real: 30/Mar (día de pago)
+→ El sistema muestra: "Vence 30/Mar (20 días reales)"
 ```
 
-## Templates Meta pendientes
-| Template | Estado |
-|---|---|
-| posicionamiento_cliente | Por crear |
-| cierre_servicio_cliente | Por crear |
-| incidencia_servicio_cliente | Por crear |
-| nudge_status_custodio | No aprobado aún |
-| reporte_servicio_cliente | No aprobado aún |
+**Archivo**: Nuevo `src/utils/calcularVencimiento.ts`
+**Impacto**: Se usa en `useGenerarFactura.ts` para auto-calcular `fechaVencimiento` al crear factura.
+
+### UC2: Visibilidad del Vencimiento Real vs Nominal
+**Problema**: El usuario no sabe si el vencimiento mostrado es el real según el ciclo del cliente.
+**Solución**: En la UI de facturación (al generar factura), mostrar:
+- Fecha de vencimiento calculada automáticamente (editable por override)
+- Tooltip: "Basado en corte día 15, pago día 30 del cliente"
+- Badge con días reales de crédito vs días nominales
+
+### UC3: Segmentación de Clientes por Riesgo (ya parcialmente existe)
+**Status**: Ya existe `useClienteCreditoAnalisis` con score crediticio. Falta integrar `dia_corte`/`dia_pago` en la lógica de aging para que los buckets de vencimiento consideren el vencimiento real.
+
+### UC4: Agenda de Cobranza Proactiva (pre-vencimiento)
+**Status**: Ya existe `AgendaCobranzaPanel` con vencimientos del día y semana.
+**Mejora**: Agregar recordatorios pre-vencimiento configurables (ej: 3 días antes del vencimiento, enviar alerta). Esto ya es un patrón estándar en AR: "Send reminder before due date."
+
+### UC5: Escalamiento Automático de Cobranza
+**Status**: Ya existe `CobranzaWorkflowTab` con etapas configurables.
+**Mejora**: Vincular las etapas de escalamiento al vencimiento real (no nominal), para que el sistema escale correctamente.
+
+### UC6: Promesas de Pago con Seguimiento
+**Status**: Ya existe `PromesasPagoPanel` y `PromesaPagoModal`.
+**Status**: Funcional, no requiere cambios.
+
+### UC7: Estado de Cuenta Automatizado
+**Status**: Ya existe `EstadoCuentaModal`.
+**Mejora menor**: Incluir en el estado de cuenta el detalle del ciclo fiscal del cliente (día corte, día pago) para transparencia.
+
+---
+
+## Plan de Implementación (Priorizado)
+
+### Fase 1: Cálculo de Vencimiento Real (Impacto Alto)
+1. **Crear `src/utils/calcularVencimiento.ts`** — función pura que dado `fechaEmision`, `diaCorte`, `diaPago`, `diasCredito` retorna `fechaVencimientoReal` y `diasReales`
+2. **Modificar UI de generación de factura** — auto-calcular y mostrar la fecha de vencimiento real al seleccionar cliente, con opción de override manual
+3. **Agregar tooltip/info en el tab Crédito** del form de cliente explicando cómo se calcula el vencimiento real con sus datos
+
+### Fase 2: Ajuste del Aging al Vencimiento Real
+4. **Modificar `useAgendaCobranza`** — usar la función de cálculo real para determinar cuándo realmente vence cada factura (si la factura ya tiene fecha_vencimiento fija, respetarla)
+
+### Archivos a crear/modificar
+1. **Crear** `src/utils/calcularVencimiento.ts` — lógica de corte + pago
+2. **Modificar** componente de generación de factura (donde se captura `fechaVencimiento`) — auto-fill inteligente
+3. **Modificar** tab "Crédito" en `ClienteFormModal.tsx` — agregar explicación visual del ciclo de pago real
+4. **Modificar** `useAgendaCobranza.ts` — opcional, para alertas basadas en vencimiento real
+
