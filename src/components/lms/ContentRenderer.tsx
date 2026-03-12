@@ -36,7 +36,8 @@ export function ContentRenderer({
   progresoVideo,
   onComplete,
   onVideoProgress,
-  initialVideoPosition
+  initialVideoPosition,
+  cursoTitulo
 }: ContentRendererProps) {
   const { tipo, contenido: data, duracion_min } = contenido;
 
