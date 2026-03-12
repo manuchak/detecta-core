@@ -52,12 +52,14 @@ export function StatusUpdateButton({
   const handleMarkOnSite = async () => {
     const arrivalTime = getNowCDMX();
     setOptimisticArrival(arrivalTime);
+    onOptimisticChange?.(serviceId, arrivalTime);
     setIsLocalLoading(true);
     try {
       await onStatusChange(serviceId, 'mark_on_site');
     } catch (error) {
       console.error('Error updating status:', error);
-      setOptimisticArrival(null); // revert on failure
+      setOptimisticArrival(null);
+      onOptimisticChange?.(serviceId, null);
     } finally {
       setIsLocalLoading(false);
     }
