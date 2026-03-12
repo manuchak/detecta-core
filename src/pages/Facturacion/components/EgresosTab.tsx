@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { CxPOperativoTab } from './CxPOperativo/CxPOperativoTab';
 import { CxPProveedoresTab } from './CxPProveedores/CxPProveedoresTab';
+import AprobacionGastosPanel from './GastosExtraordinarios/AprobacionGastosPanel';
 
 type Segment = 'oca' | 'pe' | 'gastos';
 
