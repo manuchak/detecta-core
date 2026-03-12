@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { CxPOperativoTab } from './CxPOperativo/CxPOperativoTab';
 import { CxPProveedoresTab } from './CxPProveedores/CxPProveedoresTab';
 import AprobacionGastosPanel from './GastosExtraordinarios/AprobacionGastosPanel';
@@ -8,6 +11,20 @@ type Segment = 'oca' | 'pe' | 'gastos';
 
 export function EgresosTab() {
   const [segment, setSegment] = useState<Segment>('oca');
+
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ['gastos-pendientes-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('solicitudes_apoyo_extraordinario')
+        .select('*', { count: 'exact', head: true })
+        .eq('estado', 'pendiente');
+      if (error) throw error;
+      return count || 0;
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
 
   return (
     <div className="space-y-4">
@@ -47,13 +64,18 @@ export function EgresosTab() {
         <button
           onClick={() => setSegment('gastos')}
           className={cn(
-            'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
+            'px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5',
             segment === 'gastos'
               ? 'bg-background shadow-sm text-foreground'
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
           Gastos Custodios
+          {pendingCount > 0 && (
+            <Badge variant="destructive" className="text-[10px] px-1.5 py-0 min-w-[20px] justify-center">
+              {pendingCount}
+            </Badge>
+          )}
         </button>
       </div>
 

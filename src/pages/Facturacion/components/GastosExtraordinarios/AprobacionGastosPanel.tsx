@@ -2,19 +2,20 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle, XCircle, Clock, ExternalLink, Loader2, DollarSign, AlertTriangle, User } from 'lucide-react';
+import { CheckCircle, XCircle, ExternalLink, Loader2, DollarSign, AlertTriangle, User, Clock, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TIPOS_APOYO_CUSTODIO, parseComprobantes } from '@/hooks/useCustodianExpenses';
+import { cn } from '@/lib/utils';
 
-const QUERY_KEY = 'aprobacion-gastos';
+export const QUERY_KEY_APROBACION = 'aprobacion-gastos';
 
 interface Solicitud {
   id: string;
@@ -41,15 +42,20 @@ const urgenciaColors: Record<string, string> = {
   baja: 'bg-muted text-muted-foreground',
 };
 
+type SubTab = 'pendientes' | 'historico';
+
 const AprobacionGastosPanel = () => {
-  const [filtroEstado, setFiltroEstado] = useState('pendiente');
+  const [subTab, setSubTab] = useState<SubTab>('pendientes');
+  const [filtroHistorico, setFiltroHistorico] = useState('aprobado');
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | null>(null);
   const [montoAprobado, setMontoAprobado] = useState('');
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const queryClient = useQueryClient();
 
+  const estadoFiltro = subTab === 'pendientes' ? 'pendiente' : filtroHistorico;
+
   const { data: solicitudes, isLoading } = useQuery({
-    queryKey: [QUERY_KEY, filtroEstado],
+    queryKey: [QUERY_KEY_APROBACION, estadoFiltro],
     queryFn: async () => {
       let query = supabase
         .from('solicitudes_apoyo_extraordinario')
@@ -57,8 +63,8 @@ const AprobacionGastosPanel = () => {
         .order('created_at', { ascending: false })
         .limit(200);
 
-      if (filtroEstado !== 'todos') {
-        query = query.eq('estado', filtroEstado);
+      if (estadoFiltro !== 'todos') {
+        query = query.eq('estado', estadoFiltro);
       }
 
       const { data, error } = await query;
@@ -82,7 +88,8 @@ const AprobacionGastosPanel = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY_APROBACION] });
+      queryClient.invalidateQueries({ queryKey: ['gastos-pendientes-count'] });
       toast.success('Solicitud aprobada');
       setSelectedSolicitud(null);
     },
@@ -104,14 +111,13 @@ const AprobacionGastosPanel = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY_APROBACION] });
+      queryClient.invalidateQueries({ queryKey: ['gastos-pendientes-count'] });
       toast.success('Solicitud rechazada');
       setSelectedSolicitud(null);
     },
     onError: () => toast.error('Error al rechazar'),
   });
-
-  const pendingCount = solicitudes?.filter(s => s.estado === 'pendiente').length || 0;
 
   const handleOpenDetail = (s: Solicitud) => {
     setSelectedSolicitud(s);
@@ -122,24 +128,51 @@ const AprobacionGastosPanel = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold">Aprobación de Gastos Extraordinarios</h3>
-          {pendingCount > 0 && (
-            <Badge variant="destructive">{pendingCount} pendientes</Badge>
-          )}
+        {/* Sub-tab toggle */}
+        <div className="inline-flex rounded-lg border border-border/50 bg-muted/30 p-0.5">
+          <button
+            onClick={() => setSubTab('pendientes')}
+            className={cn(
+              'px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5',
+              subTab === 'pendientes'
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            Pendientes
+            {solicitudes && subTab === 'pendientes' && solicitudes.length > 0 && (
+              <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">{solicitudes.length}</Badge>
+            )}
+          </button>
+          <button
+            onClick={() => setSubTab('historico')}
+            className={cn(
+              'px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5',
+              subTab === 'historico'
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <History className="w-3.5 h-3.5" />
+            Histórico
+          </button>
         </div>
-        <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pendiente">Pendientes</SelectItem>
-            <SelectItem value="aprobado">Aprobados</SelectItem>
-            <SelectItem value="rechazado">Rechazados</SelectItem>
-            <SelectItem value="pagado">Pagados</SelectItem>
-            <SelectItem value="todos">Todos</SelectItem>
-          </SelectContent>
-        </Select>
+
+        {/* Filter only for histórico */}
+        {subTab === 'historico' && (
+          <Select value={filtroHistorico} onValueChange={setFiltroHistorico}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="aprobado">Aprobados</SelectItem>
+              <SelectItem value="rechazado">Rechazados</SelectItem>
+              <SelectItem value="pagado">Pagados</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {isLoading ? (
@@ -149,7 +182,9 @@ const AprobacionGastosPanel = () => {
       ) : !solicitudes?.length ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            No hay solicitudes {filtroEstado !== 'todos' ? `en estado "${filtroEstado}"` : ''}
+            {subTab === 'pendientes'
+              ? 'No hay solicitudes pendientes — ¡todo al día!'
+              : `No hay solicitudes ${filtroHistorico !== 'todos' ? `en estado "${filtroHistorico}"` : ''}`}
           </CardContent>
         </Card>
       ) : (
@@ -183,6 +218,11 @@ const AprobacionGastosPanel = () => {
                           <DollarSign className="w-3 h-3" />
                           ${s.monto_solicitado.toLocaleString('es-MX')}
                         </span>
+                        {s.monto_aprobado != null && s.estado !== 'pendiente' && (
+                          <span className="text-xs font-medium text-foreground">
+                            Aprobado: ${s.monto_aprobado.toLocaleString('es-MX')}
+                          </span>
+                        )}
                         {s.created_at && (
                           <span>{format(new Date(s.created_at), 'dd MMM HH:mm', { locale: es })}</span>
                         )}
@@ -237,8 +277,8 @@ const AprobacionGastosPanel = () => {
 
                 {selectedSolicitud.notas && (
                   <div>
-                    <span className="text-sm text-muted-foreground">Notas:</span>
-                    <p className="text-sm mt-1">{selectedSolicitud.notas}</p>
+                    <span className="text-sm text-muted-foreground">Folio:</span>
+                    <p className="text-sm mt-1 font-mono">{selectedSolicitud.notas}</p>
                   </div>
                 )}
 
