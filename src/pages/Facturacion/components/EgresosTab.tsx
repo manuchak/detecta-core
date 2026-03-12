@@ -13,7 +13,7 @@ export function EgresosTab() {
   const [segment, setSegment] = useState<Segment>('oca');
 
   const { data: pendingCount = 0 } = useQuery({
-    queryKey: ['gastos-pendientes-count'],
+    queryKey: ['gastos-pendientes-finanzas-count'],
     queryFn: async () => {
       const { count, error } = await supabase
         .from('solicitudes_apoyo_extraordinario')
