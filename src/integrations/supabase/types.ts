@@ -11991,6 +11991,7 @@ export type Database = {
       pc_clientes: {
         Row: {
           activo: boolean | null
+          cobra_gadgets: boolean | null
           cobra_pernocta: boolean | null
           codigo_postal_fiscal: string | null
           contacto_email: string | null
@@ -12050,6 +12051,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean | null
+          cobra_gadgets?: boolean | null
           cobra_pernocta?: boolean | null
           codigo_postal_fiscal?: string | null
           contacto_email?: string | null
@@ -12109,6 +12111,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean | null
+          cobra_gadgets?: boolean | null
           cobra_pernocta?: boolean | null
           codigo_postal_fiscal?: string | null
           contacto_email?: string | null
