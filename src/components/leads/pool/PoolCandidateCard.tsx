@@ -20,7 +20,7 @@ interface PoolCandidateCardProps {
   candidate: AssignedLead;
   selected: boolean;
   onSelect: (selected: boolean) => void;
-  onReactivate: () => void;
+  onReactivate: (targetState: string) => void;
 }
 
 export const PoolCandidateCard = ({ 
@@ -115,15 +115,27 @@ export const PoolCandidateCard = ({
 
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onReactivate}
-            className="flex items-center gap-2"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Reactivar
-          </Button>
+          {candidate.candidato_custodio_id ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onReactivate('aprobado')}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reactivar como Aprobado
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onReactivate('en_revision')}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reactivar a Revisión
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

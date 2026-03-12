@@ -61,8 +61,8 @@ export const PoolReservaView = ({ searchTerm = "" }: PoolReservaViewProps) => {
 
   const handleBulkReactivate = async () => {
     if (selectedCandidates.length === 0) return;
-    
-    await bulkReactivateFromPool(selectedCandidates);
+    // Bulk reactivation uses 'en_revision' as safe default for mixed candidates
+    await bulkReactivateFromPool(selectedCandidates, 'en_revision');
     setSelectedCandidates([]);
   };
 
@@ -223,7 +223,7 @@ export const PoolReservaView = ({ searchTerm = "" }: PoolReservaViewProps) => {
                 candidate={candidate}
                 selected={selectedCandidates.includes(candidate.lead_id)}
                 onSelect={(selected) => handleSelectCandidate(candidate.lead_id, selected)}
-                onReactivate={() => reactivateFromPool(candidate.lead_id)}
+                onReactivate={(targetState) => reactivateFromPool(candidate.lead_id, targetState)}
               />
             ))}
           </>
