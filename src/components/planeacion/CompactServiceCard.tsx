@@ -299,6 +299,25 @@ export function CompactServiceCard({
             serviceId={service.id}
             currentComment={service.comentarios_planeacion}
           />
+          {/* Fase 5: Chat with custodian */}
+          {service.custodio_nombre && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCommOpen(true);
+              }}
+              className="h-7 w-7 p-0 relative opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-destructive text-[8px] text-destructive-foreground flex items-center justify-center font-bold">
+                  {unreadCount}
+                </span>
+              )}
+            </Button>
+          )}
         </div>
       </div>
       
