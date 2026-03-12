@@ -44,21 +44,8 @@ export function getOperationalStatus(service: any, nowOverride?: Date) {
   const needsArmedGuard = service.incluye_armado || service.requiere_armado;
   const isFullyAssigned = service.custodio_nombre && (!needsArmedGuard || hasArmedGuard);
   
-  // Completado
-  if (service.hora_fin_real) {
-    return { 
-      status: 'completado', 
-      color: 'bg-emerald-500', 
-      textColor: 'text-emerald-700 dark:text-emerald-400',
-      bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
-      icon: CheckCircle2, 
-      label: 'Completado',
-      priority: 5
-    };
-  }
-  
   // En sitio - custodio llegó al punto. Para Planeación, "Arribado" es un hecho inmutable
-  // que persiste aunque Monitoreo inicie el servicio (hora_inicio_real)
+  // que persiste aunque Monitoreo inicie o finalice el servicio
   if (service.hora_llegada_custodio) {
     return { 
       status: 'en_sitio', 
@@ -68,7 +55,21 @@ export function getOperationalStatus(service: any, nowOverride?: Date) {
       icon: MapPinCheck, 
       label: 'En sitio',
       priority: 5,
-      isBeingMonitored: !!service.hora_inicio_real
+      isBeingMonitored: !!service.hora_inicio_real && !service.hora_fin_real,
+      isCompleted: !!service.hora_fin_real
+    };
+  }
+
+  // Completado - caso edge: finalizado sin hora_llegada_custodio registrada
+  if (service.hora_fin_real) {
+    return { 
+      status: 'completado', 
+      color: 'bg-emerald-500', 
+      textColor: 'text-emerald-700 dark:text-emerald-400',
+      bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
+      icon: CheckCircle2, 
+      label: 'Completado',
+      priority: 5
     };
   }
 
