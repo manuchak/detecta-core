@@ -466,6 +466,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                 unassignedServices={unassignedForPopover}
                 onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
                 isAssigning={assignService.isPending}
+                isPaused={pausedIds?.has(m.id)}
               />
             ))}
           </div>
