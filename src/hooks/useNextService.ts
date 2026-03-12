@@ -13,6 +13,7 @@ interface CustodianService {
   source: 'planificado' | 'legacy';
   origen_lat: number | null;
   origen_lng: number | null;
+  isRetorno: boolean;
 }
 
 interface NextServiceResult {
