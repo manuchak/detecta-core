@@ -40,6 +40,9 @@ export interface ClienteFiscal {
   observaciones_facturacion: string | null;
   facturacion_intercompania: boolean | null;
   tarifa_hora_estadia: number | null;
+  tarifa_sin_arma: number | null;
+  tarifa_con_arma: number | null;
+  cobra_gadgets: boolean | null;
 }
 
 export interface ClienteFiscalUpdate {
@@ -76,6 +79,9 @@ export interface ClienteFiscalUpdate {
   evidencia_requerida?: string[];
   observaciones_facturacion?: string;
   facturacion_intercompania?: boolean;
+  tarifa_sin_arma?: number | null;
+  tarifa_con_arma?: number | null;
+  cobra_gadgets?: boolean | null;
 }
 
 export function useClientesFiscales() {
@@ -120,7 +126,10 @@ export function useClientesFiscales() {
           evidencia_requerida,
           observaciones_facturacion,
           facturacion_intercompania,
-          tarifa_hora_estadia
+          tarifa_hora_estadia,
+          tarifa_sin_arma,
+          tarifa_con_arma,
+          cobra_gadgets
         `)
         .order('nombre');
 

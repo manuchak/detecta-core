@@ -1,0 +1,1 @@
+ALTER TABLE public.pc_clientes ADD COLUMN IF NOT EXISTS cobra_gadgets boolean DEFAULT true;

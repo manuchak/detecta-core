@@ -1,8 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Clock, HelpCircle } from 'lucide-react';
+import { Users, Clock, HelpCircle, Package } from 'lucide-react';
 import { GestionClientesTab } from './GestionClientes/GestionClientesTab';
 import { EstadiasPanel } from './CxPOperativo/Estadias/EstadiasPanel';
 import { ManualFacturacionTab } from './Manual/ManualFacturacionTab';
+import { GadgetsConsolidadoTab } from './Config/GadgetsConsolidadoTab';
 
 export function ConfigTab() {
   return (
@@ -24,6 +25,10 @@ export function ConfigTab() {
             <Clock className="h-3.5 w-3.5" />
             Reglas Estadías
           </TabsTrigger>
+          <TabsTrigger value="gadgets" className="text-xs h-7 px-3 gap-1.5">
+            <Package className="h-3.5 w-3.5" />
+            Gadgets
+          </TabsTrigger>
           <TabsTrigger value="manual" className="text-xs h-7 px-3 gap-1.5">
             <HelpCircle className="h-3.5 w-3.5" />
             Manual
@@ -35,6 +40,9 @@ export function ConfigTab() {
         </TabsContent>
         <TabsContent value="estadias" className="mt-4">
           <EstadiasPanel />
+        </TabsContent>
+        <TabsContent value="gadgets" className="mt-4">
+          <GadgetsConsolidadoTab />
         </TabsContent>
         <TabsContent value="manual" className="mt-4">
           <ManualFacturacionTab />

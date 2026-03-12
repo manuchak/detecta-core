@@ -1,49 +1,94 @@
+# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
+## Resumen ejecutivo
+Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
+Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-# Plan: Configuración de Cobros por Cliente + Visibilidad de Gastos para Finanzas
+## Fase Dev 1 — Modelo de datos ✅
+- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
+- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
+- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
+- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
+- ✅ Índice `idx_wm_channel_sender` para queries de cliente
+- ✅ Backfill de registros existentes
 
-## Diagnóstico
+## Fase Dev 2 — Router de contexto en webhook ✅
+- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
+- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
+- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
+- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
+- ✅ Cliente con servicio activo → visible en tab, no crea ticket
+- ✅ Cliente sin servicio → crea ticket de atención
 
-| Concepto | En DB | En UI del Cliente | Estado |
-|---|---|---|---|
-| `tarifa_sin_arma` | ✅ `pc_clientes` | ❌ Solo en EstadiasPanel (reglas globales) | Falta en form cliente |
-| `tarifa_con_arma` | ✅ `pc_clientes` | ❌ Solo en EstadiasPanel | Falta en form cliente |
-| `cobra_gadgets` (flag) | ❌ No existe | ❌ | Falta DB + UI |
-| Gadgets con precios | ✅ `pc_clientes_gadgets` | ✅ Tab "Gadgets" en form | OK |
-| Gastos custodios | ✅ `solicitudes_apoyo_extraordinario` | ✅ Dentro de Operaciones > Gastos Extra | No tiene tab propio en Finanzas |
+## Fase Dev 3 — Clasificación en mensajes salientes ✅
+- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
+- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
-## Cambios
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
 
-### 1. Migración: `cobra_gadgets` en `pc_clientes`
-```sql
-ALTER TABLE pc_clientes ADD COLUMN cobra_gadgets boolean DEFAULT true;
+## Fase Dev 5 — Handoff Planeación → C4 ✅
+- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
+- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
+- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
+- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
+
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
+
+## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
+- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
+- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
+- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
+- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
+- ✅ Fire-and-forget: no bloquea el flujo principal
+
+## Fase Dev 8 — Broadcast multi-contacto ✅
+- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
+- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
+- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
+- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
+- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
+
+## Fase Dev 9 — Testing E2E + Switch WhatsApp ✅
+- ✅ Tabla `app_feature_flags` con RLS (read: authenticated, write: admin/owner/coordinador)
+- ✅ Seeds: `whatsapp_planeacion` (OFF), `whatsapp_monitoreo` (OFF)
+- ✅ Realtime habilitado en `app_feature_flags`
+- ✅ Hook `useWhatsAppMode` con react-query + realtime subscription
+- ✅ Switches "WA Plan" y "WA Mon" en `CoordinatorCommandCenter` header
+- ✅ `CompactServiceCard`: botón chat condicionado a flag `whatsapp_planeacion`
+- ✅ `ServiceCommSheet`: placeholder "WhatsApp deshabilitado" cuando flag `whatsapp_monitoreo` está OFF
+- ✅ `CommScenarioSimulator` con 3 escenarios guiados (Planeación, Monitoreo, Cliente)
+- ✅ Cada escenario: pasos individuales + "Ejecutar Todo" con barra de progreso
+- ✅ Verificaciones de persistencia y comm_channel en cada escenario
+
+## Dependencias
+```
+Fase 1 → Fase 2, Fase 3 (paralelas)
+Fase 2+3 → Fase 4, Fase 6 (paralelas)
+Fase 4 → Fase 5
+Fase 5+6 → Fase 7
+Fase 6 → Fase 8
+Todas → Fase 9
 ```
 
-### 2. Hook `useClientesFiscales.ts`
-- Agregar `tarifa_sin_arma`, `tarifa_con_arma`, `cobra_gadgets` al tipo `ClienteFiscal`, a `ClienteFiscalUpdate`, y al SELECT.
-
-### 3. `ClienteFormModal.tsx` — Tab "Facturación"
-Después de la sección de pernocta, agregar:
-
-**Bloque "Tarifas Servicio Armado"**:
-- Input `Tarifa Estadía Sin Arma` → `tarifa_sin_arma`
-- Input `Tarifa Estadía Con Arma` → `tarifa_con_arma`
-
-**Bloque "Gadgets"**:
-- Checkbox "Cobra gadgets a este cliente" → `cobra_gadgets`
-- Nota informativa: "Configura precios por gadget en la pestaña Gadgets"
-
-### 4. `ConfigTab.tsx` — Nueva sub-tab "Gadgets"
-Agregar una sub-tab en Configuración del módulo de Finanzas para ver/editar los precios globales de gadgets. Esto reutiliza la tabla `pc_clientes_gadgets` pero ofrece una vista consolidada de todos los clientes y sus gadgets configurados, para que Finanzas tenga visibilidad rápida sin abrir cliente por cliente.
-
-### 5. Gastos Extraordinarios visibles para Finanzas
-Actualmente los gastos de custodios (`solicitudes_apoyo_extraordinario`) están enterrados en Operaciones > Gastos Extra > scroll al panel de aprobación. Para darle a Finanzas acceso directo:
-- Agregar una sub-tab "Gastos Custodios" en **Egresos** (junto a OCA e Internos/PE), reutilizando el componente `AprobacionGastosPanel` existente.
-
-### Archivos a modificar
-1. **Migración SQL** — agregar `cobra_gadgets`
-2. **`useClientesFiscales.ts`** — 3 campos al tipo + query
-3. **`ClienteFormModal.tsx`** — inputs tarifa armado + checkbox cobra_gadgets en tab Facturación
-4. **`EgresosTab.tsx`** — nuevo segmento "Gastos Custodios" con `AprobacionGastosPanel`
-5. **`ConfigTab.tsx`** — nueva sub-tab "Gadgets" con vista consolidada
-
+## Templates Meta pendientes
+| Template | Estado |
+|---|---|
+| posicionamiento_cliente | Por crear |
+| cierre_servicio_cliente | Por crear |
+| incidencia_servicio_cliente | Por crear |
+| nudge_status_custodio | No aprobado aún |
+| reporte_servicio_cliente | No aprobado aún |
