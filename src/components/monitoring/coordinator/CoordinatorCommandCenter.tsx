@@ -47,6 +47,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const [resetConfirm, setResetConfirm] = useState(false);
   const [activeDrawer, setActiveDrawer] = useState<DrawerPanel>(null);
   const turno = getCurrentTurno();
+  const { isPlaneacionEnabled, isMonitoreoEnabled, togglePlaneacion, toggleMonitoreo, isToggling } = useWhatsAppMode();
 
   const { data: gastosPendientes = 0 } = useQuery({
     queryKey: ['gastos-pendientes-count'],
