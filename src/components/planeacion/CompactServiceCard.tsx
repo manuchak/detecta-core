@@ -398,7 +398,7 @@ export function CompactServiceCard({
             <PlanningCustodioComm
               servicioId={service.id}
               custodioName={service.custodio_nombre || 'Custodio'}
-              custodioTelefono={(service as any).custodio_telefono || null}
+              custodioTelefono={service.custodio_telefono || null}
               folioServicio={service.id_servicio || ''}
               isHandedOff={!!service.hora_llegada_custodio}
             />
