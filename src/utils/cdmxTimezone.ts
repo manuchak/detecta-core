@@ -17,8 +17,13 @@ export const CDMX_OFFSET = '-06:00';
  * @param isoString - ISO timestamp from database
  * @param formatStr - date-fns format string (default: 'HH:mm')
  */
-export function formatCDMXTime(isoString: string, formatStr: string = 'HH:mm'): string {
-  return formatInTimeZone(isoString, TIMEZONE_CDMX, formatStr, { locale: es });
+export function formatCDMXTime(isoString: string | null | undefined, formatStr: string = 'HH:mm'): string {
+  if (!isoString) return '--:--';
+  try {
+    return formatInTimeZone(isoString, TIMEZONE_CDMX, formatStr, { locale: es });
+  } catch {
+    return '--:--';
+  }
 }
 
 /**
@@ -33,15 +38,25 @@ export function buildCDMXTimestamp(dateStr: string, timeStr: string): string {
 /**
  * Gets the hour from a timestamp formatted in CDMX timezone
  */
-export function getCDMXHour(isoString: string): string {
-  return formatInTimeZone(isoString, TIMEZONE_CDMX, 'HH:mm', { locale: es });
+export function getCDMXHour(isoString: string | null | undefined): string {
+  if (!isoString) return '--:--';
+  try {
+    return formatInTimeZone(isoString, TIMEZONE_CDMX, 'HH:mm', { locale: es });
+  } catch {
+    return '--:--';
+  }
 }
 
 /**
  * Gets the date from a timestamp formatted in CDMX timezone
  */
-export function getCDMXDate(isoString: string): string {
-  return formatInTimeZone(isoString, TIMEZONE_CDMX, 'yyyy-MM-dd', { locale: es });
+export function getCDMXDate(isoString: string | null | undefined): string {
+  if (!isoString) return '';
+  try {
+    return formatInTimeZone(isoString, TIMEZONE_CDMX, 'yyyy-MM-dd', { locale: es });
+  } catch {
+    return '';
+  }
 }
 
 /**
