@@ -77,11 +77,12 @@ export const CONTRATOS_CONDICIONALES: { propietario: TipoContrato; noPropietario
   noPropietario: 'prestacion_servicios_no_propietario'
 };
 
-export function getContratosRequeridosParaCandidato(vehiculoPropio: boolean): TipoContrato[] {
-  return [
-    ...CONTRATOS_REQUERIDOS,
-    vehiculoPropio ? CONTRATOS_CONDICIONALES.propietario : CONTRATOS_CONDICIONALES.noPropietario
-  ];
+export function getContratosRequeridosParaCandidato(vehiculoPropio: boolean, tieneVehiculo: boolean = true): TipoContrato[] {
+  const base = [...CONTRATOS_REQUERIDOS];
+  if (tieneVehiculo) {
+    base.push(vehiculoPropio ? CONTRATOS_CONDICIONALES.propietario : CONTRATOS_CONDICIONALES.noPropietario);
+  }
+  return base;
 }
 
 export function useContratosCandidato(candidatoId: string) {
