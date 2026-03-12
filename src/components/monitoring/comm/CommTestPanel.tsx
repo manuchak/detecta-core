@@ -206,6 +206,21 @@ export const CommTestPanel: React.FC = () => {
         <TabsContent value="persistence">
           <PersistenceSection phone={normalizedPhone} />
         </TabsContent>
+
+        {/* ─── Tab: Scenarios ─── */}
+        <TabsContent value="scenarios">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Escenarios de Simulación E2E</CardTitle>
+              <CardDescription className="text-xs">
+                Flujos guiados que insertan mensajes simulados para probar cada canal de comunicación
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CommScenarioSimulator servicioId={servicioId} phone={normalizedPhone} />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* ─── Activity Log ─── */}
