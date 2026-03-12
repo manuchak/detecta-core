@@ -64,7 +64,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
   const [selectedTipo, setSelectedTipo] = useState<TipoContrato | null>(null);
   const [signContrato, setSignContrato] = useState<any>(null);
   const [previewContrato, setPreviewContrato] = useState<any>(null);
-  const [deleteContrato, setDeleteContrato] = useState<{ id: string; tipo: TipoContrato } | null>(null);
+  const [deleteContrato, setDeleteContrato] = useState<{ id: string; tipo: TipoContrato; firmado?: boolean } | null>(null);
   const [esNoPropietario, setEsNoPropietario] = useState(!initialVehiculoPropio);
 
   const vehiculoPropio = !esNoPropietario;
@@ -90,10 +90,15 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
     setUploadDialogOpen(true);
   };
 
-  const handleEliminar = async () => {
+  const handleEliminar = async (e: React.MouseEvent) => {
+    e.preventDefault();
     if (!deleteContrato) return;
-    await eliminarContrato.mutateAsync({ contratoId: deleteContrato.id, candidatoId });
-    setDeleteContrato(null);
+    try {
+      await eliminarContrato.mutateAsync({ contratoId: deleteContrato.id, candidatoId });
+      setDeleteContrato(null);
+    } catch {
+      // error handled by mutation
+    }
   };
 
   if (isLoading) {
@@ -195,7 +200,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
 
                       {!contrato.firmado && contrato.estado !== 'rechazado' && (
                         <>
-                      <Button 
+                          <Button 
                             size="sm"
                             onClick={() => setSignContrato(contrato)}
                           >
@@ -210,17 +215,17 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
                             <Upload className="h-3 w-3 mr-1" />
                             Subir Firmado
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteContrato({ id: contrato.id, tipo: contrato.tipo_contrato as TipoContrato })}
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Eliminar
-                          </Button>
                         </>
                       )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeleteContrato({ id: contrato.id, tipo: contrato.tipo_contrato as TipoContrato, firmado: contrato.firmado })}
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Eliminar
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -252,22 +257,42 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteContrato} onOpenChange={(open) => !open && setDeleteContrato(null)}>
+      <AlertDialog open={!!deleteContrato} onOpenChange={(open) => !open && !eliminarContrato.isPending && setDeleteContrato(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar contrato?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminará el {deleteContrato ? CONTRATO_LABELS[deleteContrato.tipo] : ''} generado. 
-              Esta acción no se puede deshacer.
+              {deleteContrato?.firmado ? (
+                <>
+                  <span className="font-semibold text-destructive">⚠️ Este contrato ya está firmado.</span>{' '}
+                  Se eliminará el {deleteContrato ? CONTRATO_LABELS[deleteContrato.tipo] : ''} y su archivo asociado. 
+                  Podrás generar o subir uno nuevo después. Esta acción no se puede deshacer.
+                </>
+              ) : (
+                <>
+                  Se eliminará el {deleteContrato ? CONTRATO_LABELS[deleteContrato.tipo] : ''} generado. 
+                  Esta acción no se puede deshacer.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={(e) => e.preventDefault()} disabled={eliminarContrato.isPending}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleEliminar}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={eliminarContrato.isPending}
             >
-              Eliminar
+              {eliminarContrato.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

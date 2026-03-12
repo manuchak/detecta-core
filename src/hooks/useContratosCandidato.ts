@@ -182,6 +182,27 @@ export function useEliminarContrato() {
 
   return useMutation({
     mutationFn: async ({ contratoId, candidatoId }: { contratoId: string; candidatoId: string }) => {
+      // Fetch the contract first to check for storage files
+      const { data: contrato, error: fetchError } = await supabase
+        .from('contratos_candidato')
+        .select('pdf_url, es_documento_fisico')
+        .eq('id', contratoId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // If it has a pdf_url in contratos-escaneados bucket, delete from storage
+      if (contrato?.pdf_url && contrato.pdf_url.includes('contratos-escaneados')) {
+        try {
+          const bucketPath = contrato.pdf_url.split('contratos-escaneados/')[1];
+          if (bucketPath) {
+            await supabase.storage.from('contratos-escaneados').remove([bucketPath]);
+          }
+        } catch (storageErr) {
+          console.warn('No se pudo eliminar archivo de storage:', storageErr);
+        }
+      }
+
       const { error } = await supabase
         .from('contratos_candidato')
         .delete()
