@@ -53,31 +53,28 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
     queryKey: ['operativos-con-servicios', semanaInicio, semanaFin],
     queryFn: async (): Promise<OperativoPreview[]> => {
       // 1) Fetch all finalized services in the week with nombre_custodio
-      const [{ data: servicios }, { data: asignaciones }] = await Promise.all([
+      const [{ data: servicios }, { data: asignaciones }, { data: cortesExistentes }] = await Promise.all([
         supabase
           .from('servicios_custodia')
-          .select('id, id_custodio, nombre_custodio, costo_custodio, casetas, fecha_hora_cita, origen, destino')
+          .select('id, id_servicio, id_custodio, nombre_custodio, costo_custodio, casetas, fecha_hora_cita, origen, destino, km_recorridos')
           .eq('estado', 'Finalizado')
           .gte('fecha_hora_cita', `${semanaInicio}T00:00:00`)
           .lte('fecha_hora_cita', `${semanaFin}T23:59:59`)
           .not('id_custodio', 'is', null),
-        // Fetch completed internal armed guard assignments in the week
+        // Fetch completed internal armed guard assignments (no date filter — cross-ref via service)
         supabase
           .from('asignacion_armados')
-          .select('id, armado_id, armado_nombre_verificado, tarifa_acordada, servicio_custodia_id, hora_encuentro')
+          .select('id, armado_id, armado_nombre_verificado, servicio_custodia_id, estado_asignacion')
           .eq('tipo_asignacion', 'interno')
           .in('estado_asignacion', ['completado', 'confirmado', 'pendiente'])
-          .gte('hora_encuentro', `${semanaInicio}T00:00:00`)
-          .lte('hora_encuentro', `${semanaFin}T23:59:59`)
           .not('armado_id', 'is', null),
+        // Fetch existing cortes for this week
+        supabase
+          .from('cxp_cortes_semanales')
+          .select('operativo_id, total_servicios')
+          .gte('semana_inicio', semanaInicio)
+          .lte('semana_fin', semanaFin),
       ]);
-
-      // 2) Fetch existing cortes for this week
-      const { data: cortesExistentes } = await supabase
-        .from('cxp_cortes_semanales')
-        .select('operativo_id, total_servicios')
-        .gte('semana_inicio', semanaInicio)
-        .lte('semana_fin', semanaFin);
 
       // Ignore empty cortes (total_servicios = 0) so they can be regenerated
       const cortesSet = new Set(
@@ -85,6 +82,15 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
           .filter(c => (c.total_servicios ?? 0) > 0)
           .map(c => c.operativo_id)
       );
+
+      // Build map of servicios by id_servicio for armados cross-ref
+      const svcByIdServicio = new Map<string, typeof servicios extends (infer T)[] | null ? T : never>();
+      for (const s of servicios || []) {
+        if (s.id_servicio) svcByIdServicio.set(s.id_servicio, s);
+      }
+
+      // Fetch tarifas for armados km calculation
+      const tarifasKm = await fetchTarifasKm();
 
       // 3) Group services by custodio
       const grouped: Record<string, { nombre: string; tipo: 'custodio' | 'armado_interno'; total: number; monto: number; montoEstadias: number; servicios: ServicioDetalle[] }> = {};
@@ -112,9 +118,12 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
         });
       }
 
-      // 4) Group armados internos by armado_id
+      // 4) Group armados internos by armado_id — cross-ref with servicios in the week
       for (const a of asignaciones || []) {
-        if (!a.armado_id) continue;
+        if (!a.armado_id || !a.servicio_custodia_id) continue;
+        const svc = svcByIdServicio.get(a.servicio_custodia_id);
+        if (!svc) continue; // service not in this week or not finalized
+
         const key = `armado_${a.armado_id}`;
         if (!grouped[key]) {
           grouped[key] = {
@@ -126,15 +135,16 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
             servicios: [],
           };
         }
-        const tarifa = Number(a.tarifa_acordada) || 0;
+        const km = Number(svc.km_recorridos) || 0;
+        const { costo, tarifa } = calcularCostoPlano(km, tarifasKm);
         grouped[key].total += 1;
-        grouped[key].monto += tarifa;
+        grouped[key].monto += costo;
         grouped[key].servicios.push({
-          id: a.servicio_custodia_id || a.id,
-          fecha_hora_cita: a.hora_encuentro,
-          origen: null,
-          destino: null,
-          costo_custodio: null,
+          id: svc.id,
+          fecha_hora_cita: svc.fecha_hora_cita,
+          origen: svc.origen,
+          destino: svc.destino,
+          costo_custodio: costo,
           casetas: null,
           tarifa_acordada: tarifa,
         });

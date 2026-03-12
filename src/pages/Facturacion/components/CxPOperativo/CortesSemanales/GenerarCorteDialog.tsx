@@ -102,17 +102,32 @@ function usePreviewCorte(
           }
         }
       } else {
+        // Get all assignments for this armado (no date filter)
         const { data: asignaciones } = await supabase
           .from('asignacion_armados')
-          .select('id, tarifa_acordada')
+          .select('id, servicio_custodia_id')
           .eq('armado_id', operativoId)
           .eq('tipo_asignacion', 'interno')
-          .eq('estado_asignacion', 'completado')
-          .gte('hora_encuentro', `${semanaInicio}T00:00:00`)
-          .lte('hora_encuentro', `${semanaFin}T23:59:59`);
-        if (asignaciones) {
-          totalServicios = asignaciones.length;
-          montoServicios = asignaciones.reduce((s, a) => s + (Number(a.tarifa_acordada) || 0), 0);
+          .in('estado_asignacion', ['completado', 'confirmado', 'pendiente']);
+
+        // Cross-ref with finalized services in the week
+        const svcIds = (asignaciones || []).map(a => a.servicio_custodia_id).filter(Boolean) as string[];
+        if (svcIds.length > 0) {
+          const { data: svcs } = await supabase
+            .from('servicios_custodia')
+            .select('id, id_servicio, km_recorridos')
+            .in('id_servicio', svcIds)
+            .eq('estado', 'Finalizado')
+            .gte('fecha_hora_cita', `${semanaInicio}T00:00:00`)
+            .lte('fecha_hora_cita', `${semanaFin}T23:59:59`);
+
+          const tarifas = await fetchTarifasKm();
+          for (const svc of svcs || []) {
+            const km = Number(svc.km_recorridos) || 0;
+            const { costo } = calcularCostoPlano(km, tarifas);
+            montoServicios += costo;
+            totalServicios++;
+          }
         }
       }
 
