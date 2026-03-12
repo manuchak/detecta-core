@@ -966,8 +966,11 @@ export function ScheduledServicesTab() {
                 
                 {/* Compact Services for this hour */}
                 {services.map((service, index) => {
-                  const operationalStatus = getOperationalStatus(service);
-                  const OperationalIcon = operationalStatus.icon;
+                  const optimisticArrival = optimisticArrivals.get(service.id);
+                  const effectiveService = optimisticArrival 
+                    ? { ...service, hora_llegada_custodio: optimisticArrival }
+                    : service;
+                  const operationalStatus = getOperationalStatus(effectiveService);
                   const citaTime = new Date(service.fecha_hora_cita);
                   const upcomingHighlight = getUpcomingHighlightClass(citaTime, now);
                   
