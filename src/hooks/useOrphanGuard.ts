@@ -98,15 +98,12 @@ export function useOrphanGuard() {
         return ts != null && now - ts < 120_000;
       };
 
-      // Rule 1: Pending services with cita between -60min and +4h (unified window)
+      // Rule 1: All pending services visible on the board are eligible
+      // Board already filters by hora_llegada_custodio + today + valid estado
       const FOUR_HOURS = 4 * 60 * 60 * 1000;
-      const SIXTY_MIN_AGO = -60 * 60 * 1000;
       const eligiblePending = pendingServiceIds.filter(id => {
         if (effectiveAssigned.has(id) || isRecentlyAutoAssigned(id) || isServiceLocked(id)) return false;
-        const citaStr = serviceHoraCitaMap[id];
-        if (!citaStr) return false;
-        const timeUntil = new Date(citaStr).getTime() - now;
-        return timeUntil <= FOUR_HOURS && timeUntil > SIXTY_MIN_AGO;
+        return true;
       });
 
       // Rule 2: Active services without any assignment (already started, urgent)
@@ -117,15 +114,10 @@ export function useOrphanGuard() {
       const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
 
       // Build operational board set for weighted load calculation
+      // All board-visible services count toward operational load
       const operationalBoardIds = new Set<string>([
         ...activeServiceIds,
-        ...eligiblePending,
-        ...pendingServiceIds.filter(id => {
-          const citaStr = serviceHoraCitaMap[id];
-          if (!citaStr) return false;
-          const timeUntil = new Date(citaStr).getTime() - now;
-          return timeUntil <= FOUR_HOURS && timeUntil > SIXTY_MIN_AGO;
-        }),
+        ...pendingServiceIds,
       ]);
 
       if (allEligible.length > 0) {
@@ -249,14 +241,7 @@ export function useOrphanGuard() {
     const operationalServiceIds = new Set<string>();
     for (const s of enCursoServices) operationalServiceIds.add(s.id_servicio);
     for (const s of eventoEspecialServices) operationalServiceIds.add(s.id_servicio);
-    for (const s of pendingServices) {
-      const citaStr = serviceHoraCitaMap[s.id_servicio];
-      if (!citaStr) continue;
-      const timeUntil = new Date(citaStr).getTime() - nowMs;
-      if (timeUntil <= FOUR_HOURS_MS && timeUntil > -60 * 60 * 1000) {
-        operationalServiceIds.add(s.id_servicio);
-      }
-    }
+    for (const s of pendingServices) operationalServiceIds.add(s.id_servicio);
 
     // Gather all formal active assignments — only operationally relevant ones
     const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean; notasHandoff: string | null; inicioTurno: string }[] = [];
