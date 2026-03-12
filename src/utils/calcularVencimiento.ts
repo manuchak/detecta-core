@@ -118,12 +118,17 @@ export function explicarCicloPago(cliente: ClienteCicloFiscal): string {
     return `Crédito simple: ${dias_credito || 30} días desde la fecha de emisión.`;
   }
 
-  const ejemplo = new Date();
-  const result = calcularFechaVencimientoReal(ejemplo, cliente);
+  if (dia_pago > dia_corte) {
+    // Pago en el mismo mes que el corte
+    return (
+      `Corte día ${dia_corte} → Pago día ${dia_pago} del mismo mes. ` +
+      `Ejemplo: Factura del ${Math.max(dia_corte - 5, 1)}/Ene → Corte ${dia_corte}/Ene → Pago ${dia_pago}/Ene.`
+    );
+  }
 
+  // Pago en el mes siguiente al corte
   return (
-    `Facturas emitidas hasta el día ${dia_corte} del mes se pagan el día ${dia_pago}` +
-    (dia_pago > dia_corte ? ' del mismo mes.' : ' del mes siguiente.') +
-    ` Ejemplo: emitida hoy (${format(ejemplo, 'dd/MM')}) → vence ${format(result.fechaVencimiento, 'dd/MM')} (${result.diasReales} días reales).`
+    `Corte día ${dia_corte} → Pago día ${dia_pago} del mes siguiente al corte. ` +
+    `Ejemplo: Factura del ${Math.max(dia_corte - 5, 1)}/Ene → Corte ${dia_corte}/Ene → Pago ${dia_pago}/Feb.`
   );
 }
