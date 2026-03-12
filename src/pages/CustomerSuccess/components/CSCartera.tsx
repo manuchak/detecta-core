@@ -71,7 +71,7 @@ export function CSCartera() {
   // Phase 1.3: Quick touchpoint
   const [touchpointModal, setTouchpointModal] = useState<{ id: string; nombre: string } | null>(null);
   const [tpResumen, setTpResumen] = useState('');
-  const [tpTipo, setTpTipo] = useState('llamada');
+  const [tpTipo, setTpTipo] = useState('llamada_seguimiento');
   const [tpContacto, setTpContacto] = useState('');
   const [tpSiguienteAccion, setTpSiguienteAccion] = useState('');
   const [tpFechaSiguiente, setTpFechaSiguiente] = useState('');
