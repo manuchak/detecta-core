@@ -129,6 +129,8 @@ export function GenerarFacturaModal({
   const [notas, setNotas] = useState('');
   const [tipoFactura, setTipoFactura] = useState<'inmediata' | 'corte'>('corte');
   const [ordenCompra, setOrdenCompra] = useState('');
+  const [vencimientoOverride, setVencimientoOverride] = useState<string | null>(null);
+  const [vencimientoCalc, setVencimientoCalc] = useState<VencimientoResult | null>(null);
 
   // Reset edits when modal opens
   useEffect(() => {
