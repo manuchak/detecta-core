@@ -1,0 +1,2 @@
+ALTER PUBLICATION supabase_realtime ADD TABLE servicios_planificados;
+ALTER PUBLICATION supabase_realtime ADD TABLE bitacora_asignaciones_monitorista;
