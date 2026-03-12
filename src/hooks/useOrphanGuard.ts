@@ -102,7 +102,7 @@ export function useOrphanGuard() {
       const FOUR_HOURS = 4 * 60 * 60 * 1000;
       const SIXTY_MIN_AGO = -60 * 60 * 1000;
       const eligiblePending = pendingServiceIds.filter(id => {
-        if (effectiveAssigned.has(id) || isRecentlyAutoAssigned(id)) return false;
+        if (effectiveAssigned.has(id) || isRecentlyAutoAssigned(id) || isServiceLocked(id)) return false;
         const citaStr = serviceHoraCitaMap[id];
         if (!citaStr) return false;
         const timeUntil = new Date(citaStr).getTime() - now;
