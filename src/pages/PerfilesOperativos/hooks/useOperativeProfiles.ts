@@ -10,6 +10,7 @@ export interface CustodioProfile {
   zona_base: string | null;
   estado: string;
   disponibilidad: string;
+  disponibilidad_real: string; // Defensive: cross-checked with indisponibilidades
   vehiculo_propio: boolean | null;
   rating_promedio: number | null;
   tasa_aceptacion: number | null;
