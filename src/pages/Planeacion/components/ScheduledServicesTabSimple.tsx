@@ -1037,13 +1037,13 @@ export function ScheduledServicesTab() {
                           <UpcomingServiceBadge citaTime={citaTime} now={now} />
                           
                           {/* Status badge — "Arribado HH:mm" for en_sitio */}
-                          {operationalStatus.status === 'en_sitio' && service.hora_llegada_custodio ? (
+                          {(operationalStatus.status === 'en_sitio' && (service.hora_llegada_custodio || optimisticArrival)) ? (
                             <Badge 
                               variant="secondary" 
                               className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 gap-1 text-[10px] font-semibold px-1.5 py-0.5 flex-shrink-0"
                             >
                               <CheckCircle2 className="w-3 h-3" />
-                              Arribado {service.hora_llegada_custodio?.substring(0, 5) ?? '--:--'}
+                              Arribado {(service.hora_llegada_custodio?.substring(0, 5) || optimisticArrival) ?? '--:--'}
                             </Badge>
                           ) : (
                             <Badge 
