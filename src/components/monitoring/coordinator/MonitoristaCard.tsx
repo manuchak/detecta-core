@@ -60,7 +60,7 @@ function loadBorderColor(count: number, maxLoad: number): string {
 
 export const MonitoristaCard: React.FC<Props> = ({
   monitorista, assignments, maxLoad, serviceLabelMap, phaseBreakdown,
-  unassignedServices = [], onAssign, isAssigning,
+  unassignedServices = [], onAssign, isAssigning, isPaused,
 }) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const count = assignments.length;
