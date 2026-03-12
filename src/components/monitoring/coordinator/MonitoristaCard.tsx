@@ -93,6 +93,12 @@ export const MonitoristaCard: React.FC<Props> = ({
             <span className="text-sm font-medium truncate">
               {monitorista.display_name.split(' ').slice(0, 2).join(' ')}
             </span>
+            {isPaused && (
+              <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5 border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                <Coffee className="h-2.5 w-2.5" />
+                Pausa
+              </Badge>
+            )}
             {ago && (
               <span className="text-[9px] text-muted-foreground shrink-0">{ago}</span>
             )}
