@@ -43,7 +43,9 @@ import {
   ChevronDown,
   ChevronRight,
   Play,
+  ClipboardCheck,
 } from 'lucide-react';
+import { QAChecklistPanel } from './QAChecklistPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { normalizePhone } from '@/lib/phoneUtils';
@@ -179,6 +181,9 @@ export const CommTestPanel: React.FC = () => {
           <TabsTrigger value="scenarios" className="gap-1.5">
             <Play className="h-3.5 w-3.5" /> Escenarios
           </TabsTrigger>
+          <TabsTrigger value="checklist" className="gap-1.5">
+            <ClipboardCheck className="h-3.5 w-3.5" /> QA Checklist
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── Tab: Send ─── */}
@@ -219,6 +224,11 @@ export const CommTestPanel: React.FC = () => {
               <CommScenarioSimulator servicioId={servicioId} phone={normalizedPhone} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ─── Tab: QA Checklist ─── */}
+        <TabsContent value="checklist">
+          <QAChecklistPanel />
         </TabsContent>
       </Tabs>
 
