@@ -133,6 +133,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
         {contratosRequeridos.map((tipo) => {
           // For unified "Contrato Custodio" card: show checkbox for propietario/no-propietario
           const isContratoServicio = tipo === 'prestacion_servicios_propietario' || tipo === 'prestacion_servicios_no_propietario';
+          const isContratoArmado = tipo === 'prestacion_servicios_armado';
           const contrato = getContratoPorTipo(tipo);
           const plantilla = plantillas?.find(p => p.tipo_contrato === tipo);
           const estadoConfig = contrato ? ESTADO_CONFIG[contrato.estado] : null;
