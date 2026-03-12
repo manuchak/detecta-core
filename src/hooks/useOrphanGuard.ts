@@ -98,15 +98,12 @@ export function useOrphanGuard() {
         return ts != null && now - ts < 120_000;
       };
 
-      // Rule 1: Pending services with cita between -60min and +4h (unified window)
+      // Rule 1: All pending services visible on the board are eligible
+      // Board already filters by hora_llegada_custodio + today + valid estado
       const FOUR_HOURS = 4 * 60 * 60 * 1000;
-      const SIXTY_MIN_AGO = -60 * 60 * 1000;
       const eligiblePending = pendingServiceIds.filter(id => {
         if (effectiveAssigned.has(id) || isRecentlyAutoAssigned(id) || isServiceLocked(id)) return false;
-        const citaStr = serviceHoraCitaMap[id];
-        if (!citaStr) return false;
-        const timeUntil = new Date(citaStr).getTime() - now;
-        return timeUntil <= FOUR_HOURS && timeUntil > SIXTY_MIN_AGO;
+        return true;
       });
 
       // Rule 2: Active services without any assignment (already started, urgent)
