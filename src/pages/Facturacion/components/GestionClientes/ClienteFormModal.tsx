@@ -83,6 +83,9 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
     evidencia_requerida: [],
     observaciones_facturacion: '',
     facturacion_intercompania: false,
+    tarifa_sin_arma: null,
+    tarifa_con_arma: null,
+    cobra_gadgets: true,
   });
 
   useEffect(() => {
