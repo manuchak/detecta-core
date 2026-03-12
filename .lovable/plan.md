@@ -62,9 +62,17 @@ Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeaci
 - ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
 - ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
 
-## Fase Dev 9 — Testing E2E (pendiente)
-- CommTestPanel: flujos por canal
-- Edge cases: multi-servicio, ventana 24h, handoff
+## Fase Dev 9 — Testing E2E + Switch WhatsApp ✅
+- ✅ Tabla `app_feature_flags` con RLS (read: authenticated, write: admin/owner/coordinador)
+- ✅ Seeds: `whatsapp_planeacion` (OFF), `whatsapp_monitoreo` (OFF)
+- ✅ Realtime habilitado en `app_feature_flags`
+- ✅ Hook `useWhatsAppMode` con react-query + realtime subscription
+- ✅ Switches "WA Plan" y "WA Mon" en `CoordinatorCommandCenter` header
+- ✅ `CompactServiceCard`: botón chat condicionado a flag `whatsapp_planeacion`
+- ✅ `ServiceCommSheet`: placeholder "WhatsApp deshabilitado" cuando flag `whatsapp_monitoreo` está OFF
+- ✅ `CommScenarioSimulator` con 3 escenarios guiados (Planeación, Monitoreo, Cliente)
+- ✅ Cada escenario: pasos individuales + "Ejecutar Todo" con barra de progreso
+- ✅ Verificaciones de persistencia y comm_channel en cada escenario
 
 ## Dependencias
 ```
