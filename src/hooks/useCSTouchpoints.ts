@@ -70,6 +70,10 @@ export function useCreateCSTouchpoint() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: CSTouchpointInsert) => {
+      const VALID_TIPOS = ['llamada_seguimiento','email','whatsapp','reunion','visita','nota_interna'];
+      if (!VALID_TIPOS.includes(input.tipo)) {
+        throw new Error(`Tipo de touchpoint inválido: "${input.tipo}". Valores válidos: ${VALID_TIPOS.join(', ')}`);
+      }
       const { data: { user } } = await supabase.auth.getUser();
       // If there's a next action, set estado to pendiente
       const estado = input.siguiente_accion ? 'pendiente' : 'completado';
