@@ -33,10 +33,11 @@ Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeaci
 - ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
 - ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
 
-## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
-- Mensaje de sistema al marcar "En Sitio"
-- Separadores visuales en `CustodioChat.tsx`
-- Bloqueo de escritura post-handoff
+## Fase Dev 5 — Handoff Planeación → C4 ✅
+- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
+- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
+- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
+- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
 
 ## Fase Dev 6 — Tab Cliente bidireccional ✅
 - ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
