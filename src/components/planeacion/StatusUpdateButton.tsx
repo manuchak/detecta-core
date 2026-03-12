@@ -15,6 +15,7 @@ interface StatusUpdateButtonProps {
   serviceId: string;
   currentStatus: OperationalStatus;
   onStatusChange: (serviceId: string, action: 'mark_on_site' | 'revert_to_scheduled') => Promise<void>;
+  onOptimisticChange?: (serviceId: string, arrival: string | null) => void;
   disabled?: boolean;
   /** @deprecated Use local loading — this prop is ignored now */
   isLoading?: boolean;
@@ -26,6 +27,7 @@ export function StatusUpdateButton({
   serviceId,
   currentStatus,
   onStatusChange,
+  onOptimisticChange,
   disabled = false,
   className,
   horaLlegadaCustodio
@@ -50,12 +52,14 @@ export function StatusUpdateButton({
   const handleMarkOnSite = async () => {
     const arrivalTime = getNowCDMX();
     setOptimisticArrival(arrivalTime);
+    onOptimisticChange?.(serviceId, arrivalTime);
     setIsLocalLoading(true);
     try {
       await onStatusChange(serviceId, 'mark_on_site');
     } catch (error) {
       console.error('Error updating status:', error);
-      setOptimisticArrival(null); // revert on failure
+      setOptimisticArrival(null);
+      onOptimisticChange?.(serviceId, null);
     } finally {
       setIsLocalLoading(false);
     }
@@ -64,6 +68,7 @@ export function StatusUpdateButton({
   const handleRevert = async () => {
     setIsLocalLoading(true);
     setOptimisticArrival(null);
+    onOptimisticChange?.(serviceId, null);
     try {
       await onStatusChange(serviceId, 'revert_to_scheduled');
     } catch (error) {

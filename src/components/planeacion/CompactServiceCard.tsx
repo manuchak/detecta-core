@@ -27,6 +27,8 @@ interface CompactServiceCardProps {
   onStatusUpdate: (serviceId: string, action: 'mark_on_site' | 'revert_to_scheduled') => Promise<void>;
   onShowHistory: (service: ScheduledService) => void;
   onFalsePositioning?: (service: ScheduledService) => void;
+  onOptimisticChange?: (serviceId: string, arrival: string | null) => void;
+  optimisticArrival?: string | null;
   isCancelling?: boolean;
   isUpdatingStatus?: boolean;
 }
@@ -158,13 +160,20 @@ export function CompactServiceCard({
   onStatusUpdate,
   onShowHistory,
   onFalsePositioning,
+  onOptimisticChange,
+  optimisticArrival,
   isCancelling = false,
   isUpdatingStatus = false
 }: CompactServiceCardProps) {
   const [commOpen, setCommOpen] = useState(false);
   const unreadMap = useUnreadCounts();
   const unreadCount = unreadMap.get(service.id) || 0;
-  const operationalStatus = getOperationalStatus(service, now);
+  
+  // Apply optimistic override for instant status change
+  const effectiveService = optimisticArrival 
+    ? { ...service, hora_llegada_custodio: optimisticArrival }
+    : service;
+  const operationalStatus = getOperationalStatus(effectiveService, now);
   const OperationalIcon = operationalStatus.icon;
   // For time comparison (upcoming badge), use raw Date since both are in same timezone context
   const citaTime = new Date(service.fecha_hora_cita);
@@ -244,13 +253,13 @@ export function CompactServiceCard({
           <UpcomingServiceBadge citaTime={citaTime} now={now} />
           
           {/* Status badge — "Arribado HH:mm" for en_sitio */}
-          {operationalStatus.status === 'en_sitio' && service.hora_llegada_custodio ? (
+          {(operationalStatus.status === 'en_sitio' && (service.hora_llegada_custodio || optimisticArrival)) ? (
             <Badge 
               variant="secondary" 
               className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 gap-1 text-[10px] font-semibold px-1.5 py-0.5 flex-shrink-0"
             >
               <CheckCircle2 className="w-3 h-3" />
-              Arribado {service.hora_llegada_custodio?.substring(0, 5) ?? '--:--'}
+              Arribado {(service.hora_llegada_custodio?.substring(0, 5) || optimisticArrival) ?? '--:--'}
             </Badge>
           ) : (
             <Badge 
@@ -285,6 +294,7 @@ export function CompactServiceCard({
             serviceId={service.id}
             currentStatus={operationalStatus.status as OperationalStatus}
             onStatusChange={onStatusUpdate}
+            onOptimisticChange={onOptimisticChange}
             disabled={isCancelling}
             horaLlegadaCustodio={service.hora_llegada_custodio}
           />
