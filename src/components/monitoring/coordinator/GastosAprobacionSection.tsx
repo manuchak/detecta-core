@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { TIPOS_APOYO_CUSTODIO } from '@/hooks/useCustodianExpenses';
+import { TIPOS_APOYO_CUSTODIO, parseComprobantes } from '@/hooks/useCustodianExpenses';
 
 const QUERY_KEY = 'coord-gastos-pendientes';
 
