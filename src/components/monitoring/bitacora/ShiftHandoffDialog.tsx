@@ -448,29 +448,34 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
                 </div>
               )}
 
-              {/* Firmas Digitales */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <SignaturePad
-                  value={firmaEntrega}
-                  onChange={setFirmaEntrega}
-                  label="✍️ Firma del Monitorista Saliente"
-                />
-                <SignaturePad
-                  value={firmaEntrante}
-                  onChange={setFirmaEntrante}
-                  label="✍️ Firma del Monitorista Entrante"
-                />
-              </div>
-
-              <div className="rounded-md border border-muted bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Al firmar, ambas partes confirman que los servicios, incidencias y pendientes operativos han sido 
-                  debidamente comunicados y aceptados, en cumplimiento con la normativa operativa vigente.
-                </p>
-              </div>
             </div>
           )}
         </ScrollArea>
+
+        {/* Firmas Digitales — fuera del ScrollArea para evitar conflicto touch */}
+        {step === 2 && (
+          <div className="relative z-10 space-y-3 px-1 pt-2 border-t border-border" style={{ touchAction: 'none' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SignaturePad
+                value={firmaEntrega}
+                onChange={setFirmaEntrega}
+                label="✍️ Firma del Monitorista Saliente"
+              />
+              <SignaturePad
+                value={firmaEntrante}
+                onChange={setFirmaEntrante}
+                label="✍️ Firma del Monitorista Entrante"
+              />
+            </div>
+
+            <div className="rounded-md border border-muted bg-muted/20 p-3">
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Al firmar, ambas partes confirman que los servicios, incidencias y pendientes operativos han sido 
+                debidamente comunicados y aceptados, en cumplimiento con la normativa operativa vigente.
+              </p>
+            </div>
+          </div>
+        )}
 
         <DialogFooter className="flex-row justify-between gap-2 pt-2 border-t">
           <div>
