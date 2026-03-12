@@ -98,7 +98,6 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const latestMidot = useLatestMidot(candidatoId);
   const latestSocioeconomico = useLatestEstudioSocioeconomico(candidatoId);
   const docsProgress = useDocumentosProgress(candidatoId, tipoOperativo);
-  const contractsProgress = useContratosProgress(candidatoId, candidatoData?.vehiculo_propio ?? false, tipoOperativo === 'armado' ? (candidatoData?.vehiculo_propio ?? false) : true);
   const { data: refsProgress } = useReferenciasProgress(candidatoId);
   const { instalacionCompletada, ultimaInstalacion } = useProgramacionInstalacionesCandidato(candidatoId);
   const { modulos, progreso, calcularProgresoGeneral } = useCapacitacion(candidatoId);
@@ -118,6 +117,12 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
     },
     enabled: !!candidatoId,
   });
+
+  const vehiculoPropio = candidatoData?.vehiculo_propio ?? false;
+  // Armados sin vehículo no requieren contrato vehicular
+  const tieneVehiculo = isArmado ? vehiculoPropio : true;
+
+  const contractsProgress = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo);
 
   const { data: liberacionRecord, isLoading: loadingLib } = useQuery({
     queryKey: ['custodio-liberacion-by-candidato', candidatoId],
@@ -144,9 +149,6 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
     enabled: !!candidatoId,
   });
 
-  const vehiculoPropio = candidatoData?.vehiculo_propio ?? false;
-  // Armados sin vehículo no requieren contrato vehicular
-  const tieneVehiculo = isArmado ? vehiculoPropio : true;
   const latestInterview = interviews?.[0];
 
   // Training
