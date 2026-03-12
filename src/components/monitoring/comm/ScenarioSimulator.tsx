@@ -45,16 +45,16 @@ async function insertSimMessage(params: {
   mediaUrl?: string;
 }) {
   const { error } = await supabase.from('whatsapp_messages').insert({
-    phone_number: params.phone,
+    chat_id: params.phone,
+    sender_phone: params.phone,
     servicio_id: params.servicioId,
-    message_body: params.body,
-    direction: params.direction,
+    message_text: params.body,
     sender_type: params.senderType,
     comm_channel: params.commChannel,
     message_type: params.messageType || 'text',
     media_url: params.mediaUrl || null,
-    status: params.direction === 'outbound' ? 'sent' : 'received',
-    kapso_message_id: `sim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    delivery_status: params.direction === 'outbound' ? 'sent' : 'received',
+    message_id: `sim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     is_from_bot: false,
   });
   if (error) throw error;
