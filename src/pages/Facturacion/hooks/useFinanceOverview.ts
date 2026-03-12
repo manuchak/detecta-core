@@ -1,25 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfMonth, format, subMonths } from 'date-fns';
+import { startOfMonth, format, subMonths, subDays } from 'date-fns';
 
 export interface FinanceOverviewData {
-  // P&L MTD
-  ingresosMTD: number;
-  cxpMTD: number;
-  margenMTD: number;
-  margenPct: number;
+  // Real financial metrics MTD
+  facturadoMTD: number;
+  cobradoMTD: number;
+  egresadoMTD: number;
+  // GMV (theoretical gross value from servicios)
+  gmvMTD: number;
   // Previous month same-day comparison
-  ingresosPrevMTD: number;
-  cxpPrevMTD: number;
-  margenPrevMTD: number;
+  facturadoPrevMTD: number;
+  cobradoPrevMTD: number;
+  egresadoPrevMTD: number;
   // Variations
-  ingresosVar: number;
-  cxpVar: number;
-  margenVar: number;
+  facturadoVar: number;
+  cobradoVar: number;
+  egresadoVar: number;
   // Attention metrics
   agingOver60Count: number;
   agingOver60Amount: number;
-  sinFacturar15d: number;
   cxpPorDispersar: number;
   cxpPorDispersarMonto: number;
   // Pipeline CxP
@@ -30,9 +30,9 @@ export interface FinanceOverviewData {
     dispersado: { count: number; monto: number };
     pagado: { count: number; monto: number };
   };
-  // Apoyos pendientes
-  apoyosPendientes: number;
-  apoyosPendientesMonto: number;
+  // Apoyos por autorizar (aprobados por Ops, pendientes Finanzas)
+  apoyosPorAutorizar: number;
+  apoyosPorAutorizarMonto: number;
 }
 
 export function useFinanceOverview() {
@@ -43,55 +43,81 @@ export function useFinanceOverview() {
       const mtdStart = format(startOfMonth(now), 'yyyy-MM-dd');
       const today = format(now, 'yyyy-MM-dd');
       const prevMtdStart = format(startOfMonth(subMonths(now, 1)), 'yyyy-MM-dd');
-      const prevSameDay = format(subMonths(now, 0), 'yyyy-MM-dd'); // same day prev month
       const prevMonthSameDay = format(
         new Date(subMonths(now, 1).getFullYear(), subMonths(now, 1).getMonth(), Math.min(now.getDate(), 28)),
         'yyyy-MM-dd'
       );
+      const aging60Date = format(subDays(now, 60), 'yyyy-MM-dd');
 
-      // Parallel queries
       const [
-        serviciosMTD,
-        serviciosPrev,
+        facturasMTDRes,
+        facturasPrevRes,
+        pagosMTDRes,
+        pagosPrevRes,
         cortesAll,
-        apoyosPend,
+        apoyosAprobados,
+        agingFacturas,
+        gmvServiciosRes,
       ] = await Promise.all([
-        // MTD services (income)
+        // Facturas MTD (real invoiced)
         supabase
-          .from('servicios_custodia')
-          .select('cobro_cliente, costo_custodio, estado, fecha_hora_cita')
-          .gte('fecha_hora_cita', mtdStart)
-          .lte('fecha_hora_cita', today)
-          .not('estado', 'eq', 'Cancelado'),
-        // Previous MTD services
+          .from('facturas')
+          .select('total')
+          .gte('fecha_emision', mtdStart)
+          .lte('fecha_emision', today)
+          .not('estado', 'eq', 'cancelada'),
+        // Facturas prev month MTD
         supabase
-          .from('servicios_custodia')
-          .select('cobro_cliente, costo_custodio, estado, fecha_hora_cita')
-          .gte('fecha_hora_cita', prevMtdStart)
-          .lte('fecha_hora_cita', prevMonthSameDay)
-          .not('estado', 'eq', 'Cancelado'),
-        // All cortes semanales (for pipeline)
+          .from('facturas')
+          .select('total')
+          .gte('fecha_emision', prevMtdStart)
+          .lte('fecha_emision', prevMonthSameDay)
+          .not('estado', 'eq', 'cancelada'),
+        // Pagos MTD (real collected)
+        supabase
+          .from('pagos')
+          .select('monto')
+          .gte('fecha_pago', mtdStart)
+          .lte('fecha_pago', today),
+        // Pagos prev month MTD
+        supabase
+          .from('pagos')
+          .select('monto')
+          .gte('fecha_pago', prevMtdStart)
+          .lte('fecha_pago', prevMonthSameDay),
+        // All cortes semanales (for pipeline + egresado)
         supabase
           .from('cxp_cortes_semanales')
           .select('estado, monto_total')
           .order('created_at', { ascending: false })
           .limit(500),
-        // Pending apoyos
+        // Apoyos aprobados por Ops, pendientes autorización Finanzas
         supabase
           .from('solicitudes_apoyo_extraordinario')
           .select('monto_solicitado')
-          .eq('estado', 'pendiente'),
+          .eq('estado', 'aprobado'),
+        // Aging >60 días: facturas vencidas hace más de 60 días, no pagadas ni canceladas
+        supabase
+          .from('facturas')
+          .select('total')
+          .lt('fecha_vencimiento', aging60Date)
+          .not('estado', 'in', '("pagada","cancelada")'),
+        // GMV (theoretical gross from servicios)
+        supabase
+          .from('servicios_custodia')
+          .select('cobro_cliente')
+          .gte('fecha_hora_cita', mtdStart)
+          .lte('fecha_hora_cita', today)
+          .not('estado', 'eq', 'Cancelado'),
       ]);
 
-      // Calculate MTD income
-      const svcMTD = serviciosMTD.data || [];
-      const ingresosMTD = svcMTD.reduce((s, r) => s + (parseFloat(String(r.cobro_cliente || 0))), 0);
-      const costosMTD = svcMTD.reduce((s, r) => s + (parseFloat(String(r.costo_custodio || 0))), 0);
+      // Facturado MTD
+      const facturadoMTD = (facturasMTDRes.data || []).reduce((s, r) => s + (Number(r.total) || 0), 0);
+      const facturadoPrevMTD = (facturasPrevRes.data || []).reduce((s, r) => s + (Number(r.total) || 0), 0);
 
-      // Previous MTD
-      const svcPrev = serviciosPrev.data || [];
-      const ingresosPrevMTD = svcPrev.reduce((s, r) => s + (parseFloat(String(r.cobro_cliente || 0))), 0);
-      const costosPrevMTD = svcPrev.reduce((s, r) => s + (parseFloat(String(r.costo_custodio || 0))), 0);
+      // Cobrado MTD
+      const cobradoMTD = (pagosMTDRes.data || []).reduce((s, r) => s + (Number(r.monto) || 0), 0);
+      const cobradoPrevMTD = (pagosPrevRes.data || []).reduce((s, r) => s + (Number(r.monto) || 0), 0);
 
       // CxP pipeline
       const cortes = cortesAll.data || [];
@@ -110,41 +136,47 @@ export function useFinanceOverview() {
         }
       }
 
-      const cxpMTD = costosMTD + pipeline.borrador.monto + pipeline.revision_ops.monto + pipeline.aprobado_finanzas.monto;
-      const cxpPrevMTD = costosPrevMTD;
-      const margenMTD = ingresosMTD - cxpMTD;
-      const margenPrevMTD = ingresosPrevMTD - cxpPrevMTD;
+      // Egresado MTD = cortes dispersados + pagados
+      const egresadoMTD = pipeline.dispersado.monto + pipeline.pagado.monto;
+      const egresadoPrevMTD = 0; // No historical cortes date filtering yet
 
-      const variation = (current: number, prev: number) =>
-        prev === 0 ? 0 : ((current - prev) / prev) * 100;
+      // GMV
+      const gmvMTD = (gmvServiciosRes.data || []).reduce((s, r) => s + (parseFloat(String(r.cobro_cliente || 0))), 0);
 
-      // Apoyos
-      const apoyosData = apoyosPend.data || [];
-      const apoyosPendientesMonto = apoyosData.reduce((s, a) => s + (Number(a.monto_solicitado) || 0), 0);
+      // Aging
+      const agingData = agingFacturas.data || [];
+      const agingOver60Count = agingData.length;
+      const agingOver60Amount = agingData.reduce((s, r) => s + (Number(r.total) || 0), 0);
+
+      // Apoyos por autorizar
+      const apoyosData = apoyosAprobados.data || [];
+      const apoyosPorAutorizarMonto = apoyosData.reduce((s, a) => s + (Number(a.monto_solicitado) || 0), 0);
 
       // CxP por dispersar (aprobado_finanzas)
       const cxpPorDispersar = pipeline.aprobado_finanzas.count;
       const cxpPorDispersarMonto = pipeline.aprobado_finanzas.monto;
 
+      const variation = (current: number, prev: number) =>
+        prev === 0 ? 0 : ((current - prev) / prev) * 100;
+
       return {
-        ingresosMTD,
-        cxpMTD,
-        margenMTD,
-        margenPct: ingresosMTD > 0 ? (margenMTD / ingresosMTD) * 100 : 0,
-        ingresosPrevMTD,
-        cxpPrevMTD,
-        margenPrevMTD,
-        ingresosVar: variation(ingresosMTD, ingresosPrevMTD),
-        cxpVar: variation(cxpMTD, cxpPrevMTD),
-        margenVar: variation(margenMTD, margenPrevMTD),
-        agingOver60Count: 0, // TODO: integrate with facturas_cliente when available
-        agingOver60Amount: 0,
-        sinFacturar15d: 0,
+        facturadoMTD,
+        cobradoMTD,
+        egresadoMTD,
+        gmvMTD,
+        facturadoPrevMTD,
+        cobradoPrevMTD,
+        egresadoPrevMTD,
+        facturadoVar: variation(facturadoMTD, facturadoPrevMTD),
+        cobradoVar: variation(cobradoMTD, cobradoPrevMTD),
+        egresadoVar: variation(egresadoMTD, egresadoPrevMTD),
+        agingOver60Count,
+        agingOver60Amount,
         cxpPorDispersar,
         cxpPorDispersarMonto,
         pipeline,
-        apoyosPendientes: apoyosData.length,
-        apoyosPendientesMonto,
+        apoyosPorAutorizar: apoyosData.length,
+        apoyosPorAutorizarMonto,
       };
     },
     staleTime: 2 * 60 * 1000,
