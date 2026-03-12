@@ -55,10 +55,12 @@ Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeaci
 - ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
 - ✅ Fire-and-forget: no bloquea el flujo principal
 
-## Fase Dev 8 — Broadcast multi-contacto (pendiente)
-- Checkboxes de contactos en tab Cliente
-- Envío individual por contacto
-- Agrupación visual en timeline
+## Fase Dev 8 — Broadcast multi-contacto ✅
+- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
+- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
+- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
+- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
+- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
 
 ## Fase Dev 9 — Testing E2E (pendiente)
 - CommTestPanel: flujos por canal
