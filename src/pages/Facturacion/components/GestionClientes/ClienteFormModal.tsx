@@ -18,7 +18,9 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Save, Building2, CreditCard, User, AlertTriangle, Store, Clock, Moon, FileText, Users, Package, ScrollText, Globe } from 'lucide-react';
+import { Save, Building2, CreditCard, User, AlertTriangle, Store, Clock, Moon, FileText, Users, Package, ScrollText, Globe, Info } from 'lucide-react';
+import { explicarCicloPago, calcularFechaVencimientoReal } from '@/utils/calcularVencimiento';
+import { format } from 'date-fns';
 import { 
   ClienteFiscal, 
   ClienteFiscalUpdate, 
@@ -313,12 +315,43 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
                 <div className="space-y-2">
                   <Label>Día de Corte</Label>
                   <Input type="number" min={1} max={31} value={formData.dia_corte || 15} onChange={(e) => setFormData({ ...formData, dia_corte: parseInt(e.target.value) || 15 })} />
+                  <p className="text-[10px] text-muted-foreground">Día del mes en que el cliente cierra su ciclo de recepción de facturas</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Día de Pago</Label>
                   <Input type="number" min={1} max={31} value={formData.dia_pago || 30} onChange={(e) => setFormData({ ...formData, dia_pago: parseInt(e.target.value) || 30 })} />
+                  <p className="text-[10px] text-muted-foreground">Día del mes en que el cliente realiza sus pagos</p>
                 </div>
               </div>
+
+              {/* Explicación visual del ciclo de pago */}
+              {formData.dia_corte && formData.dia_pago && (
+                <div className="p-3 rounded-lg border bg-muted/50 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <Info className="h-3.5 w-3.5 text-primary" />
+                    Ciclo de Pago Real
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {explicarCicloPago({
+                      dias_credito: formData.dias_credito,
+                      dia_corte: formData.dia_corte,
+                      dia_pago: formData.dia_pago,
+                    })}
+                  </p>
+                  {(() => {
+                    const calc = calcularFechaVencimientoReal(new Date(), {
+                      dias_credito: formData.dias_credito,
+                      dia_corte: formData.dia_corte,
+                      dia_pago: formData.dia_pago,
+                    });
+                    return calc.usoCicloFiscal && calc.diasReales !== calc.diasNominales ? (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                        ⚠ Los días reales de crédito ({calc.diasReales}d) difieren de los nominales ({calc.diasNominales}d)
+                      </p>
+                    ) : null;
+                  })()}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Prioridad de Cobranza</Label>
                 <Select value={formData.prioridad_cobranza || 'normal'} onValueChange={(v) => setFormData({ ...formData, prioridad_cobranza: v })}>

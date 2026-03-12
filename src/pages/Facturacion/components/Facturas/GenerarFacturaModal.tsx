@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { formatCurrency } from '@/utils/formatUtils';
+import { calcularFechaVencimientoReal, VencimientoResult } from '@/utils/calcularVencimiento';
 import { ClienteConServiciosPendientes } from '../../hooks/useServiciosPorFacturar';
 import { useGenerarFactura } from '../../hooks/useGenerarFactura';
 import { useClientesFiscales } from '../../hooks/useClientesFiscales';
@@ -128,6 +129,8 @@ export function GenerarFacturaModal({
   const [notas, setNotas] = useState('');
   const [tipoFactura, setTipoFactura] = useState<'inmediata' | 'corte'>('corte');
   const [ordenCompra, setOrdenCompra] = useState('');
+  const [vencimientoOverride, setVencimientoOverride] = useState<string | null>(null);
+  const [vencimientoCalc, setVencimientoCalc] = useState<VencimientoResult | null>(null);
 
   // Reset edits when modal opens
   useEffect(() => {
@@ -148,6 +151,19 @@ export function GenerarFacturaModal({
       setOrdenCompra('');
       setExcludedConceptos(new Set());
       setEditedImportes({});
+      setVencimientoOverride(null);
+
+      // Calcular vencimiento real usando ciclo fiscal del cliente
+      if (fiscal) {
+        const calc = calcularFechaVencimientoReal(new Date(), {
+          dias_credito: fiscal.dias_credito,
+          dia_corte: fiscal.dia_corte,
+          dia_pago: fiscal.dia_pago,
+        });
+        setVencimientoCalc(calc);
+      } else {
+        setVencimientoCalc(null);
+      }
     }
   }, [open, cliente, clientesFiscales]);
 
@@ -172,10 +188,17 @@ export function GenerarFacturaModal({
   const subtotal = allConceptos.reduce((sum, c) => sum + getImporte(c), 0);
   const iva = subtotal * IVA_RATE;
   const total = subtotal + iva;
-  const fechaVencimiento = format(
-    addDays(new Date(fechaEmision), diasCredito),
-    'yyyy-MM-dd'
+
+  // Recalcular vencimiento cuando cambie fecha de emisión o días crédito
+  const fiscal = clientesFiscales.find(
+    c => c.nombre.toLowerCase() === cliente.cliente.toLowerCase()
   );
+  const currentCalc = calcularFechaVencimientoReal(new Date(fechaEmision), {
+    dias_credito: diasCredito,
+    dia_corte: fiscal?.dia_corte,
+    dia_pago: fiscal?.dia_pago,
+  });
+  const fechaVencimiento = vencimientoOverride || currentCalc.fechaVencimientoStr;
 
   // Summary by type
   const summaryByType = (tipo: string) =>
@@ -346,8 +369,46 @@ export function GenerarFacturaModal({
                       <Input type="number" value={diasCredito} onChange={(e) => setDiasCredito(parseInt(e.target.value) || 0)} min={0} max={180} className="mt-0.5 h-8 text-xs" />
                     </div>
                     <div>
-                      <Label className="text-xs">Vencimiento</Label>
-                      <Input value={fechaVencimiento} disabled className="mt-0.5 h-8 text-xs" />
+                      <Label className="text-xs flex items-center gap-1">
+                        Vencimiento
+                        {currentCalc.usoCicloFiscal && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[260px] text-xs">
+                              <p className="font-medium mb-1">Cálculo basado en ciclo fiscal</p>
+                              <p>{currentCalc.explicacion}</p>
+                              {vencimientoOverride && (
+                                <p className="mt-1 text-amber-500">⚠ Fecha modificada manualmente</p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </Label>
+                      <Input
+                        type="date"
+                        value={fechaVencimiento}
+                        onChange={(e) => setVencimientoOverride(e.target.value || null)}
+                        className="mt-0.5 h-8 text-xs"
+                      />
+                      {currentCalc.usoCicloFiscal && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {currentCalc.diasReales}d reales
+                          {currentCalc.diasReales !== currentCalc.diasNominales && (
+                            <span className="text-amber-600"> (vs {currentCalc.diasNominales}d nominales)</span>
+                          )}
+                          {vencimientoOverride && (
+                            <button
+                              type="button"
+                              onClick={() => setVencimientoOverride(null)}
+                              className="ml-1 text-primary hover:underline"
+                            >
+                              Restaurar
+                            </button>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
