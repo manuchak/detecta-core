@@ -128,7 +128,7 @@ export function CSTouchpointsList({ onClienteClick, initialTab }: Props) {
   const resetNewTp = () => {
     setNewTpOpen(false);
     setTpClienteId('');
-    setTpTipo('llamada');
+    setTpTipo('llamada_seguimiento');
     setTpDireccion('saliente');
     setTpContacto('');
     setTpResumen('');
