@@ -28,6 +28,7 @@ interface Props {
   unassignedServices?: UnassignedService[];
   onAssign?: (servicioId: string, monitoristaId: string) => void;
   isAssigning?: boolean;
+  isPaused?: boolean;
 }
 
 function timeAgo(isoDate?: string): string {
