@@ -65,7 +65,7 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
           .from('asignacion_armados')
           .select('id, armado_id, armado_nombre_verificado, tarifa_acordada, servicio_custodia_id, hora_encuentro')
           .eq('tipo_asignacion', 'interno')
-          .eq('estado_asignacion', 'completado')
+          .in('estado_asignacion', ['completado', 'confirmado', 'pendiente'])
           .gte('hora_encuentro', `${semanaInicio}T00:00:00`)
           .lte('hora_encuentro', `${semanaFin}T23:59:59`)
           .not('armado_id', 'is', null),
