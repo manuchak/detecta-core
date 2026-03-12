@@ -225,6 +225,11 @@ export const CommTestPanel: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ─── Tab: QA Checklist ─── */}
+        <TabsContent value="checklist">
+          <QAChecklistPanel />
+        </TabsContent>
       </Tabs>
 
       {/* ─── Activity Log ─── */}
