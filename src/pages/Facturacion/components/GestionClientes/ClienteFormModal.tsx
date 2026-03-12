@@ -18,7 +18,9 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Save, Building2, CreditCard, User, AlertTriangle, Store, Clock, Moon, FileText, Users, Package, ScrollText, Globe } from 'lucide-react';
+import { Save, Building2, CreditCard, User, AlertTriangle, Store, Clock, Moon, FileText, Users, Package, ScrollText, Globe, Info } from 'lucide-react';
+import { explicarCicloPago, calcularFechaVencimientoReal } from '@/utils/calcularVencimiento';
+import { format } from 'date-fns';
 import { 
   ClienteFiscal, 
   ClienteFiscalUpdate, 
