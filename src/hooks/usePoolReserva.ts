@@ -186,21 +186,27 @@ export const usePoolReserva = () => {
     try {
       setLoading(true);
       
+      // Optimistic removal from UI
+      setPoolCandidates(prev => prev.filter(c => c.lead_id !== leadId));
+      
       const { data, error } = await sbx.rpc('reactivate_lead_from_pool', {
         p_lead_id: leadId,
         p_nuevo_estado: nuevoEstado
       });
       
-      if (error) throw error;
+      if (error) {
+        // Revert optimistic removal on error
+        await fetchPoolCandidates();
+        throw error;
+      }
       
       toast({
         title: "Candidato reactivado",
         description: "El candidato ha sido reactivado desde el pool exitosamente.",
       });
       
-      // Refresh data
+      // Refresh remaining data
       await Promise.all([
-        fetchPoolCandidates(),
         fetchZoneCapacities(),
         fetchPoolMovements()
       ]);
