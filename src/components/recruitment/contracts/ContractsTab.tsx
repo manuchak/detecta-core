@@ -46,6 +46,7 @@ interface Props {
   candidatoId: string;
   candidatoNombre: string;
   vehiculoPropio?: boolean;
+  tieneVehiculo?: boolean;
 }
 
 const ESTADO_CONFIG: Record<EstadoContrato, { color: string; icon: React.ElementType; label: string }> = {
