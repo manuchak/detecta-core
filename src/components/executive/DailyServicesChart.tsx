@@ -1,11 +1,17 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
-import { Activity } from 'lucide-react';
+import { Activity, Trophy } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useExecutiveMultiYearData } from '@/hooks/useExecutiveMultiYearData';
 
 export const DailyServicesChart = () => {
   const { dailyCurrent, loading } = useExecutiveMultiYearData();
+
+  const recordDay = useMemo(() => {
+    if (!dailyCurrent || dailyCurrent.length === 0) return null;
+    return dailyCurrent.reduce((max, d) => (d.services > max.services ? d : max), dailyCurrent[0]);
+  }, [dailyCurrent]);
 
   if (loading) {
     return (
@@ -19,9 +25,17 @@ export const DailyServicesChart = () => {
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Activity className="h-4 w-4" />Servicios Diarios (Mes Actual)
-        </CardTitle>
+        <div className="flex flex-wrap items-center gap-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Activity className="h-4 w-4" />Servicios Diarios (Mes Actual)
+          </CardTitle>
+          {recordDay && recordDay.services > 0 && (
+            <Badge variant="secondary" className="flex items-center gap-1 text-[10px] px-1.5 py-0.5">
+              <Trophy className="h-3 w-3" />
+              {recordDay.services} · Día {recordDay.day}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-[280px]">
