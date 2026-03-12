@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { CheckCircle, XCircle, Clock, ExternalLink, Loader2, DollarSign, AlertTriangle, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { TIPOS_APOYO_CUSTODIO } from '@/hooks/useCustodianExpenses';
+import { TIPOS_APOYO_CUSTODIO, parseComprobantes } from '@/hooks/useCustodianExpenses';
 
 const QUERY_KEY = 'aprobacion-gastos';
 
