@@ -22,11 +22,13 @@ export function AttentionCards({ data }: Props) {
       severity: data.agingOver60Count > 0 ? 'danger' : 'ok',
     },
     {
-      title: 'Apoyos Pendientes',
-      value: data.apoyosPendientes > 0 ? fmt(data.apoyosPendientesMonto) : '—',
-      subtitle: `${data.apoyosPendientes} solicitudes por aprobar`,
+      title: 'Apoyos por Autorizar',
+      value: data.apoyosPorAutorizar > 0 ? fmt(data.apoyosPorAutorizarMonto) : '—',
+      subtitle: data.apoyosPorAutorizar > 0
+        ? `${data.apoyosPorAutorizar} aprobadas por Ops, pendientes Finanzas`
+        : 'Sin apoyos pendientes de autorización',
       icon: FileWarning,
-      severity: data.apoyosPendientes > 3 ? 'warning' : data.apoyosPendientes > 0 ? 'info' : 'ok',
+      severity: data.apoyosPorAutorizar > 3 ? 'warning' : data.apoyosPorAutorizar > 0 ? 'info' : 'ok',
     },
     {
       title: 'CxP por Dispersar',

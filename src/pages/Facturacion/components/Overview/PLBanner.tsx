@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Minus, DollarSign, CreditCard, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Receipt, Banknote, Wallet } from 'lucide-react';
 import type { FinanceOverviewData } from '../../hooks/useFinanceOverview';
 
 interface Props {
@@ -32,32 +32,30 @@ function VariationBadge({ value }: { value: number }) {
 export function PLBanner({ data }: Props) {
   const metrics = [
     {
-      label: 'Ingresos MTD',
-      value: formatMoney(data.ingresosMTD),
-      variation: data.ingresosVar,
-      icon: DollarSign,
+      label: 'Facturado MTD',
+      value: formatMoney(data.facturadoMTD),
+      variation: data.facturadoVar,
+      icon: Receipt,
       accent: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30',
       iconColor: 'text-emerald-600 dark:text-emerald-400',
+      gmvRef: data.gmvMTD > 0 ? `GMV: ${formatMoney(data.gmvMTD)}` : undefined,
     },
     {
-      label: 'Egresos MTD',
-      value: formatMoney(data.cxpMTD),
-      variation: data.cxpVar,
-      icon: CreditCard,
+      label: 'Egresado MTD',
+      value: formatMoney(data.egresadoMTD),
+      variation: data.egresadoVar,
+      icon: Banknote,
       accent: 'from-amber-500/20 to-amber-500/5 border-amber-500/30',
       iconColor: 'text-amber-600 dark:text-amber-400',
       invertVariation: true,
     },
     {
-      label: 'Margen Operativo',
-      value: formatMoney(data.margenMTD),
-      variation: data.margenVar,
-      icon: BarChart3,
-      accent: data.margenPct >= 30
-        ? 'from-primary/20 to-primary/5 border-primary/30'
-        : 'from-red-500/20 to-red-500/5 border-red-500/30',
-      iconColor: data.margenPct >= 30 ? 'text-primary' : 'text-red-600 dark:text-red-400',
-      suffix: `${data.margenPct.toFixed(1)}%`,
+      label: 'Cobrado MTD',
+      value: formatMoney(data.cobradoMTD),
+      variation: data.cobradoVar,
+      icon: Wallet,
+      accent: 'from-primary/20 to-primary/5 border-primary/30',
+      iconColor: 'text-primary',
     },
   ];
 
@@ -81,11 +79,11 @@ export function PLBanner({ data }: Props) {
                 </p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold tracking-tight">{m.value}</span>
-                  {m.suffix && (
-                    <span className="text-sm font-medium text-muted-foreground">{m.suffix}</span>
-                  )}
                 </div>
                 <VariationBadge value={m.invertVariation ? -m.variation : m.variation} />
+                {m.gmvRef && (
+                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">{m.gmvRef}</p>
+                )}
               </div>
               <div className={cn('p-2.5 rounded-lg bg-background/60 backdrop-blur-sm', m.iconColor)}>
                 <Icon className="h-5 w-5" />

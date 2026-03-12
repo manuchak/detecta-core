@@ -57,7 +57,7 @@ export function FinanceOverview({ servicios, isLoading: serviciosLoading }: Prop
         {/* Top Clientes */}
         <Card className="border-border/50">
           <CardHeader className="py-2.5 px-4">
-            <CardTitle className="text-sm font-medium">Top Clientes por Ingresos</CardTitle>
+            <CardTitle className="text-sm font-medium">Top Clientes por Facturación</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="h-[240px]">
