@@ -12,6 +12,7 @@ import { startOfWeek, endOfWeek, subWeeks, format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Loader2, AlertTriangle } from 'lucide-react';
+import { fetchTarifasKm, calcularCostoPlano } from '@/utils/tarifasKmUtils';
 
 interface Props {
   open: boolean;
