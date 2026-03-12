@@ -12,6 +12,7 @@ import { useCreateCxPCorte, CXP_TARIFA_ESTADIA_HORA, CXP_UMBRAL_CORTESIA_HORAS }
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { fetchTarifasKm, calcularCostoPlano } from '@/utils/tarifasKmUtils';
 
 interface Props {
   open: boolean;
