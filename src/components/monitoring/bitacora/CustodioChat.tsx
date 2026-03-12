@@ -257,6 +257,19 @@ export const CustodioChat: React.FC<CustodioChatProps> = ({
             <React.Fragment key={date}>
               <DateSeparator date={new Date(date)} />
               {groupMsgs.map((msg, i) => {
+                // Fase 5: System handoff messages render as separators
+                if (msg.sender_type === 'sistema' && msg.message_text?.includes('transferido')) {
+                  return (
+                    <div key={msg.id} className="flex items-center justify-center py-3 gap-2">
+                      <div className="flex-1 h-px bg-amber-300/40 dark:bg-amber-600/30" />
+                      <span className="px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200/40 dark:border-amber-700/30 text-[10px] font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                        {msg.message_text}
+                      </span>
+                      <div className="flex-1 h-px bg-amber-300/40 dark:bg-amber-600/30" />
+                    </div>
+                  );
+                }
+
                 const isLast = i === groupMsgs.length - 1;
                 const nextDifferentSender = isLast || groupMsgs[i + 1].is_from_bot !== msg.is_from_bot;
                 

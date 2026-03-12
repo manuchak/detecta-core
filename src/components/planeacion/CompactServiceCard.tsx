@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { 
   MapPin, User, Shield, CheckCircle2, AlertCircle, 
   Clock, MapPinCheck, Calendar, CircleDot, History, Car,
-  Cpu, Lock
+  Cpu, Lock, MessageCircle
 } from 'lucide-react';
+import { PlanningCustodioComm } from './PlanningCustodioComm';
+import { useUnreadCounts } from '@/hooks/useServicioComm';
 import { CancelServiceButton } from './CancelServiceButton';
 import { QuickCommentButton } from './QuickCommentButton';
 import { StatusUpdateButton, type OperationalStatus } from './StatusUpdateButton';
@@ -157,6 +160,9 @@ export function CompactServiceCard({
   isCancelling = false,
   isUpdatingStatus = false
 }: CompactServiceCardProps) {
+  const [commOpen, setCommOpen] = useState(false);
+  const unreadMap = useUnreadCounts();
+  const unreadCount = unreadMap.get(service.id) || 0;
   const operationalStatus = getOperationalStatus(service, now);
   const OperationalIcon = operationalStatus.icon;
   // For time comparison (upcoming badge), use raw Date since both are in same timezone context
@@ -293,6 +299,25 @@ export function CompactServiceCard({
             serviceId={service.id}
             currentComment={service.comentarios_planeacion}
           />
+          {/* Fase 5: Chat with custodian */}
+          {service.custodio_nombre && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCommOpen(true);
+              }}
+              className="h-7 w-7 p-0 relative opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-destructive text-[8px] text-destructive-foreground flex items-center justify-center font-bold">
+                  {unreadCount}
+                </span>
+              )}
+            </Button>
+          )}
         </div>
       </div>
       
@@ -362,6 +387,24 @@ export function CompactServiceCard({
           })}
         </div>
       )}
+
+      {/* Fase 5: Custodian Communication Sheet */}
+      <Sheet open={commOpen} onOpenChange={setCommOpen}>
+        <SheetContent side="right" className="w-[420px] sm:w-[460px] p-0 flex flex-col">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Chat con custodio</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 min-h-0">
+            <PlanningCustodioComm
+              servicioId={service.id}
+              custodioName={service.custodio_nombre || 'Custodio'}
+              custodioTelefono={service.custodio_telefono || null}
+              folioServicio={service.id_servicio || ''}
+              isHandedOff={!!service.hora_llegada_custodio}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
