@@ -50,8 +50,13 @@ export function getCDMXHour(isoString: string | null | undefined): string {
 /**
  * Gets the date from a timestamp formatted in CDMX timezone
  */
-export function getCDMXDate(isoString: string): string {
-  return formatInTimeZone(isoString, TIMEZONE_CDMX, 'yyyy-MM-dd', { locale: es });
+export function getCDMXDate(isoString: string | null | undefined): string {
+  if (!isoString) return '';
+  try {
+    return formatInTimeZone(isoString, TIMEZONE_CDMX, 'yyyy-MM-dd', { locale: es });
+  } catch {
+    return '';
+  }
 }
 
 /**
