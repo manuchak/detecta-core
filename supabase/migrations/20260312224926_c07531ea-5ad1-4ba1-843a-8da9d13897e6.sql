@@ -1,0 +1,1 @@
+ALTER TYPE tipo_evento_ruta ADD VALUE IF NOT EXISTS 'trafico';

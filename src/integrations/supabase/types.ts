@@ -21706,6 +21706,7 @@ export type Database = {
         | "otro"
         | "llegada_destino"
         | "liberacion_custodio"
+        | "trafico"
       tipo_servicio_custodia:
         | "traslado"
         | "custodia_local"
@@ -21931,6 +21932,7 @@ export const Constants = {
         "otro",
         "llegada_destino",
         "liberacion_custodio",
+        "trafico",
       ],
       tipo_servicio_custodia: [
         "traslado",
