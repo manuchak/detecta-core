@@ -89,7 +89,10 @@ const LiberacionChecklistModal = ({
   // Hooks para obtener datos del workflow anterior
   const { data: documentosExistentes } = useDocumentosCandidato(initialLiberacion.candidato_id);
   const { data: evaluacionPsicometrica } = useLatestEvaluacionPsicometrica(initialLiberacion.candidato_id);
-  const { isComplete: contratosCompletos } = useContratosProgress(initialLiberacion.candidato_id, initialLiberacion.candidato?.vehiculo_propio ?? false);
+  const esArmadoLib = initialLiberacion.tipo_operativo === 'armado';
+  const vehiculoPropioLib = initialLiberacion.candidato?.vehiculo_propio ?? false;
+  const tieneVehiculoLib = esArmadoLib ? vehiculoPropioLib : true;
+  const { isComplete: contratosCompletos } = useContratosProgress(initialLiberacion.candidato_id, vehiculoPropioLib, tieneVehiculoLib);
   const { calcularProgresoGeneral } = useCapacitacion(initialLiberacion.candidato_id);
   const latestSocioeconomico = useLatestEstudioSocioeconomico(initialLiberacion.candidato_id);
   

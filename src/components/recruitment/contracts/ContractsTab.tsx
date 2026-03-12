@@ -74,7 +74,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
   const { firmados, totalRequeridos, porcentaje, contratosFaltantes } = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo);
   const eliminarContrato = useEliminarContrato();
 
-  const contratosRequeridos = getContratosRequeridosParaCandidato(vehiculoPropio);
+  const contratosRequeridos = getContratosRequeridosParaCandidato(vehiculoPropio, tieneVehiculo);
 
   const getContratoPorTipo = (tipo: TipoContrato) => {
     return contratos?.find(c => c.tipo_contrato === tipo && c.estado !== 'rechazado' && c.estado !== 'vencido');
