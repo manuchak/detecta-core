@@ -17,8 +17,13 @@ export const CDMX_OFFSET = '-06:00';
  * @param isoString - ISO timestamp from database
  * @param formatStr - date-fns format string (default: 'HH:mm')
  */
-export function formatCDMXTime(isoString: string, formatStr: string = 'HH:mm'): string {
-  return formatInTimeZone(isoString, TIMEZONE_CDMX, formatStr, { locale: es });
+export function formatCDMXTime(isoString: string | null | undefined, formatStr: string = 'HH:mm'): string {
+  if (!isoString) return '--:--';
+  try {
+    return formatInTimeZone(isoString, TIMEZONE_CDMX, formatStr, { locale: es });
+  } catch {
+    return '--:--';
+  }
 }
 
 /**
