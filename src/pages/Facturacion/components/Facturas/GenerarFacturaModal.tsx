@@ -369,8 +369,46 @@ export function GenerarFacturaModal({
                       <Input type="number" value={diasCredito} onChange={(e) => setDiasCredito(parseInt(e.target.value) || 0)} min={0} max={180} className="mt-0.5 h-8 text-xs" />
                     </div>
                     <div>
-                      <Label className="text-xs">Vencimiento</Label>
-                      <Input value={fechaVencimiento} disabled className="mt-0.5 h-8 text-xs" />
+                      <Label className="text-xs flex items-center gap-1">
+                        Vencimiento
+                        {currentCalc.usoCicloFiscal && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[260px] text-xs">
+                              <p className="font-medium mb-1">Cálculo basado en ciclo fiscal</p>
+                              <p>{currentCalc.explicacion}</p>
+                              {vencimientoOverride && (
+                                <p className="mt-1 text-amber-500">⚠ Fecha modificada manualmente</p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </Label>
+                      <Input
+                        type="date"
+                        value={fechaVencimiento}
+                        onChange={(e) => setVencimientoOverride(e.target.value || null)}
+                        className="mt-0.5 h-8 text-xs"
+                      />
+                      {currentCalc.usoCicloFiscal && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {currentCalc.diasReales}d reales
+                          {currentCalc.diasReales !== currentCalc.diasNominales && (
+                            <span className="text-amber-600"> (vs {currentCalc.diasNominales}d nominales)</span>
+                          )}
+                          {vencimientoOverride && (
+                            <button
+                              type="button"
+                              onClick={() => setVencimientoOverride(null)}
+                              className="ml-1 text-primary hover:underline"
+                            >
+                              Restaurar
+                            </button>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
