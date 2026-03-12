@@ -68,6 +68,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       setManualDistribucion({});
       setFirmaEntrega(null);
       setFirmaEntrante(null);
+      setHandoffResult(null);
     }
   }, [open, effectiveSelfId]);
 
