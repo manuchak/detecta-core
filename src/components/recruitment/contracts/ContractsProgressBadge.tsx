@@ -5,10 +5,12 @@ import { useContratosProgress } from '@/hooks/useContratosCandidato';
 interface Props {
   candidatoId: string;
   size?: 'sm' | 'default';
+  vehiculoPropio?: boolean;
+  tieneVehiculo?: boolean;
 }
 
-export function ContractsProgressBadge({ candidatoId, size = 'default' }: Props) {
-  const { firmados, totalRequeridos, isComplete } = useContratosProgress(candidatoId);
+export function ContractsProgressBadge({ candidatoId, size = 'default', vehiculoPropio = false, tieneVehiculo = true }: Props) {
+  const { firmados, totalRequeridos, isComplete } = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo);
 
   if (size === 'sm') {
     return (

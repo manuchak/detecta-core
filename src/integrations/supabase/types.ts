@@ -6528,29 +6528,7 @@ export type Database = {
           score_vivienda?: number | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "estudios_socioeconomicos_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "estudios_socioeconomicos_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "estudios_socioeconomicos_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
-        ]
+        Relationships: []
       }
       evaluaciones_instaladores: {
         Row: {
