@@ -152,6 +152,8 @@ export function useOrphanGuard() {
           if (activeServiceIds.includes(a.servicio_id)) continue;
           // Skip manual assignments (coordinator-assigned) — they are protected
           if (a.asignado_por) continue;
+          // Skip services locked by active handoff
+          if (isServiceLocked(a.servicio_id)) continue;
           const citaStr = serviceHoraCitaMap[a.servicio_id];
           if (!citaStr) continue;
           const timeUntil = new Date(citaStr).getTime() - now;
