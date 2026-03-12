@@ -90,10 +90,15 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
     setUploadDialogOpen(true);
   };
 
-  const handleEliminar = async () => {
+  const handleEliminar = async (e: React.MouseEvent) => {
+    e.preventDefault();
     if (!deleteContrato) return;
-    await eliminarContrato.mutateAsync({ contratoId: deleteContrato.id, candidatoId });
-    setDeleteContrato(null);
+    try {
+      await eliminarContrato.mutateAsync({ contratoId: deleteContrato.id, candidatoId });
+      setDeleteContrato(null);
+    } catch {
+      // error handled by mutation
+    }
   };
 
   if (isLoading) {
