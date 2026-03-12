@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +8,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MapPinCheck, RotateCcw, ChevronDown, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatCDMXTime } from '@/utils/cdmxTimezone';
 
 export type OperationalStatus = 'sin_asignar' | 'programado' | 'armado_pendiente' | 'pendiente_inicio' | 'en_sitio' | 'en_curso' | 'completado';
 
@@ -21,14 +19,9 @@ interface StatusUpdateButtonProps {
   /** @deprecated Use local loading — this prop is ignored now */
   isLoading?: boolean;
   className?: string;
-  /** Hora real de llegada del custodio para mostrar en badge "Arribado" */
   horaLlegadaCustodio?: string | null;
 }
 
-/**
- * Botón para cambiar el estado operativo de un servicio.
- * Usa loading LOCAL por servicio para no bloquear otros botones.
- */
 export function StatusUpdateButton({
   serviceId,
   currentStatus,
@@ -38,26 +31,48 @@ export function StatusUpdateButton({
   horaLlegadaCustodio
 }: StatusUpdateButtonProps) {
   const [isLocalLoading, setIsLocalLoading] = useState(false);
+  const [optimisticArrival, setOptimisticArrival] = useState<string | null>(null);
 
-  const canMarkOnSite = ['programado', 'armado_pendiente', 'pendiente_inicio', 'en_curso'].includes(currentStatus);
-  const canRevert = currentStatus === 'en_sitio';
-  
-  if (!canMarkOnSite && !canRevert) {
+  const getNowCDMX = () => {
+    const now = new Date();
+    return now.toLocaleTimeString('en-GB', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Optimistic: show "Arribado" immediately or when server confirms
+  const showArribado = optimisticArrival || currentStatus === 'en_sitio';
+  const canMarkOnSite = !showArribado && ['programado', 'armado_pendiente', 'pendiente_inicio', 'en_curso'].includes(currentStatus);
+  const canRevert = currentStatus === 'en_sitio' || !!optimisticArrival;
+
+  if (!canMarkOnSite && !showArribado) {
     return null;
   }
 
-  const handleAction = async (action: 'mark_on_site' | 'revert_to_scheduled') => {
+  const handleMarkOnSite = async () => {
+    const arrivalTime = getNowCDMX();
+    setOptimisticArrival(arrivalTime);
     setIsLocalLoading(true);
     try {
-      await onStatusChange(serviceId, action);
+      await onStatusChange(serviceId, 'mark_on_site');
     } catch (error) {
       console.error('Error updating status:', error);
+      setOptimisticArrival(null); // revert on failure
     } finally {
       setIsLocalLoading(false);
     }
   };
 
-  // Si puede marcar como "En sitio"
+  const handleRevert = async () => {
+    setIsLocalLoading(true);
+    setOptimisticArrival(null);
+    try {
+      await onStatusChange(serviceId, 'revert_to_scheduled');
+    } catch (error) {
+      console.error('Error reverting status:', error);
+    } finally {
+      setIsLocalLoading(false);
+    }
+  };
+
   if (canMarkOnSite) {
     return (
       <Button
@@ -65,7 +80,7 @@ export function StatusUpdateButton({
         size="sm"
         onClick={(e) => {
           e.stopPropagation();
-          handleAction('mark_on_site');
+          handleMarkOnSite();
         }}
         disabled={disabled || isLocalLoading}
         className={cn(
@@ -74,16 +89,16 @@ export function StatusUpdateButton({
         )}
       >
         <MapPinCheck className="w-3 h-3" />
-        {isLocalLoading ? 'Marcando...' : 'En sitio'}
+        En sitio
       </Button>
     );
   }
 
-  // Si está "En sitio" → Badge "Arribado" prominente + dropdown para revertir
-  if (canRevert) {
+  // Show "Arribado" badge — use server time if available, else optimistic
+  if (showArribado) {
     const arrivalTimeDisplay = horaLlegadaCustodio
       ? horaLlegadaCustodio.substring(0, 5)
-      : null;
+      : optimisticArrival ?? null;
 
     return (
       <DropdownMenu>
@@ -107,7 +122,7 @@ export function StatusUpdateButton({
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();
-              handleAction('revert_to_scheduled');
+              handleRevert();
             }}
             className="text-xs gap-2 text-amber-600 dark:text-amber-400"
           >
