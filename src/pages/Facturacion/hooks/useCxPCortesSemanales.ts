@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { fetchTarifasKm, calcularCostoPlano } from '@/utils/tarifasKmUtils';
 
 /** Tarifa por hora de estadía pagable al custodio (MXN). Centralizada para fácil ajuste. */
 export const CXP_TARIFA_ESTADIA_HORA = 50;
