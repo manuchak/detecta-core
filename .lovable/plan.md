@@ -1,94 +1,50 @@
-# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
-## Resumen ejecutivo
-Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
-Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-## Fase Dev 1 — Modelo de datos ✅
-- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
-- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
-- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
-- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
-- ✅ Índice `idx_wm_channel_sender` para queries de cliente
-- ✅ Backfill de registros existentes
+# Auditoría: Realtime entre Planeación y Bitácora de Monitoreo
 
-## Fase Dev 2 — Router de contexto en webhook ✅
-- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
-- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
-- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
-- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
-- ✅ Cliente con servicio activo → visible en tab, no crea ticket
-- ✅ Cliente sin servicio → crea ticket de atención
+## Hallazgo Crítico
 
-## Fase Dev 3 — Clasificación en mensajes salientes ✅
-- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
-- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
+**`servicios_planificados` NO está en la publicación `supabase_realtime`.**
 
-## Fase Dev 4 — Chat de Planeación con custodio ✅
-- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
-- ✅ Filtra por `comm_channel='custodio_planeacion'`
-- ✅ Read-only después del handoff (`isHandedOff` prop)
-- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
-- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
-
-## Fase Dev 5 — Handoff Planeación → C4 ✅
-- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
-- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
-- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
-- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
-
-## Fase Dev 6 — Tab Cliente bidireccional ✅
-- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
-- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
-- ✅ WindowPill con countdown en tiempo real
-- ✅ Input deshabilitado cuando ventana cerrada, solo templates
-- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
-- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
-- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
-
-## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
-- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
-- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
-- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
-- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
-- ✅ Fire-and-forget: no bloquea el flujo principal
-
-## Fase Dev 8 — Broadcast multi-contacto ✅
-- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
-- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
-- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
-- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
-- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
-
-## Fase Dev 9 — Testing E2E + Switch WhatsApp ✅
-- ✅ Tabla `app_feature_flags` con RLS (read: authenticated, write: admin/owner/coordinador)
-- ✅ Seeds: `whatsapp_planeacion` (OFF), `whatsapp_monitoreo` (OFF)
-- ✅ Realtime habilitado en `app_feature_flags`
-- ✅ Hook `useWhatsAppMode` con react-query + realtime subscription
-- ✅ Switches "WA Plan" y "WA Mon" en `CoordinatorCommandCenter` header
-- ✅ `CompactServiceCard`: botón chat condicionado a flag `whatsapp_planeacion`
-- ✅ `ServiceCommSheet`: placeholder "WhatsApp deshabilitado" cuando flag `whatsapp_monitoreo` está OFF
-- ✅ `CommScenarioSimulator` con 3 escenarios guiados (Planeación, Monitoreo, Cliente)
-- ✅ Cada escenario: pasos individuales + "Ejecutar Todo" con barra de progreso
-- ✅ Verificaciones de persistencia y comm_channel en cada escenario
-
-## Dependencias
-```
-Fase 1 → Fase 2, Fase 3 (paralelas)
-Fase 2+3 → Fase 4, Fase 6 (paralelas)
-Fase 4 → Fase 5
-Fase 5+6 → Fase 7
-Fase 6 → Fase 8
-Todas → Fase 9
+Tablas actualmente habilitadas para realtime:
+```text
+app_feature_flags
+servicio_comm_media
+servicio_eventos_ruta
 ```
 
-## Templates Meta pendientes
-| Template | Estado |
-|---|---|
-| posicionamiento_cliente | Por crear |
-| cierre_servicio_cliente | Por crear |
-| incidencia_servicio_cliente | Por crear |
-| nudge_status_custodio | No aprobado aún |
-| reporte_servicio_cliente | No aprobado aún |
+Esto significa que la suscripción en `useBitacoraBoard.ts` (línea 189-203) que escucha cambios en `servicios_planificados` **nunca recibe eventos**. El tablero de Bitácora depende exclusivamente del polling:
+- "Por Iniciar": cada **30 segundos**
+- "En Curso": cada **15 segundos**
+
+Cuando Planeación marca "En sitio" (escribe `hora_llegada_custodio`), Monitoreo puede tardar hasta 30 segundos en ver el servicio aparecer en "Por Iniciar". Igualmente, `bitacora_asignaciones_monitorista` tampoco está en realtime, causando el mismo retraso para asignaciones de monitorista.
+
+## Datos en Vivo (Auditoría)
+
+Hay **14 servicios hoy** con `hora_llegada_custodio` seteado y sin `hora_inicio_real` — es decir, visibles en "Por Iniciar" de Bitácora. Estos servicios ya fueron marcados "En Sitio" por Planeación y esperan que Monitoreo los inicie. El sistema funciona correctamente en datos, el problema es puramente de **latencia de visibilidad** por falta de realtime.
+
+## Plan de Solución
+
+### 1. Habilitar Realtime en las tablas faltantes (migración SQL)
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE servicios_planificados;
+ALTER PUBLICATION supabase_realtime ADD TABLE bitacora_asignaciones_monitorista;
+```
+
+### 2. Reducir staleTime del pending query
+En `useBitacoraBoard.ts`, reducir `staleTime` de la query "Por Iniciar" de `10_000` a `3_000` para que las invalidaciones por realtime se ejecuten más rápido.
+
+### 3. Reducir refetchInterval como fallback
+Cambiar el polling de "Por Iniciar" de `30_000` a `15_000` como red de seguridad en caso de que realtime tenga lag.
+
+## Resultado Esperado
+
+Con realtime habilitado, cuando Planeación marca "En Sitio":
+1. PostgreSQL emite el evento de UPDATE
+2. Supabase Realtime lo envía al browser de Monitoreo (~200-500ms)
+3. Se invalida `bitacora-board-pending` 
+4. React Query refetcha (~200ms)
+5. El servicio aparece en "Por Iniciar" en **menos de 1 segundo**
+
+Impacto: **2 sentencias SQL + 2 líneas de código** — cambio mínimo, máximo impacto.
+
