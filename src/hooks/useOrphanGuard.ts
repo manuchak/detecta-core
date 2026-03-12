@@ -111,7 +111,7 @@ export function useOrphanGuard() {
 
       // Rule 2: Active services without any assignment (already started, urgent)
       const unassignedActive = activeServiceIds.filter(id =>
-        !effectiveAssigned.has(id) && !isRecentlyAutoAssigned(id)
+        !effectiveAssigned.has(id) && !isRecentlyAutoAssigned(id) && !isServiceLocked(id)
       );
 
       const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
