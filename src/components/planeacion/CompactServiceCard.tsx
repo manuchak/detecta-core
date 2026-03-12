@@ -387,6 +387,24 @@ export function CompactServiceCard({
           })}
         </div>
       )}
+
+      {/* Fase 5: Custodian Communication Sheet */}
+      <Sheet open={commOpen} onOpenChange={setCommOpen}>
+        <SheetContent side="right" className="w-[420px] sm:w-[460px] p-0 flex flex-col">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Chat con custodio</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 min-h-0">
+            <PlanningCustodioComm
+              servicioId={service.id}
+              custodioName={service.custodio_nombre || 'Custodio'}
+              custodioTelefono={(service as any).custodio_telefono || null}
+              folioServicio={service.id_servicio || ''}
+              isHandedOff={!!service.hora_llegada_custodio}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
