@@ -21327,6 +21327,20 @@ export type Database = {
         }
         Returns: string
       }
+      sync_lead_to_candidato_armado: {
+        Args: {
+          p_email?: string
+          p_estado_proceso?: string
+          p_experiencia_seguridad?: boolean
+          p_fuente?: string
+          p_lead_id: string
+          p_licencia_portacion?: string
+          p_nombre: string
+          p_telefono?: string
+          p_tipo_armado?: string
+        }
+        Returns: string
+      }
       test_recruitment_system_access: {
         Args: never
         Returns: {
