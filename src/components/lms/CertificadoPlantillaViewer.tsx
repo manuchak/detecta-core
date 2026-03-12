@@ -92,7 +92,7 @@ export function CertificadoPlantillaViewer({
             .select('nombre')
             .eq('id', content.plantilla_id)
             .single();
-          setPlantillaNombre(prev => prev || plantillaData?.nombre ?? content.plantilla_nombre ?? 'Constancia');
+          setPlantillaNombre(prev => prev || (plantillaData?.nombre ?? content.plantilla_nombre ?? 'Constancia'));
         }
       } catch (err) {
         console.error('Error loading certificate data:', err);
