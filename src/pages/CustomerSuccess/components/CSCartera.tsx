@@ -168,7 +168,7 @@ export function CSCartera() {
   const resetTpModal = () => {
     setTouchpointModal(null);
     setTpResumen('');
-    setTpTipo('llamada');
+    setTpTipo('llamada_seguimiento');
     setTpContacto('');
     setTpSiguienteAccion('');
     setTpFechaSiguiente('');
