@@ -149,11 +149,23 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     return merged;
   }, [boardLabelMap, missingLabels]);
 
+  // Query active pauses to exclude paused monitoristas from manual actions
+  const { data: pausedIds } = useQuery({
+    queryKey: ['paused-monitorista-ids'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('bitacora_pausas_monitorista')
+        .select('monitorista_id')
+        .eq('estado', 'activa');
+      return new Set<string>((data || []).map((p: any) => p.monitorista_id));
+    },
+    refetchInterval: 15_000,
+  });
+
   const enTurno = monitoristas.filter(m => m.en_turno);
   const sinTurno = monitoristas.filter(m => !m.en_turno);
-  const eligibleForAssignment = enTurno.length > 0
-    ? enTurno
-    : monitoristas.filter(m => (m.event_count || 0) > 0);
+  const eligibleForAssignment = enTurno
+    .filter(m => !pausedIds?.has(m.id));
 
   // ── Equity calculation ──
   const { loadGap, minLoad, maxLoad: maxLoadVal, equityLevel } = useMemo(() => {

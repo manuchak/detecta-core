@@ -166,11 +166,19 @@ export function useOrphanGuard() {
           });
       }
 
-      // Rule 3: Services assigned to offline monitoristas → reassign
+      // Rule 3: Services assigned to offline OR paused monitoristas → reassign
       const offlineWithServices = sinTurno.filter(m => {
         const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo);
         return assignments.length > 0;
       });
+      // Paused monitoristas still have heartbeat (en_turno=true) but should have services redistributed
+      const pausedWithServices = allEnTurno
+        .filter(m => pausedIds?.has(m.id))
+        .filter(m => {
+          const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo);
+          return assignments.length > 0;
+        });
+      const offlineOrPaused = [...offlineWithServices, ...pausedWithServices];
 
       if (offlineWithServices.length > 0 && enTurno.length > 0) {
         for (const offlineM of offlineWithServices) {
