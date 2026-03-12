@@ -151,6 +151,19 @@ export function GenerarFacturaModal({
       setOrdenCompra('');
       setExcludedConceptos(new Set());
       setEditedImportes({});
+      setVencimientoOverride(null);
+
+      // Calcular vencimiento real usando ciclo fiscal del cliente
+      if (fiscal) {
+        const calc = calcularFechaVencimientoReal(new Date(), {
+          dias_credito: fiscal.dias_credito,
+          dia_corte: fiscal.dia_corte,
+          dia_pago: fiscal.dia_pago,
+        });
+        setVencimientoCalc(calc);
+      } else {
+        setVencimientoCalc(null);
+      }
     }
   }, [open, cliente, clientesFiscales]);
 
