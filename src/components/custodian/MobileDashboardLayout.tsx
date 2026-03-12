@@ -459,12 +459,13 @@ const MobileDashboardLayout = () => {
 
          {/* Próximo servicio con checklist */}
          <section className="animate-fade-in" style={{ animationDelay: (resolvedTicketsToShow.length > 0 || hasOldPendingTickets) ? '75ms' : '0ms' }}>
-           <NextServiceCard
-             service={nextService}
-             onStartChecklist={handleStartChecklist}
-             checklistCompleted={checklistStatus === 'completo'}
-             onViewDetails={() => nextService && navigate(`/custodian/services`)}
-           />
+            <NextServiceCard
+              service={nextService}
+              onStartChecklist={handleStartChecklist}
+              checklistCompleted={checklistStatus === 'completo'}
+              isRetorno={isRetorno}
+              onViewDetails={() => nextService && navigate(`/custodian/services`)}
+            />
          </section>
  
         {/* 3. Hero Alert - Maintenance status (only show "all OK" if no urgent tickets) */}

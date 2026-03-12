@@ -144,7 +144,8 @@ export function useNextService(custodianPhone: string | undefined, custodioId?: 
           tipo_servicio: l.tipo_servicio || 'custodia',
           source: 'legacy',
           origen_lat: l.origen_lat ?? null,
-          origen_lng: l.origen_lng ?? null
+          origen_lng: l.origen_lng ?? null,
+          isRetorno: false
         });
       }
 

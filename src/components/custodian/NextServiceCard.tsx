@@ -104,7 +104,12 @@ interface NextServiceCardProps {
        {/* Checklist section */}
        {onStartChecklist && (
          <div className="pt-4 border-t border-primary/20">
-           {checklistCompleted ? (
+           {isRetorno ? (
+             <div className="flex items-center gap-2 bg-muted/50 rounded-xl p-3">
+               <CheckCircle className="w-5 h-5 text-muted-foreground" />
+               <span className="font-medium text-muted-foreground">Checklist no requerido (retorno)</span>
+             </div>
+           ) : checklistCompleted ? (
              <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 rounded-xl p-3">
                <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
                  <CheckCircle className="w-5 h-5" />
