@@ -200,7 +200,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
 
                       {!contrato.firmado && contrato.estado !== 'rechazado' && (
                         <>
-                      <Button 
+                          <Button 
                             size="sm"
                             onClick={() => setSignContrato(contrato)}
                           >
@@ -215,17 +215,17 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
                             <Upload className="h-3 w-3 mr-1" />
                             Subir Firmado
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteContrato({ id: contrato.id, tipo: contrato.tipo_contrato as TipoContrato })}
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Eliminar
-                          </Button>
                         </>
                       )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeleteContrato({ id: contrato.id, tipo: contrato.tipo_contrato as TipoContrato, firmado: contrato.firmado })}
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Eliminar
+                      </Button>
                     </div>
                   </div>
                 ) : (
