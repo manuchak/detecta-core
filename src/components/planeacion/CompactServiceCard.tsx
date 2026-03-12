@@ -57,7 +57,22 @@ export function getOperationalStatus(service: any, nowOverride?: Date) {
     };
   }
   
-  // En curso - monitoreo activo (hora_inicio_real existe, hora_fin_real no)
+  // En sitio - custodio llegó al punto. Para Planeación, "Arribado" es un hecho inmutable
+  // que persiste aunque Monitoreo inicie el servicio (hora_inicio_real)
+  if (service.hora_llegada_custodio) {
+    return { 
+      status: 'en_sitio', 
+      color: 'bg-emerald-500', 
+      textColor: 'text-emerald-700 dark:text-emerald-400',
+      bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
+      icon: MapPinCheck, 
+      label: 'En sitio',
+      priority: 5,
+      isBeingMonitored: !!service.hora_inicio_real
+    };
+  }
+
+  // En curso - caso edge: monitoreo activo sin hora_llegada_custodio registrada
   if (service.hora_inicio_real) {
     return { 
       status: 'en_curso', 
@@ -67,19 +82,6 @@ export function getOperationalStatus(service: any, nowOverride?: Date) {
       icon: Clock, 
       label: 'En curso',
       priority: 4
-    };
-  }
-
-  // En sitio - custodio llegó al punto (hora_llegada_custodio) pero monitoreo aún no inicia (hora_inicio_real)
-  if (service.hora_llegada_custodio) {
-    return { 
-      status: 'en_sitio', 
-      color: 'bg-emerald-500', 
-      textColor: 'text-emerald-700 dark:text-emerald-400',
-      bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
-      icon: MapPinCheck, 
-      label: 'En sitio',
-      priority: 5
     };
   }
   
