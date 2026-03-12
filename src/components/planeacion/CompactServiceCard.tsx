@@ -16,6 +16,7 @@ import { UpcomingServiceBadge, getUpcomingHighlightClass } from './UpcomingServi
 import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 import { cn } from '@/lib/utils';
 import { formatCDMXTime, getZonedCDMXTime } from '@/utils/cdmxTimezone';
+import { useWhatsAppMode } from '@/hooks/useWhatsAppMode';
 import type { ScheduledService } from '@/hooks/useScheduledServices';
 
 interface CompactServiceCardProps {
