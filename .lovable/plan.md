@@ -1,86 +1,50 @@
-# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
-## Resumen ejecutivo
-Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
-Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-## Fase Dev 1 — Modelo de datos ✅
-- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
-- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
-- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
-- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
-- ✅ Índice `idx_wm_channel_sender` para queries de cliente
-- ✅ Backfill de registros existentes
+# Fase 9 — Testing E2E + Switch WhatsApp Coordinación
 
-## Fase Dev 2 — Router de contexto en webhook ✅
-- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
-- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
-- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
-- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
-- ✅ Cliente con servicio activo → visible en tab, no crea ticket
-- ✅ Cliente sin servicio → crea ticket de atención
+## Resumen
 
-## Fase Dev 3 — Clasificación en mensajes salientes ✅
-- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
-- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
+Tres entregables:
+1. **Switch on/off WhatsApp** en CoordinatorCommandCenter para habilitar/deshabilitar chat WA en Planeación y Monitoreo
+2. **Escenarios de simulación guiados** en CommTestPanel — flujos automatizados de Planeación y Monitoreo
+3. **Validaciones E2E** por canal en CommTestPanel (edge cases: multi-servicio, ventana 24h, handoff)
 
-## Fase Dev 4 — Chat de Planeación con custodio ✅
-- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
-- ✅ Filtra por `comm_channel='custodio_planeacion'`
-- ✅ Read-only después del handoff (`isHandedOff` prop)
-- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
-- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
+---
 
-## Fase Dev 5 — Handoff Planeación → C4 ✅
-- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
-- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
-- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
-- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
+## 1. Feature Flags en BD
 
-## Fase Dev 6 — Tab Cliente bidireccional ✅
-- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
-- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
-- ✅ WindowPill con countdown en tiempo real
-- ✅ Input deshabilitado cuando ventana cerrada, solo templates
-- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
-- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
-- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
+Nueva tabla `app_feature_flags`:
 
-## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
-- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
-- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
-- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
-- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
-- ✅ Fire-and-forget: no bloquea el flujo principal
-
-## Fase Dev 8 — Broadcast multi-contacto ✅
-- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
-- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
-- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
-- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
-- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
-
-## Fase Dev 9 — Testing E2E (pendiente)
-- CommTestPanel: flujos por canal
-- Edge cases: multi-servicio, ventana 24h, handoff
-
-## Dependencias
-```
-Fase 1 → Fase 2, Fase 3 (paralelas)
-Fase 2+3 → Fase 4, Fase 6 (paralelas)
-Fase 4 → Fase 5
-Fase 5+6 → Fase 7
-Fase 6 → Fase 8
-Todas → Fase 9
+```sql
+CREATE TABLE public.app_feature_flags (
+  key TEXT PRIMARY KEY,
+  enabled BOOLEAN NOT NULL DEFAULT false,
+  updated_by UUID REFERENCES auth.users(id),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.app_feature_flags ENABLE ROW LEVEL SECURITY;
+-- Read: authenticated; Write: admin/owner/coordinador via has_role
+INSERT INTO app_feature_flags (key) VALUES ('whatsapp_planeacion'), ('whatsapp_monitoreo');
 ```
 
-## Templates Meta pendientes
-| Template | Estado |
-|---|---|
-| posicionamiento_cliente | Por crear |
-| cierre_servicio_cliente | Por crear |
-| incidencia_servicio_cliente | Por crear |
-| nudge_status_custodio | No aprobado aún |
-| reporte_servicio_cliente | No aprobado aún |
+## 2. Hook `useWhatsAppMode`
+
+Nuevo `src/hooks/useWhatsAppMode.ts`:
+- Lee flags de `app_feature_flags` con react-query
+- `toggleFlag(key)` para update + invalidate
+- Realtime subscription para sincronizar entre usuarios
+- Expone `isPlaneacionEnabled`, `isMonitoreoEnabled`, `togglePlaneacion`, `toggleMonitoreo`
+
+## 3. Switches en CoordinatorCommandCenter
+
+En el header (linea ~314), agregar dos `Switch` compactos:
+- "WA Plan" — toggle `whatsapp_planeacion`
+- "WA Mon" — toggle `whatsapp_monitoreo`
+
+Solo visible para coordinador/admin/owner (ya implícito por acceso al componente).
+
+## 4. Protección condicional en componentes
+
+**`CompactServiceCard.tsx` (linea ~302-319)**: El botón `MessageCircle` solo se renderiza si `isPlaneacionEnabled` es true. Si false, no aparece.
+
+**`ServiceCommSheet.tsx` (linea ~21-212)**: Si `isMonitoreoEnabled` es false, los
