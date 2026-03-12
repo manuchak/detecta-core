@@ -140,7 +140,7 @@ export function PerfilHeader({ profile, tipo, isLoading }: PerfilHeaderProps) {
                 {profile.estado}
               </Badge>
               <Badge className={getDisponibilidadColor(profile.disponibilidad)}>
-                {profile.disponibilidad}
+                {disponibilidadLabel(profile.disponibilidad)}
               </Badge>
             </div>
           </div>
