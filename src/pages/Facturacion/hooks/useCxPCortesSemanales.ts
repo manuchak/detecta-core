@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { fetchTarifasKm, calcularCostoPlano } from '@/utils/tarifasKmUtils';
 
 /** Tarifa por hora de estadía pagable al custodio (MXN). Centralizada para fácil ajuste. */
 export const CXP_TARIFA_ESTADIA_HORA = 50;
@@ -151,27 +152,46 @@ export function useCreateCxPCorte() {
           }
         }
       } else if (data.tipo_operativo === 'armado_interno' && data.operativo_id) {
+        // 1) Get all assignments for this armado (no date filter)
         const { data: asignaciones } = await supabase
           .from('asignacion_armados')
-          .select('id, tarifa_acordada, servicio_custodia_id')
+          .select('id, armado_id, servicio_custodia_id')
           .eq('armado_id', data.operativo_id)
           .eq('tipo_asignacion', 'interno')
-          .eq('estado_asignacion', 'completado')
-          .gte('hora_encuentro', `${data.semana_inicio}T00:00:00`)
-          .lte('hora_encuentro', `${data.semana_fin}T23:59:59`);
+          .in('estado_asignacion', ['completado', 'confirmado', 'pendiente']);
 
-        if (asignaciones) {
-          totalServicios = asignaciones.length;
-          for (const a of asignaciones) {
-            const tarifa = Number(a.tarifa_acordada) || 0;
-            montoServicios += tarifa;
-            detalles.push({
-              concepto: 'servicio',
-              descripcion: `Asignación armado ${a.id.slice(0, 8)}`,
-              monto: tarifa,
-              servicio_custodia_id: a.servicio_custodia_id,
-            });
+        // 2) Cross-ref with finalized services in the week
+        const svcIds = (asignaciones || []).map(a => a.servicio_custodia_id).filter(Boolean) as string[];
+        let svcsMap = new Map<string, { id: number; id_servicio: string; km_recorridos: number | null; nombre_cliente: string | null }>();
+        if (svcIds.length > 0) {
+          const { data: svcs } = await supabase
+            .from('servicios_custodia')
+            .select('id, id_servicio, km_recorridos, nombre_cliente')
+            .in('id_servicio', svcIds)
+            .eq('estado', 'Finalizado')
+            .gte('fecha_hora_cita', `${data.semana_inicio}T00:00:00`)
+            .lte('fecha_hora_cita', `${data.semana_fin}T23:59:59`);
+          for (const s of svcs || []) {
+            if (s.id_servicio) svcsMap.set(s.id_servicio, s);
           }
+        }
+
+        // 3) Calculate cost per service using km tarifas
+        const tarifas = await fetchTarifasKm();
+        for (const a of asignaciones || []) {
+          if (!a.servicio_custodia_id) continue;
+          const svc = svcsMap.get(a.servicio_custodia_id);
+          if (!svc) continue;
+          const km = Number(svc.km_recorridos) || 0;
+          const { costo, tarifa } = calcularCostoPlano(km, tarifas);
+          montoServicios += costo;
+          totalServicios++;
+          detalles.push({
+            concepto: 'servicio',
+            descripcion: `Servicio ${svc.id_servicio} — ${km} km × $${tarifa}/km`,
+            monto: costo,
+            servicio_custodia_id: svc.id,
+          });
         }
       }
 
