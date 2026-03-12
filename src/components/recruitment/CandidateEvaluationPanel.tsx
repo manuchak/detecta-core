@@ -98,7 +98,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const latestMidot = useLatestMidot(candidatoId);
   const latestSocioeconomico = useLatestEstudioSocioeconomico(candidatoId);
   const docsProgress = useDocumentosProgress(candidatoId, tipoOperativo);
-  const contractsProgress = useContratosProgress(candidatoId);
+  const contractsProgress = useContratosProgress(candidatoId, candidatoData?.vehiculo_propio ?? false, tipoOperativo === 'armado' ? (candidatoData?.vehiculo_propio ?? false) : true);
   const { data: refsProgress } = useReferenciasProgress(candidatoId);
   const { instalacionCompletada, ultimaInstalacion } = useProgramacionInstalacionesCandidato(candidatoId);
   const { modulos, progreso, calcularProgresoGeneral } = useCapacitacion(candidatoId);
