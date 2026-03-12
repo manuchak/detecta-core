@@ -335,6 +335,7 @@ export default function CursoViewer() {
                   onComplete={handleComplete}
                   onVideoProgress={handleVideoProgress}
                   initialVideoPosition={videoPosition}
+                  cursoTitulo={curso.titulo}
                 />
 
                 {/* Botón manual de completar — solo para documento (embed y texto_enriquecido ya tienen su propio botón interno) */}

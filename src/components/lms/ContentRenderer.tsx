@@ -26,6 +26,7 @@ interface ContentRendererProps {
   onComplete?: () => void;
   onVideoProgress?: (posicion: number, porcentaje: number) => void;
   initialVideoPosition?: number;
+  cursoTitulo?: string;
 }
 
 export function ContentRenderer({ 
@@ -35,7 +36,8 @@ export function ContentRenderer({
   progresoVideo,
   onComplete,
   onVideoProgress,
-  initialVideoPosition
+  initialVideoPosition,
+  cursoTitulo
 }: ContentRendererProps) {
   const { tipo, contenido: data, duracion_min } = contenido;
 
@@ -130,6 +132,7 @@ export function ContentRenderer({
         <CertificadoPlantillaViewer
           content={data as CertificadoPlantillaContent}
           inscripcionId={inscripcionId}
+          cursoTitulo={cursoTitulo}
           onComplete={onComplete}
         />
       );
