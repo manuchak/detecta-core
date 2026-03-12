@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, FileText, Shield, User, MapPin } from 'lucide-react';
+import { MessageCircle, FileText, Shield, User, MapPin, AlertTriangle } from 'lucide-react';
 import { CustodioChat } from './CustodioChat';
 import { ClientChat } from './ClientChat';
 import { useServicioComm } from '@/hooks/useServicioComm';
+import { useWhatsAppMode } from '@/hooks/useWhatsAppMode';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
