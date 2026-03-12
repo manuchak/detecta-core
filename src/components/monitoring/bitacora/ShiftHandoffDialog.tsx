@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import type { HandoffResult } from '@/hooks/useShiftHandoff';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
