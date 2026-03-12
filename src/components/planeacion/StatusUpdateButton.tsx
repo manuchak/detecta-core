@@ -82,7 +82,7 @@ export function StatusUpdateButton({
   // Si está "En sitio" → Badge "Arribado" prominente + dropdown para revertir
   if (canRevert) {
     const arrivalTimeDisplay = horaLlegadaCustodio
-      ? formatCDMXTime(horaLlegadaCustodio, 'HH:mm')
+      ? horaLlegadaCustodio.substring(0, 5)
       : null;
 
     return (
