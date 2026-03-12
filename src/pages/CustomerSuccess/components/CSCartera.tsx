@@ -71,7 +71,7 @@ export function CSCartera() {
   // Phase 1.3: Quick touchpoint
   const [touchpointModal, setTouchpointModal] = useState<{ id: string; nombre: string } | null>(null);
   const [tpResumen, setTpResumen] = useState('');
-  const [tpTipo, setTpTipo] = useState('llamada');
+  const [tpTipo, setTpTipo] = useState('llamada_seguimiento');
   const [tpContacto, setTpContacto] = useState('');
   const [tpSiguienteAccion, setTpSiguienteAccion] = useState('');
   const [tpFechaSiguiente, setTpFechaSiguiente] = useState('');
@@ -168,7 +168,7 @@ export function CSCartera() {
   const resetTpModal = () => {
     setTouchpointModal(null);
     setTpResumen('');
-    setTpTipo('llamada');
+    setTpTipo('llamada_seguimiento');
     setTpContacto('');
     setTpSiguienteAccion('');
     setTpFechaSiguiente('');
@@ -492,11 +492,12 @@ export function CSCartera() {
                 <Select value={tpTipo} onValueChange={setTpTipo}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="llamada">Llamada</SelectItem>
+                    <SelectItem value="llamada_seguimiento">Llamada</SelectItem>
                     <SelectItem value="email">Email</SelectItem>
                     <SelectItem value="whatsapp">WhatsApp</SelectItem>
                     <SelectItem value="reunion">Reunión</SelectItem>
                     <SelectItem value="visita">Visita</SelectItem>
+                    <SelectItem value="nota_interna">Nota interna</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
