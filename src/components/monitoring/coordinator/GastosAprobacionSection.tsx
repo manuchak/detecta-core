@@ -175,9 +175,13 @@ export const GastosAprobacionSection: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {s.comprobante_url && (
-                      <div className="w-9 h-9 rounded-lg bg-muted overflow-hidden">
-                        <img src={s.comprobante_url} alt="" className="w-full h-full object-cover" />
+                    {parseComprobantes(s.comprobante_url).length > 0 && (
+                      <div className="flex -space-x-1.5">
+                        {parseComprobantes(s.comprobante_url).slice(0, 3).map((url, i) => (
+                          <div key={i} className="w-9 h-9 rounded-lg bg-muted overflow-hidden border-2 border-background">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
                       </div>
                     )}
                     <DollarSign className="h-4 w-4 text-muted-foreground/40" />
