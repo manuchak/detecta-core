@@ -386,9 +386,9 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
     },
     {
       id: 'contracts', label: 'Contratos', icon: <FileSignature className="h-4 w-4" />,
-      badge: <ContractsProgressBadge candidatoId={candidatoId} size="sm" vehiculoPropio={vehiculoPropio} tieneVehiculo={tieneVehiculo} />,
+      badge: <ContractsProgressBadge candidatoId={candidatoId} size="sm" vehiculoPropio={vehiculoPropio} tieneVehiculo={tieneVehiculo} isArmado={isArmado} />,
       gate: gates.find(g => g.id === 'contracts'),
-      content: <ContractsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} vehiculoPropio={vehiculoPropio} tieneVehiculo={tieneVehiculo} />,
+      content: <ContractsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} vehiculoPropio={vehiculoPropio} tieneVehiculo={tieneVehiculo} isArmado={isArmado} />,
     },
     {
       id: 'references', label: 'Referencias', icon: <Users className="h-4 w-4" />,

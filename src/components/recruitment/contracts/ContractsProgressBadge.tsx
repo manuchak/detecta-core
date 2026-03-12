@@ -7,10 +7,11 @@ interface Props {
   size?: 'sm' | 'default';
   vehiculoPropio?: boolean;
   tieneVehiculo?: boolean;
+  isArmado?: boolean;
 }
 
-export function ContractsProgressBadge({ candidatoId, size = 'default', vehiculoPropio = false, tieneVehiculo = true }: Props) {
-  const { firmados, totalRequeridos, isComplete } = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo);
+export function ContractsProgressBadge({ candidatoId, size = 'default', vehiculoPropio = false, tieneVehiculo = true, isArmado = false }: Props) {
+  const { firmados, totalRequeridos, isComplete } = useContratosProgress(candidatoId, vehiculoPropio, tieneVehiculo, isArmado);
 
   if (size === 'sm') {
     return (

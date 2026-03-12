@@ -146,7 +146,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
                 <CardTitle className="text-sm flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <FileSignature className="h-4 w-4" />
-                    {isContratoServicio ? 'Contrato Custodio' : CONTRATO_LABELS[tipo]}
+                    {isContratoServicio ? 'Contrato Custodio' : isContratoArmado ? 'Contrato Armado' : CONTRATO_LABELS[tipo]}
                   </span>
                   <div className="flex items-center gap-1">
                     {esFisico && (
