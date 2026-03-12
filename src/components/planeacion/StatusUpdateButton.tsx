@@ -27,6 +27,7 @@ export function StatusUpdateButton({
   serviceId,
   currentStatus,
   onStatusChange,
+  onOptimisticChange,
   disabled = false,
   className,
   horaLlegadaCustodio
