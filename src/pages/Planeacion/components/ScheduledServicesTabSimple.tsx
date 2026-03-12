@@ -203,6 +203,17 @@ export function ScheduledServicesTab() {
   const [rechazosOpen, setRechazosOpen] = useState(false);
   const { data: rechazadosIds = [] } = useRechazosVigentes();
 
+  // Optimistic arrivals map for instant UI feedback
+  const [optimisticArrivals, setOptimisticArrivals] = useState<Map<string, string>>(new Map());
+  const handleOptimisticChange = (serviceId: string, arrival: string | null) => {
+    setOptimisticArrivals(prev => {
+      const next = new Map(prev);
+      if (arrival) next.set(serviceId, arrival);
+      else next.delete(serviceId);
+      return next;
+    });
+  };
+
   // Import operational status from CompactServiceCard
   // Estado operativo basado en hora_inicio_real y hora_fin_real
   const getOperationalStatus = (service: any) => {
