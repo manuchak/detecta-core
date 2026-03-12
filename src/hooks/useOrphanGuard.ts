@@ -241,14 +241,7 @@ export function useOrphanGuard() {
     const operationalServiceIds = new Set<string>();
     for (const s of enCursoServices) operationalServiceIds.add(s.id_servicio);
     for (const s of eventoEspecialServices) operationalServiceIds.add(s.id_servicio);
-    for (const s of pendingServices) {
-      const citaStr = serviceHoraCitaMap[s.id_servicio];
-      if (!citaStr) continue;
-      const timeUntil = new Date(citaStr).getTime() - nowMs;
-      if (timeUntil <= FOUR_HOURS_MS && timeUntil > -60 * 60 * 1000) {
-        operationalServiceIds.add(s.id_servicio);
-      }
-    }
+    for (const s of pendingServices) operationalServiceIds.add(s.id_servicio);
 
     // Gather all formal active assignments — only operationally relevant ones
     const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean; notasHandoff: string | null; inicioTurno: string }[] = [];
