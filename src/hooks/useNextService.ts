@@ -126,7 +126,8 @@ export function useNextService(custodianPhone: string | undefined, custodioId?: 
           tipo_servicio: p.tipo_servicio || 'custodia',
           source: 'planificado',
           origen_lat: null,
-          origen_lng: null
+          origen_lng: null,
+          isRetorno: (p.observaciones || '').includes('[RETORNO]')
         });
       }
       
