@@ -634,7 +634,7 @@ function App() {
                   path="/seguridad"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'coordinador_operaciones']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'coordinador_operaciones', 'customer_success']}>
                         <UnifiedLayout>
                           <SecurityPage />
                         </UnifiedLayout>
