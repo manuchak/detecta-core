@@ -180,9 +180,10 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     return { loadGap: gap, minLoad: min, maxLoad: max, equityLevel: level };
   }, [enTurno, filteredAssignmentsByMonitorista]);
 
-  // ── Manual safe rebalance ──
+  // Use only non-paused en-turno for manual rebalance too
+  const rebalanceEligible = eligibleForAssignment;
   const handleManualRebalance = useCallback(async () => {
-    if (enTurno.length < 2) return;
+    if (rebalanceEligible.length < 2) return;
 
     const enCursoServiceIds = new Set(enCursoServices.map(s => s.id_servicio));
     const eventoServiceIds = new Set(eventoEspecialServices.map(s => s.id_servicio));
