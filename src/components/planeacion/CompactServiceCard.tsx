@@ -160,13 +160,20 @@ export function CompactServiceCard({
   onStatusUpdate,
   onShowHistory,
   onFalsePositioning,
+  onOptimisticChange,
+  optimisticArrival,
   isCancelling = false,
   isUpdatingStatus = false
 }: CompactServiceCardProps) {
   const [commOpen, setCommOpen] = useState(false);
   const unreadMap = useUnreadCounts();
   const unreadCount = unreadMap.get(service.id) || 0;
-  const operationalStatus = getOperationalStatus(service, now);
+  
+  // Apply optimistic override for instant status change
+  const effectiveService = optimisticArrival 
+    ? { ...service, hora_llegada_custodio: optimisticArrival }
+    : service;
+  const operationalStatus = getOperationalStatus(effectiveService, now);
   const OperationalIcon = operationalStatus.icon;
   // For time comparison (upcoming badge), use raw Date since both are in same timezone context
   const citaTime = new Date(service.fecha_hora_cita);
