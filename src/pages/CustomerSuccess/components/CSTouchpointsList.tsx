@@ -64,7 +64,7 @@ export function CSTouchpointsList({ onClienteClick, initialTab }: Props) {
 
   // New touchpoint form
   const [tpClienteId, setTpClienteId] = useState('');
-  const [tpTipo, setTpTipo] = useState('llamada');
+  const [tpTipo, setTpTipo] = useState('llamada_seguimiento');
   const [tpDireccion, setTpDireccion] = useState('saliente');
   const [tpContacto, setTpContacto] = useState('');
   const [tpResumen, setTpResumen] = useState('');
