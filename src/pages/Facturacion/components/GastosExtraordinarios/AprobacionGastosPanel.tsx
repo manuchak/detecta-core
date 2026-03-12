@@ -242,15 +242,21 @@ const AprobacionGastosPanel = () => {
                   </div>
                 )}
 
-                {selectedSolicitud.comprobante_url && (
+                {parseComprobantes(selectedSolicitud.comprobante_url).length > 0 && (
                   <div>
-                    <span className="text-sm text-muted-foreground">Comprobante:</span>
-                    <a href={selectedSolicitud.comprobante_url} target="_blank" rel="noopener noreferrer" className="block mt-1">
-                      <img src={selectedSolicitud.comprobante_url} alt="Comprobante" className="max-h-48 rounded-lg border border-border object-contain" />
-                      <span className="text-xs text-primary flex items-center gap-1 mt-1">
-                        <ExternalLink className="w-3 h-3" /> Ver tamaño completo
-                      </span>
-                    </a>
+                    <span className="text-sm text-muted-foreground">
+                      Comprobantes ({parseComprobantes(selectedSolicitud.comprobante_url).length})
+                    </span>
+                    <div className="flex gap-2 mt-1 overflow-x-auto">
+                      {parseComprobantes(selectedSolicitud.comprobante_url).map((url, i) => (
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                          <img src={url} alt={`Comprobante ${i + 1}`} className="max-h-48 rounded-lg border border-border object-contain" />
+                          <span className="text-xs text-primary flex items-center gap-1 mt-1">
+                            <ExternalLink className="w-3 h-3" /> Ver completo
+                          </span>
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 )}
 
