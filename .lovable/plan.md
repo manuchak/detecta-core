@@ -1,50 +1,94 @@
+# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
+## Resumen ejecutivo
+Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
+Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-# Bug: "Arribado" desaparece en Planeación cuando Monitoreo inicia el servicio
+## Fase Dev 1 — Modelo de datos ✅
+- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
+- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
+- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
+- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
+- ✅ Índice `idx_wm_channel_sender` para queries de cliente
+- ✅ Backfill de registros existentes
 
-## Causa Raíz
+## Fase Dev 2 — Router de contexto en webhook ✅
+- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
+- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
+- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
+- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
+- ✅ Cliente con servicio activo → visible en tab, no crea ticket
+- ✅ Cliente sin servicio → crea ticket de atención
 
-Dos archivos con la misma falla lógica — el check de `hora_inicio_real` tiene mayor prioridad que `hora_llegada_custodio`:
+## Fase Dev 3 — Clasificación en mensajes salientes ✅
+- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
+- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
-**CompactServiceCard.tsx** (tarjeta de Planning):
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
+
+## Fase Dev 5 — Handoff Planeación → C4 ✅
+- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
+- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
+- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
+- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
+
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
+
+## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
+- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
+- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
+- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
+- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
+- ✅ Fire-and-forget: no bloquea el flujo principal
+
+## Fase Dev 8 — Broadcast multi-contacto ✅
+- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
+- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
+- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
+- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
+- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
+
+## Fase Dev 9 — Testing E2E + Switch WhatsApp ✅
+- ✅ Tabla `app_feature_flags` con RLS (read: authenticated, write: admin/owner/coordinador)
+- ✅ Seeds: `whatsapp_planeacion` (OFF), `whatsapp_monitoreo` (OFF)
+- ✅ Realtime habilitado en `app_feature_flags`
+- ✅ Hook `useWhatsAppMode` con react-query + realtime subscription
+- ✅ Switches "WA Plan" y "WA Mon" en `CoordinatorCommandCenter` header
+- ✅ `CompactServiceCard`: botón chat condicionado a flag `whatsapp_planeacion`
+- ✅ `ServiceCommSheet`: placeholder "WhatsApp deshabilitado" cuando flag `whatsapp_monitoreo` está OFF
+- ✅ `CommScenarioSimulator` con 3 escenarios guiados (Planeación, Monitoreo, Cliente)
+- ✅ Cada escenario: pasos individuales + "Ejecutar Todo" con barra de progreso
+- ✅ Verificaciones de persistencia y comm_channel en cada escenario
+
+## Dependencias
 ```
-Línea 61: if (hora_inicio_real) → 'en_curso'    ← GANA
-Línea 74: if (hora_llegada_custodio) → 'en_sitio' ← nunca se alcanza
-```
-El badge "Arribado HH:mm" solo se muestra cuando `status === 'en_sitio'` (línea 256), así que desaparece.
-
-**ScheduledServicesTabSimple.tsx** (tabla de Planning):
-```
-Línea 241: if (hora_llegada_custodio && !hora_inicio_real) → 'en_sitio'
-```
-Explícitamente requiere que NO exista `hora_inicio_real`.
-
-## Perspectiva de negocio
-
-Para Planeación, "Arribado" es un hecho inmutable — el custodio llegó a las HH:mm. Que Monitoreo inicie el servicio no cambia ese hecho. Planeación necesita:
-- Ver "Arribado HH:mm" siempre que `hora_llegada_custodio` esté seteado
-- Opcionalmente ver "En curso" como información secundaria, pero sin perder el badge de arribo
-
-## Solución
-
-### CompactServiceCard.tsx
-Reordenar la prioridad en `getOperationalStatus`: poner `hora_llegada_custodio` **antes** de `hora_inicio_real`. Si el custodio ya llegó, el estatus para Planning es "en_sitio" siempre (excepto completado/cancelado).
-
-```
-1. Cancelado → cancelado
-2. Completado (hora_fin_real) → completado  
-3. hora_llegada_custodio → en_sitio (SIEMPRE, aunque hora_inicio_real exista)
-4. hora_inicio_real → en_curso (solo si no tiene hora_llegada, caso edge)
-5. Sin asignar, armado pendiente, programado...
+Fase 1 → Fase 2, Fase 3 (paralelas)
+Fase 2+3 → Fase 4, Fase 6 (paralelas)
+Fase 4 → Fase 5
+Fase 5+6 → Fase 7
+Fase 6 → Fase 8
+Todas → Fase 9
 ```
 
-Adicionalmente, enriquecer el badge para mostrar "En monitoreo" como indicador secundario cuando `hora_inicio_real` existe junto con `hora_llegada_custodio`.
-
-### ScheduledServicesTabSimple.tsx
-Mismo cambio: quitar la condición `&& !service.hora_inicio_real` de la línea 241, para que `hora_llegada_custodio` sea suficiente. Agregar un badge secundario "En monitoreo" si `hora_inicio_real` existe.
-
-### Monitoreo (sin cambios)
-`iniciarServicio` en `useBitacoraBoard.ts` solo escribe `hora_inicio_real` — no toca `hora_llegada_custodio` ni `estado_planeacion`. No requiere cambios.
-
-**Impacto**: 2 archivos, reordenamiento de condiciones + badge secundario opcional. Cero cambios en Monitoreo o base de datos.
-
+## Templates Meta pendientes
+| Template | Estado |
+|---|---|
+| posicionamiento_cliente | Por crear |
+| cierre_servicio_cliente | Por crear |
+| incidencia_servicio_cliente | Por crear |
+| nudge_status_custodio | No aprobado aún |
+| reporte_servicio_cliente | No aprobado aún |
