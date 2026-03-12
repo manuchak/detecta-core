@@ -127,8 +127,8 @@ export function useBitacoraBoard() {
       return (data || []) as any[];
     },
     enabled: !needsFilter || (assignedIdsQuery.isFetched),
-    refetchInterval: 30_000,
-    staleTime: 10_000,
+    refetchInterval: 15_000,
+    staleTime: 3_000,
   });
 
   /* ── Q2: Active services (En Curso / En Destino) ── */
