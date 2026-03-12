@@ -377,11 +377,12 @@ export function CSTouchpointsList({ onClienteClick, initialTab }: Props) {
                 <Select value={tpTipo} onValueChange={setTpTipo}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="llamada">Llamada</SelectItem>
+                    <SelectItem value="llamada_seguimiento">Llamada</SelectItem>
                     <SelectItem value="email">Email</SelectItem>
                     <SelectItem value="whatsapp">WhatsApp</SelectItem>
                     <SelectItem value="reunion">Reunión</SelectItem>
                     <SelectItem value="visita">Visita</SelectItem>
+                    <SelectItem value="nota_interna">Nota Interna</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
