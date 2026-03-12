@@ -43,7 +43,7 @@ import {
 export const RESTRICTED_NAVIGATION_ROLES: Record<string, string[]> = {
   'monitoring': ['monitoring'], // Solo ve Monitoreo & Soporte
   'soporte': ['monitoring'],    // Solo ve Monitoreo & Soporte
-  'customer_success': ['dashboard', 'customer-success', 'capacitacion', 'system'], // Solo ve Dashboard, CS, Capacitación, Sistema
+  'customer_success': ['dashboard', 'customer-success', 'capacitacion', 'seguridad', 'system'], // Solo ve Dashboard, CS, Capacitación, Seguridad, Sistema
 };
 
 // Navigation Groups for visual separation
