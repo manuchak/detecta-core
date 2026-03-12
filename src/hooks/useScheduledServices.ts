@@ -17,6 +17,7 @@ export interface ScheduledService {
   tipo_servicio?: string;
   custodio_nombre: string;
   custodio_id?: string;
+  custodio_telefono?: string;
   armado_nombre?: string;
   armado_id?: string;
   armado_asignado?: string;
