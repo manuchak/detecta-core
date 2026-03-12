@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { formatCurrency } from '@/utils/formatUtils';
+import { calcularFechaVencimientoReal, VencimientoResult } from '@/utils/calcularVencimiento';
 import { ClienteConServiciosPendientes } from '../../hooks/useServiciosPorFacturar';
 import { useGenerarFactura } from '../../hooks/useGenerarFactura';
 import { useClientesFiscales } from '../../hooks/useClientesFiscales';
