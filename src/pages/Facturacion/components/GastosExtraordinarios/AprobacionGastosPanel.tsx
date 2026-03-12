@@ -188,9 +188,13 @@ const AprobacionGastosPanel = () => {
                         )}
                       </div>
                     </div>
-                    {s.comprobante_url && (
-                      <div className="w-10 h-10 rounded bg-muted overflow-hidden shrink-0">
-                        <img src={s.comprobante_url} alt="" className="w-full h-full object-cover" />
+                    {parseComprobantes(s.comprobante_url).length > 0 && (
+                      <div className="flex -space-x-1.5 shrink-0">
+                        {parseComprobantes(s.comprobante_url).slice(0, 3).map((url, i) => (
+                          <div key={i} className="w-10 h-10 rounded bg-muted overflow-hidden border-2 border-background">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
