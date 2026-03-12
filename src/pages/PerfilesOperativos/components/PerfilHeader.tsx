@@ -92,10 +92,16 @@ export function PerfilHeader({ profile, tipo, isLoading }: PerfilHeaderProps) {
       case 'ocupado':
         return 'bg-amber-500/20 text-amber-700 border-amber-500/30';
       case 'no_disponible':
+      case 'temporalmente_indisponible':
         return 'bg-red-500/20 text-red-700 border-red-500/30';
       default:
         return '';
     }
+  };
+
+  const disponibilidadLabel = (d: string) => {
+    if (d === 'temporalmente_indisponible') return 'No disponible';
+    return d;
   };
 
   const armadoProfile = !isCustodio ? profile as ArmadoProfileFull : null;
