@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno } from '@/hooks/useMonitoristaAssignment';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
+import { isServiceLocked } from '@/lib/handoffLock';
 
 /**
  * Standalone OrphanGuard + BalanceGuard hook.
