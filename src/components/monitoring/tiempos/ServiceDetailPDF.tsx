@@ -650,14 +650,14 @@ export const ServiceDetailPDFButton: React.FC<ButtonProps> = ({ service, eventos
         }
       }
 
-      // Generate static map
+      // Fetch road-snapped route + generate static map
       let mapBase64: string | null = null;
       if (mapboxToken) {
-        const [mapResult] = await Promise.all([
-          generateStaticMapBase64(eventos, mapboxToken),
+        const [routeCoords] = await Promise.all([
+          fetchRouteCoordinates(eventos),
           ...photoPromises,
         ]);
-        mapBase64 = mapResult;
+        mapBase64 = await generateStaticMapBase64(eventos, mapboxToken, routeCoords);
       } else {
         await Promise.all(photoPromises);
       }
