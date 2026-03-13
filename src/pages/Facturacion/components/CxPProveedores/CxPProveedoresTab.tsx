@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,8 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Building2, DollarSign, FileCheck2, FileSpreadsheet, Eye } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Building2, DollarSign, FileCheck2, FileSpreadsheet, Eye, Calendar } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, addDays } from 'date-fns';
 import { useProveedoresArmados } from '@/hooks/useProveedoresArmados';
 import {
   useCxPProveedores,
@@ -28,6 +28,45 @@ const ESTADO_BADGE: Record<string, { variant: 'default' | 'secondary' | 'destruc
   cancelado: { variant: 'destructive', label: 'Cancelado' },
 };
 
+const FRECUENCIA_LABEL: Record<string, string> = {
+  semanal: 'Semanal',
+  quincenal: 'Quincenal',
+  mensual: 'Mensual',
+};
+
+function calcPeriod(frecuencia: string): { inicio: string; fin: string } {
+  const now = new Date();
+  if (frecuencia === 'mensual') {
+    const prev = subMonths(now, 1);
+    return {
+      inicio: format(startOfMonth(prev), 'yyyy-MM-dd'),
+      fin: format(endOfMonth(prev), 'yyyy-MM-dd'),
+    };
+  }
+  if (frecuencia === 'quincenal') {
+    const day = now.getDate();
+    if (day <= 15) {
+      // Previous month 16-end
+      const prev = subMonths(now, 1);
+      return {
+        inicio: format(new Date(prev.getFullYear(), prev.getMonth(), 16), 'yyyy-MM-dd'),
+        fin: format(endOfMonth(prev), 'yyyy-MM-dd'),
+      };
+    }
+    // Current month 1-15
+    return {
+      inicio: format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd'),
+      fin: format(new Date(now.getFullYear(), now.getMonth(), 15), 'yyyy-MM-dd'),
+    };
+  }
+  // semanal (default) — previous week Mon-Sun
+  const prevWeek = subWeeks(now, 1);
+  return {
+    inicio: format(startOfWeek(prevWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+    fin: format(endOfWeek(prevWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd'),
+  };
+}
+
 export function CxPProveedoresTab() {
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [showDialog, setShowDialog] = useState(false);
@@ -44,6 +83,23 @@ export function CxPProveedoresTab() {
   const { data: cxps = [], isLoading } = useCxPProveedores(filtroEstado);
   const createMutation = useCreateCxP();
   const updateMutation = useUpdateCxP();
+
+  const selectedProveedor = useMemo(
+    () => proveedores.find(p => p.id === form.proveedor_id),
+    [proveedores, form.proveedor_id]
+  );
+
+  const handleProveedorChange = useCallback((provId: string) => {
+    const prov = proveedores.find(p => p.id === provId);
+    const frecuencia = (prov as any)?.frecuencia_pago || 'semanal';
+    const { inicio, fin } = calcPeriod(frecuencia);
+    setForm(f => ({
+      ...f,
+      proveedor_id: provId,
+      periodo_inicio: inicio,
+      periodo_fin: fin,
+    }));
+  }, [proveedores]);
 
   const handleCreate = async () => {
     if (!form.proveedor_id || !form.periodo_inicio || !form.periodo_fin) return;
