@@ -50,7 +50,10 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
     reportadoPorNombre = incAny.firma_creacion_email;
   }
 
-  const logoBase64 = await loadImageAsBase64(detectaLogoUrl);
+  const [logoBase64, logoFullBase64] = await Promise.all([
+    loadImageAsBase64(detectaIsotipoUrl),
+    loadImageAsBase64(detectaLogoFullUrl),
+  ]);
 
   const imageCache = new Map<string, string | null>();
   await Promise.all(

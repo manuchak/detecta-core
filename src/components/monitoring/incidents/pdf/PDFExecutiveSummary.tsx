@@ -29,7 +29,8 @@ export const PDFExecutiveSummary: React.FC<Props> = ({
     <View style={{
       flexDirection: 'row',
       backgroundColor: '#FAFAFA',
-      border: '1pt solid #DCDCDC',
+      borderWidth: 1,
+      borderColor: '#DCDCDC',
       borderRadius: 3,
       padding: 8,
       marginBottom: 14,

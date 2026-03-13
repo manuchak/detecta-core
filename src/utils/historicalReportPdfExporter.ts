@@ -24,12 +24,16 @@ export const exportHistoricalReportToPDF = async (
       import('@/components/pdf/utils'),
     ]);
 
-    // Load logo
+    // Load logos (isotipo for headers, full logo for cover)
     let logoBase64: string | null = null;
+    let logoFullBase64: string | null = null;
     try {
-      logoBase64 = await loadImageAsBase64(LOGO_URL);
+      [logoBase64, logoFullBase64] = await Promise.all([
+        loadImageAsBase64(ISOTIPO_URL),
+        loadImageAsBase64(LOGO_FULL_URL),
+      ]);
     } catch {
-      console.warn('Could not load logo for PDF');
+      console.warn('Could not load logos for PDF');
     }
 
     const doc = React.createElement(HistoricalReportDocument, { config, data, logoBase64 }) as any;

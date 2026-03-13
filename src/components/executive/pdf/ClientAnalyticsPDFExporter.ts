@@ -36,10 +36,14 @@ export const exportClientAnalyticsPDF = async (
     registerPDFFonts();
 
     let logoBase64: string | null = null;
+    let logoFullBase64: string | null = null;
     try {
-      logoBase64 = await loadImageAsBase64(LOGO_URL);
+      [logoBase64, logoFullBase64] = await Promise.all([
+        loadImageAsBase64(ISOTIPO_URL),
+        loadImageAsBase64(LOGO_FULL_URL),
+      ]);
     } catch {
-      console.warn('No se pudo cargar el logo para el PDF');
+      console.warn('No se pudo cargar los logos para el PDF');
     }
 
     const doc = React.createElement(ClientAnalyticsPDFDocument, {
