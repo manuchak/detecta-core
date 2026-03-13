@@ -38,6 +38,8 @@ interface UseServiceTimesOptions {
   dateFrom: string; // YYYY-MM-DD
   dateTo: string;   // YYYY-MM-DD
   cliente?: string;
+  custodio?: string;
+  folio?: string;
 }
 
 async function fetchServiceTimes({ dateFrom, dateTo, cliente }: UseServiceTimesOptions): Promise<ServiceTimeRow[]> {
