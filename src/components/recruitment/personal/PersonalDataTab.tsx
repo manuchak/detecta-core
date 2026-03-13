@@ -147,11 +147,15 @@ export function PersonalDataTab({ candidatoId, tipoOperativo = 'custodio' }: Pro
         updatePayload.numero_motor = data.numero_motor?.trim() || null;
         updatePayload.numero_licencia = data.numero_licencia?.trim() || null;
       }
-      const { error } = await (supabase as any)
+      const { data: updated, error } = await (supabase as any)
         .from(tableName)
         .update(updatePayload)
-        .eq('id', candidatoId);
+        .eq('id', candidatoId)
+        .select('id');
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        throw new Error('No se pudo actualizar el registro. Verifica que tienes permisos.');
+      }
     },
     onSuccess: () => {
       clearDraft();
@@ -172,6 +176,8 @@ export function PersonalDataTab({ candidatoId, tipoOperativo = 'custodio' }: Pro
         if (e.path[0]) fieldErrors[String(e.path[0])] = e.message;
       });
       setErrors(fieldErrors);
+      const firstError = result.error.errors[0]?.message || 'Revisa los campos marcados';
+      toast({ title: 'Error de validación', description: firstError, variant: 'destructive' });
       return;
     }
     setErrors({});
