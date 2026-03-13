@@ -155,7 +155,8 @@ export function ProveedoresArmadosTab() {
       observaciones: proveedor.observaciones || '',
       licencias_vigentes: proveedor.licencias_vigentes ?? true,
       documentos_completos: proveedor.documentos_completos ?? true,
-      esquema_pago_id: proveedor.esquema_pago_id || null
+      esquema_pago_id: proveedor.esquema_pago_id || null,
+      frecuencia_pago: proveedor.frecuencia_pago || 'semanal',
     });
     setEditingProveedor(proveedor.id);
     setIsDialogOpen(true);
