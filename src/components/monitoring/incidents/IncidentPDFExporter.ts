@@ -4,7 +4,8 @@ import { es } from 'date-fns/locale';
 import type { IncidenteOperativo, EntradaCronologia } from '@/hooks/useIncidentesOperativos';
 import type { ServicioVinculado } from '@/hooks/useServicioLookup';
 import { loadImageAsBase64 } from '@/components/pdf';
-import detectaLogoUrl from '@/assets/detecta-logo.png';
+import detectaIsotipoUrl from '@/assets/detecta-isotipo.png';
+import detectaLogoFullUrl from '@/assets/detecta-logo-full.png';
 
 interface ExportData {
   incidente: IncidenteOperativo;
