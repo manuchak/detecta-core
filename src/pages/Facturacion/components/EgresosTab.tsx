@@ -95,6 +95,7 @@ export function EgresosTab() {
       {segment === 'oca' && <CxPOperativoTab />}
       {segment === 'pe' && <CxPProveedoresTab />}
       {segment === 'gastos' && <AprobacionGastosPanel mode="finanzas" />}
+      {segment === 'gadgets' && <GadgetsTab />}
     </div>
   );
 }
