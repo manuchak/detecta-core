@@ -571,7 +571,7 @@ async function generateStaticMapBase64(
 
   // Build path string: path-{strokeWidth}+{color}-{opacity}({lng},{lat},{lng},{lat},...)
   const pathCoords = pathPoints.map((c) => `${c[0].toFixed(5)},${c[1].toFixed(5)}`).join(',');
-  const pathStr = `path-4+3b82f6-0.8(${encodeURIComponent(pathCoords)})`;
+  const pathStr = `path-4+3b82f6-0.8(${pathCoords})`;
 
   // Calculate bounding box from ALL coordinates (route + markers)
   const allLats = [...points.map(p => p.lat!), ...pathPoints.map(c => c[1])];
