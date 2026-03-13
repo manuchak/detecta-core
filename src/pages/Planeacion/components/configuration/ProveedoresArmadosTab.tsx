@@ -572,6 +572,9 @@ export function ProveedoresArmadosTab() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="text-[10px]">
+                      {(proveedor as any).frecuencia_pago === 'mensual' ? 'Mensual' : (proveedor as any).frecuencia_pago === 'quincenal' ? 'Quincenal' : 'Semanal'}
+                    </Badge>
                     <Badge className={getStatusColor(proveedor)}>
                       {getStatusText(proveedor)}
                     </Badge>
