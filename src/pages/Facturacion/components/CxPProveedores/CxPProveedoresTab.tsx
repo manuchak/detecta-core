@@ -276,15 +276,30 @@ export function CxPProveedoresTab() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Proveedor *</Label>
-              <Select value={form.proveedor_id} onValueChange={v => setForm(f => ({ ...f, proveedor_id: v }))}>
+              <Select value={form.proveedor_id} onValueChange={handleProveedorChange}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar proveedor" /></SelectTrigger>
                 <SelectContent>
                   {proveedores.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.nombre_empresa}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nombre_empresa}
+                      <span className="ml-2 text-muted-foreground text-[10px]">
+                        ({FRECUENCIA_LABEL[(p as any).frecuencia_pago] || 'Semanal'})
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {selectedProveedor && (
+              <div className="flex items-center gap-2 p-2 bg-muted/40 rounded-md">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  Frecuencia de corte: <strong>{FRECUENCIA_LABEL[(selectedProveedor as any).frecuencia_pago] || 'Semanal'}</strong> — periodo sugerido auto-calculado.
+                </span>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Periodo Inicio *</Label>
