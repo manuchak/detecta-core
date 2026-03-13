@@ -23,6 +23,7 @@ import type { ServiceTimeRow } from '@/hooks/useServiceTimesReport';
 import type { EventoRuta, TipoEventoRuta } from '@/hooks/useEventosRuta';
 import { EVENTO_ICONS } from '@/hooks/useEventosRuta';
 import { initializeMapboxToken } from '@/lib/mapbox';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { FileDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -495,11 +496,53 @@ const ServiceTimeReportDocument: React.FC<PDFDocProps> = ({
   );
 };
 
+/* ─── Fetch road-snapped route from edge function ─── */
+
+async function fetchRouteCoordinates(eventos: EventoRuta[]): Promise<number[][] | null> {
+  const points = eventos
+    .filter(e => e.lat && e.lng)
+    .sort((a, b) => new Date(a.hora_inicio).getTime() - new Date(b.hora_inicio).getTime())
+    .map(e => [e.lng!, e.lat!] as [number, number]);
+
+  if (points.length < 2) return null;
+
+  try {
+    const { data, error } = await supabase.functions.invoke('calculate-truck-route', {
+      body: {
+        origin: points[0],
+        destination: points[points.length - 1],
+        waypoints: points.slice(1, -1),
+        alley_bias: -1,
+        exclude: ['unpaved', 'ferry'],
+      },
+    });
+
+    if (error || data?.error) return null;
+    return data?.route_geojson?.coordinates || null;
+  } catch {
+    return null;
+  }
+}
+
+/* ─── Simplify coordinates to fit URL limits ─── */
+
+function simplifyCoords(coords: number[][], maxPoints: number): number[][] {
+  if (coords.length <= maxPoints) return coords;
+  const step = coords.length / maxPoints;
+  const result: number[][] = [];
+  for (let i = 0; i < maxPoints - 1; i++) {
+    result.push(coords[Math.floor(i * step)]);
+  }
+  result.push(coords[coords.length - 1]); // always include last
+  return result;
+}
+
 /* ─── Static Map Generator ─── */
 
 async function generateStaticMapBase64(
   eventos: EventoRuta[],
-  token: string
+  token: string,
+  routeCoords?: number[][] | null
 ): Promise<string | null> {
   const points = eventos
     .filter((e) => e.lat && e.lng)
@@ -510,25 +553,33 @@ async function generateStaticMapBase64(
   // Build markers
   const markers = points
     .map((p) => {
-      // Mapbox static API pin colors (hex without #)
       const color = (EVENT_COLOR_MAP[p.tipo_evento] || '#999999').replace('#', '');
       return `pin-s+${color}(${p.lng!.toFixed(5)},${p.lat!.toFixed(5)})`;
     })
     .join(',');
 
-  // Build path from coordinates
-  const pathCoords = points.map((p) => `${p.lng!.toFixed(5)},${p.lat!.toFixed(5)}`).join(';');
-  // URL-encode the path with polyline
-  const pathStr = `path-4+EB0000-0.6(${encodeURIComponent(pathCoords)})`;
+  // Use road-snapped route coords if available, otherwise fallback to event coords
+  let pathPoints: number[][];
+  if (routeCoords && routeCoords.length >= 2) {
+    pathPoints = routeCoords;
+  } else {
+    pathPoints = points.map((p) => [p.lng!, p.lat!]);
+  }
 
-  // Calculate bounding box from coordinates for tight framing
-  const lats = points.map((p) => p.lat!);
-  const lngs = points.map((p) => p.lng!);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  // Add padding buffer (~2km) to avoid points at edges
+  // Simplify if too many points (URL limit ~8192 chars)
+  pathPoints = simplifyCoords(pathPoints, 200);
+
+  // Build path string: path-{strokeWidth}+{color}-{opacity}({lng},{lat},{lng},{lat},...)
+  const pathCoords = pathPoints.map((c) => `${c[0].toFixed(5)},${c[1].toFixed(5)}`).join(',');
+  const pathStr = `path-4+3b82f6-0.8(${encodeURIComponent(pathCoords)})`;
+
+  // Calculate bounding box from ALL coordinates (route + markers)
+  const allLats = [...points.map(p => p.lat!), ...pathPoints.map(c => c[1])];
+  const allLngs = [...points.map(p => p.lng!), ...pathPoints.map(c => c[0])];
+  const minLat = Math.min(...allLats);
+  const maxLat = Math.max(...allLats);
+  const minLng = Math.min(...allLngs);
+  const maxLng = Math.max(...allLngs);
   const latBuffer = Math.max((maxLat - minLat) * 0.15, 0.02);
   const lngBuffer = Math.max((maxLng - minLng) * 0.15, 0.02);
   const bbox = `[${(minLng - lngBuffer).toFixed(5)},${(minLat - latBuffer).toFixed(5)},${(maxLng + lngBuffer).toFixed(5)},${(maxLat + latBuffer).toFixed(5)}]`;
@@ -599,14 +650,14 @@ export const ServiceDetailPDFButton: React.FC<ButtonProps> = ({ service, eventos
         }
       }
 
-      // Generate static map
+      // Fetch road-snapped route + generate static map
       let mapBase64: string | null = null;
       if (mapboxToken) {
-        const [mapResult] = await Promise.all([
-          generateStaticMapBase64(eventos, mapboxToken),
+        const [routeCoords] = await Promise.all([
+          fetchRouteCoordinates(eventos),
           ...photoPromises,
         ]);
-        mapBase64 = mapResult;
+        mapBase64 = await generateStaticMapBase64(eventos, mapboxToken, routeCoords);
       } else {
         await Promise.all(photoPromises);
       }
