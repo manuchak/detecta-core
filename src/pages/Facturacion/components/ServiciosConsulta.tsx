@@ -198,10 +198,11 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
     setSearchTerm('');
     setEstadoFilter('all');
     setClienteFilter('all');
+    setCustodioFilter('all');
     setLocalForaneoFilter('all');
   };
 
-  const hasActiveFilters = searchTerm || estadoFilter !== 'all' || clienteFilter !== 'all' || localForaneoFilter !== 'all';
+  const hasActiveFilters = searchTerm || estadoFilter !== 'all' || clienteFilter !== 'all' || custodioFilter !== 'all' || localForaneoFilter !== 'all';
 
   const getEstadoBadgeVariant = (estado: string) => {
     switch (estado) {
