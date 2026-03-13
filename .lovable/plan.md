@@ -92,3 +92,33 @@ Todas → Fase 9
 | incidencia_servicio_cliente | Por crear |
 | nudge_status_custodio | No aprobado aún |
 | reporte_servicio_cliente | No aprobado aún |
+
+# Auditoría Proveedores Externos y P&L Gadgets
+
+## Fase 1 — Base de Datos ✅
+- ✅ Tabla `inventario_gadgets` (serial, tipo, proveedor, renta_mensual, estado)
+- ✅ Tabla `rentas_gadgets_mensuales` (mes, unidades, renta/unidad, total, factura)
+- ✅ Tabla `conciliacion_proveedor_armados` (cxp_id, archivo, mapeo, conteos, estado)
+- ✅ Tabla `conciliacion_detalle` (asignacion_id, fila_proveedor, resultado, resolución)
+- ✅ ALTER `proveedores_armados` ADD `frecuencia_pago`
+- ✅ RLS con `has_facturacion_role()` / `has_facturacion_write_role()`
+- ✅ Índices optimizados
+
+## Fase 2 — Inventario Gadgets + P&L ✅
+- ✅ Hook `useInventarioGadgets` (CRUD inventario, rentas, P&L calculation)
+- ✅ `InventarioGadgetsPanel` — tabla con filtros, CRUD dialog, KPIs
+- ✅ `RentasGadgetsPanel` — registro mensual de rentas con auto-cálculo
+- ✅ `GadgetsPnLPanel` — dashboard ingresos vs egresos con margen
+- ✅ `GadgetsTab` — segmented control integrado en EgresosTab
+- ✅ Integración en `EgresosTab` como cuarto segmento "Gadgets & P&L"
+
+## Fase 3 — Conciliación Proveedores (Pendiente)
+- Upload + parser Excel/CSV
+- Mapeo de columnas asistido
+- Motor de conciliación (match fuzzy fecha+nombre+ruta)
+- UI de resolución de discrepancias
+- Integración con flujo CxP existente
+
+## Fase 4 — Cortes Flexibles (Pendiente)
+- Adaptar generación de cortes a semanal/mensual por proveedor
+- UI de frecuencia en configuración de proveedor
