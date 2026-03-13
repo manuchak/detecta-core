@@ -52,6 +52,7 @@ interface ProveedorFormData {
   licencias_vigentes: boolean;
   documentos_completos: boolean;
   esquema_pago_id?: string | null;
+  frecuencia_pago: string;
 }
 
 const initialFormData: ProveedorFormData = {
@@ -68,7 +69,8 @@ const initialFormData: ProveedorFormData = {
   observaciones: '',
   licencias_vigentes: true,
   documentos_completos: true,
-  esquema_pago_id: null
+  esquema_pago_id: null,
+  frecuencia_pago: 'semanal',
 };
 
 export function ProveedoresArmadosTab() {
