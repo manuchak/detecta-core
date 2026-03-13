@@ -2,8 +2,9 @@ import { format } from 'date-fns';
 import React from 'react';
 import type { HistoricalReportConfig, HistoricalReportData } from '@/types/reports';
 
-/** Detecta logo URL for PDF embedding */
-const LOGO_URL = '/detecta-logo.png';
+/** Detecta logo URLs for PDF embedding */
+const ISOTIPO_URL = '/detecta-isotipo.png';
+const LOGO_FULL_URL = '/detecta-logo-full.png';
 
 /**
  * Export a Historical Report as PDF using @react-pdf/renderer.
