@@ -112,12 +112,14 @@ Todas → Fase 9
 - ✅ `GadgetsTab` — segmented control integrado en EgresosTab
 - ✅ Integración en `EgresosTab` como cuarto segmento "Gadgets & P&L"
 
-## Fase 3 — Conciliación Proveedores (Pendiente)
-- Upload + parser Excel/CSV
-- Mapeo de columnas asistido
-- Motor de conciliación (match fuzzy fecha+nombre+ruta)
-- UI de resolución de discrepancias
-- Integración con flujo CxP existente
+## Fase 3 — Conciliación Proveedores ✅
+- ✅ Upload + parser Excel/CSV (`conciliacionParserService.ts`)
+- ✅ Mapeo de columnas asistido con auto-detección
+- ✅ Motor de conciliación fuzzy (Dice coefficient: fecha 40% + nombre 40% + ruta 20%)
+- ✅ `ConciliacionDialog` — flujo 3 pasos: upload → mapeo → resultados
+- ✅ `ConciliacionDetalleSheet` — resolución línea a línea (aceptar/rechazar/ajustar)
+- ✅ Hook `useConciliacion` con CRUD completo
+- ✅ Integración en `CxPProveedoresTab` con botones "Conciliar" y "Ver detalle"
 
 ## Fase 4 — Cortes Flexibles (Pendiente)
 - Adaptar generación de cortes a semanal/mensual por proveedor
