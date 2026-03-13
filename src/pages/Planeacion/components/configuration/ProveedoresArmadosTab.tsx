@@ -356,6 +356,25 @@ export function ProveedoresArmadosTab() {
                   />
                   <Label>Disponibilidad 24/7</Label>
                 </div>
+
+                {/* Frecuencia de Pago */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="frecuencia_pago">Frecuencia de Corte</Label>
+                  <Select
+                    value={formData.frecuencia_pago}
+                    onValueChange={(v) => handleInputChange('frecuencia_pago', v)}
+                  >
+                    <SelectTrigger id="frecuencia_pago">
+                      <SelectValue placeholder="Seleccionar frecuencia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="semanal">Semanal</SelectItem>
+                      <SelectItem value="quincenal">Quincenal</SelectItem>
+                      <SelectItem value="mensual">Mensual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">Define cada cuánto se generan estados de cuenta para este proveedor.</p>
+                </div>
                 
                 {/* Esquema de Pago */}
                 <div className="space-y-3">
