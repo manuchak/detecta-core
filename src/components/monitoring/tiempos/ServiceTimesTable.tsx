@@ -56,12 +56,16 @@ export const ServiceTimesTable: React.FC<Props> = ({ onSelectService, defaultDat
   const [dateFrom, setDateFrom] = useState(weekAgo);
   const [dateTo, setDateTo] = useState(today);
   const [clienteFilter, setClienteFilter] = useState('');
+  const [custodioFilter, setCustodioFilter] = useState('');
+  const [folioFilter, setFolioFilter] = useState('');
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const { data, isLoading } = useServiceTimesReport({
     dateFrom,
     dateTo,
     cliente: clienteFilter || undefined,
+    custodio: custodioFilter || undefined,
+    folio: folioFilter || undefined,
   });
 
   const rows = data || [];
