@@ -42,7 +42,7 @@ interface UseServiceTimesOptions {
   folio?: string;
 }
 
-async function fetchServiceTimes({ dateFrom, dateTo, cliente }: UseServiceTimesOptions): Promise<ServiceTimeRow[]> {
+async function fetchServiceTimes({ dateFrom, dateTo, cliente, custodio, folio }: UseServiceTimesOptions): Promise<ServiceTimeRow[]> {
   const startUTC = `${dateFrom}T00:00:00-06:00`;
   const endUTC = `${dateTo}T23:59:59-06:00`;
 
