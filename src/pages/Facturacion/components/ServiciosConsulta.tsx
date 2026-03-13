@@ -76,6 +76,7 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
   const [searchTerm, setSearchTerm] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<string>('all');
   const [clienteFilter, setClienteFilter] = useState<string>('all');
+  const [custodioFilter, setCustodioFilter] = useState<string>('all');
   const [localForaneoFilter, setLocalForaneoFilter] = useState<string>('all');
   const [visibleGroups, setVisibleGroups] = useState<ColumnGroup[]>(['basic', 'planeacion', 'timeline', 'operativo', 'bi']);
   const [selectedServicio, setSelectedServicio] = useState<ServicioFacturacion | null>(null);
