@@ -58,6 +58,12 @@ async function fetchServiceTimes({ dateFrom, dateTo, cliente }: UseServiceTimesO
   if (cliente) {
     query = query.ilike('nombre_cliente', `%${cliente}%`);
   }
+  if (custodio) {
+    query = query.ilike('custodio_asignado', `%${custodio}%`);
+  }
+  if (folio) {
+    query = query.ilike('id_servicio', `%${folio}%`);
+  }
 
   const { data: servicios, error: e1 } = await query;
   if (e1) throw e1;
