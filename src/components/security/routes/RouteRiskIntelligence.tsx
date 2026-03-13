@@ -13,6 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import type { HighwaySegment } from '@/lib/security/highwaySegments';
 import { fetchRouteAnalysisData } from '@/hooks/security/useRouteAnalysisData';
 import { RouteAnalysisReport } from '../reports/RouteAnalysisReport';
+import { loadImageAsBase64 } from '@/components/pdf/utils';
+import { registerPDFFonts } from '@/components/pdf/fontSetup';
 
 export function RouteRiskIntelligence() {
   const [layers, setLayers] = useState<LayerVisibility>({
