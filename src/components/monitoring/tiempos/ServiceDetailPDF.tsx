@@ -23,6 +23,7 @@ import type { ServiceTimeRow } from '@/hooks/useServiceTimesReport';
 import type { EventoRuta, TipoEventoRuta } from '@/hooks/useEventosRuta';
 import { EVENTO_ICONS } from '@/hooks/useEventosRuta';
 import { initializeMapboxToken } from '@/lib/mapbox';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { FileDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
