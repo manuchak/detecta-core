@@ -78,6 +78,17 @@ export function EgresosTab() {
             </Badge>
           )}
         </button>
+        <button
+          onClick={() => setSegment('gadgets')}
+          className={cn(
+            'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
+            segment === 'gadgets'
+              ? 'bg-background shadow-sm text-foreground'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Gadgets & P&L
+        </button>
       </div>
 
       {/* Content */}
