@@ -566,16 +566,53 @@ async function generateStaticMapBase64(
     pathPoints = points.map((p) => [p.lng!, p.lat!]);
   }
 
-  // Simplify if too many points (URL limit ~8192 chars)
-  pathPoints = simplifyCoords(pathPoints, 200);
+  // Encode polyline (Google precision-5 format required by Mapbox Static API)
+  function encodePolyline(coords: number[][]): string {
+    let encoded = '';
+    let prevLat = 0;
+    let prevLng = 0;
+    for (const [lng, lat] of coords) {
+      const latE5 = Math.round(lat * 1e5);
+      const lngE5 = Math.round(lng * 1e5);
+      encoded += encodeSignedValue(latE5 - prevLat);
+      encoded += encodeSignedValue(lngE5 - prevLng);
+      prevLat = latE5;
+      prevLng = lngE5;
+    }
+    return encoded;
+  }
 
-  // Build path string: path-{strokeWidth}+{color}-{opacity}({lng},{lat},{lng},{lat},...)
-  const pathCoords = pathPoints.map((c) => `${c[0].toFixed(5)},${c[1].toFixed(5)}`).join(',');
-  const pathStr = `path-4+3b82f6-0.8(${pathCoords})`;
+  function encodeSignedValue(val: number): string {
+    let v = val < 0 ? ~(val << 1) : val << 1;
+    let encoded = '';
+    while (v >= 0x20) {
+      encoded += String.fromCharCode((0x20 | (v & 0x1f)) + 63);
+      v >>= 5;
+    }
+    encoded += String.fromCharCode(v + 63);
+    return encoded;
+  }
+
+  // Adaptively simplify to stay under URL limit
+  const targetCounts = [250, 200, 150, 100, 60];
+  let pathStr = '';
+  for (const maxPts of targetCounts) {
+    const simplified = simplifyCoords(pathPoints, maxPts);
+    const poly = encodePolyline(simplified);
+    const candidate = `path-6+3b82f6-0.95(${encodeURIComponent(poly)})`;
+    if (candidate.length < 7600 || maxPts === 60) {
+      pathStr = candidate;
+      if (maxPts !== targetCounts[0]) {
+        console.warn(`[PDF] Route simplified to ${simplified.length} pts (target ${maxPts}) for URL limit`);
+      }
+      break;
+    }
+  }
 
   // Calculate bounding box from ALL coordinates (route + markers)
-  const allLats = [...points.map(p => p.lat!), ...pathPoints.map(c => c[1])];
-  const allLngs = [...points.map(p => p.lng!), ...pathPoints.map(c => c[0])];
+  const simplifiedForBbox = simplifyCoords(pathPoints, 250);
+  const allLats = [...points.map(p => p.lat!), ...simplifiedForBbox.map(c => c[1])];
+  const allLngs = [...points.map(p => p.lng!), ...simplifiedForBbox.map(c => c[0])];
   const minLat = Math.min(...allLats);
   const maxLat = Math.max(...allLats);
   const minLng = Math.min(...allLngs);
