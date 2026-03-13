@@ -71,8 +71,13 @@ export function RouteRiskIntelligence() {
 
       // Step 3: Generate PDF
       setGenerationStep('Generando PDF...');
+      registerPDFFonts();
+      let logoBase64: string | null = null;
+      try {
+        logoBase64 = await loadImageAsBase64('/detecta-isotipo.png');
+      } catch { /* optional */ }
       const blob = await pdf(
-        <RouteAnalysisReport data={baseData} agentData={agentData} />
+        <RouteAnalysisReport data={baseData} agentData={agentData} logoBase64={logoBase64} />
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
