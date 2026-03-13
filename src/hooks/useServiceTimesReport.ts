@@ -38,9 +38,11 @@ interface UseServiceTimesOptions {
   dateFrom: string; // YYYY-MM-DD
   dateTo: string;   // YYYY-MM-DD
   cliente?: string;
+  custodio?: string;
+  folio?: string;
 }
 
-async function fetchServiceTimes({ dateFrom, dateTo, cliente }: UseServiceTimesOptions): Promise<ServiceTimeRow[]> {
+async function fetchServiceTimes({ dateFrom, dateTo, cliente, custodio, folio }: UseServiceTimesOptions): Promise<ServiceTimeRow[]> {
   const startUTC = `${dateFrom}T00:00:00-06:00`;
   const endUTC = `${dateTo}T23:59:59-06:00`;
 
@@ -55,6 +57,12 @@ async function fetchServiceTimes({ dateFrom, dateTo, cliente }: UseServiceTimesO
 
   if (cliente) {
     query = query.ilike('nombre_cliente', `%${cliente}%`);
+  }
+  if (custodio) {
+    query = query.ilike('custodio_asignado', `%${custodio}%`);
+  }
+  if (folio) {
+    query = query.ilike('id_servicio', `%${folio}%`);
   }
 
   const { data: servicios, error: e1 } = await query;
@@ -138,7 +146,7 @@ async function fetchServiceTimes({ dateFrom, dateTo, cliente }: UseServiceTimesO
 
 export function useServiceTimesReport(options: UseServiceTimesOptions) {
   return useQuery({
-    queryKey: ['service-times-report', options.dateFrom, options.dateTo, options.cliente],
+    queryKey: ['service-times-report', options.dateFrom, options.dateTo, options.cliente, options.custodio, options.folio],
     queryFn: () => fetchServiceTimes(options),
     staleTime: 2 * 60_000,
   });

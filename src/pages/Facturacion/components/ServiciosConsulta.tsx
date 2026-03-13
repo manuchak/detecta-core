@@ -76,6 +76,7 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
   const [searchTerm, setSearchTerm] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<string>('all');
   const [clienteFilter, setClienteFilter] = useState<string>('all');
+  const [custodioFilter, setCustodioFilter] = useState<string>('all');
   const [localForaneoFilter, setLocalForaneoFilter] = useState<string>('all');
   const [visibleGroups, setVisibleGroups] = useState<ColumnGroup[]>(['basic', 'planeacion', 'timeline', 'operativo', 'bi']);
   const [selectedServicio, setSelectedServicio] = useState<ServicioFacturacion | null>(null);
@@ -102,11 +103,17 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
 
       const matchesEstado = estadoFilter === 'all' || s.estado === estadoFilter;
       const matchesCliente = clienteFilter === 'all' || s.nombre_cliente === clienteFilter;
+      const matchesCustodio = custodioFilter === 'all' || s.nombre_custodio === custodioFilter;
       const matchesLocalForaneo = localForaneoFilter === 'all' || s.local_foraneo === localForaneoFilter;
 
-      return matchesSearch && matchesEstado && matchesCliente && matchesLocalForaneo;
+      return matchesSearch && matchesEstado && matchesCliente && matchesCustodio && matchesLocalForaneo;
     });
-  }, [servicios, searchTerm, estadoFilter, clienteFilter, localForaneoFilter]);
+  }, [servicios, searchTerm, estadoFilter, clienteFilter, custodioFilter, localForaneoFilter]);
+
+  const custodios = useMemo(() => {
+    const unique = [...new Set(servicios.map(s => s.nombre_custodio).filter(Boolean))];
+    return unique.sort();
+  }, [servicios]);
 
   const formatDateTime = (dateStr: string | null) => {
     if (!dateStr) return '';
@@ -191,10 +198,11 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
     setSearchTerm('');
     setEstadoFilter('all');
     setClienteFilter('all');
+    setCustodioFilter('all');
     setLocalForaneoFilter('all');
   };
 
-  const hasActiveFilters = searchTerm || estadoFilter !== 'all' || clienteFilter !== 'all' || localForaneoFilter !== 'all';
+  const hasActiveFilters = searchTerm || estadoFilter !== 'all' || clienteFilter !== 'all' || custodioFilter !== 'all' || localForaneoFilter !== 'all';
 
   const getEstadoBadgeVariant = (estado: string) => {
     switch (estado) {
@@ -330,6 +338,18 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
                 <SelectItem value="all">Todos clientes</SelectItem>
                 {clientes.slice(0, 50).map(c => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={custodioFilter} onValueChange={setCustodioFilter}>
+              <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectValue placeholder="Custodio" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos custodios</SelectItem>
+                {custodios.slice(0, 50).map(c => (
+                  <SelectItem key={c} value={c!}>{c}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

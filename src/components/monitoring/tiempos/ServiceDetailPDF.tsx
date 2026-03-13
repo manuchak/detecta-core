@@ -521,7 +521,19 @@ async function generateStaticMapBase64(
   // URL-encode the path with polyline
   const pathStr = `path-4+EB0000-0.6(${encodeURIComponent(pathCoords)})`;
 
-  const url = `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${markers},${pathStr}/auto/1000x720@2x?padding=60&access_token=${token}`;
+  // Calculate bounding box from coordinates for tight framing
+  const lats = points.map((p) => p.lat!);
+  const lngs = points.map((p) => p.lng!);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  // Add padding buffer (~2km) to avoid points at edges
+  const latBuffer = Math.max((maxLat - minLat) * 0.15, 0.02);
+  const lngBuffer = Math.max((maxLng - minLng) * 0.15, 0.02);
+  const bbox = `[${(minLng - lngBuffer).toFixed(5)},${(minLat - latBuffer).toFixed(5)},${(maxLng + lngBuffer).toFixed(5)},${(maxLat + latBuffer).toFixed(5)}]`;
+
+  const url = `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${markers},${pathStr}/${bbox}/1000x720@2x?padding=80&access_token=${token}`;
 
   try {
     const res = await fetch(url, { mode: 'cors' });
