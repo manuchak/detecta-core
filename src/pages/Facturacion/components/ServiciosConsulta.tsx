@@ -103,11 +103,17 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
 
       const matchesEstado = estadoFilter === 'all' || s.estado === estadoFilter;
       const matchesCliente = clienteFilter === 'all' || s.nombre_cliente === clienteFilter;
+      const matchesCustodio = custodioFilter === 'all' || s.nombre_custodio === custodioFilter;
       const matchesLocalForaneo = localForaneoFilter === 'all' || s.local_foraneo === localForaneoFilter;
 
-      return matchesSearch && matchesEstado && matchesCliente && matchesLocalForaneo;
+      return matchesSearch && matchesEstado && matchesCliente && matchesCustodio && matchesLocalForaneo;
     });
-  }, [servicios, searchTerm, estadoFilter, clienteFilter, localForaneoFilter]);
+  }, [servicios, searchTerm, estadoFilter, clienteFilter, custodioFilter, localForaneoFilter]);
+
+  const custodios = useMemo(() => {
+    const unique = [...new Set(servicios.map(s => s.nombre_custodio).filter(Boolean))];
+    return unique.sort();
+  }, [servicios]);
 
   const formatDateTime = (dateStr: string | null) => {
     if (!dateStr) return '';
