@@ -4,7 +4,8 @@ import { es } from 'date-fns/locale';
 import type { IncidenteOperativo, EntradaCronologia } from '@/hooks/useIncidentesOperativos';
 import type { ServicioVinculado } from '@/hooks/useServicioLookup';
 import { loadImageAsBase64 } from '@/components/pdf';
-import detectaLogoUrl from '@/assets/detecta-logo.png';
+import detectaIsotipoUrl from '@/assets/detecta-isotipo.png';
+import detectaLogoFullUrl from '@/assets/detecta-logo-full.png';
 
 interface ExportData {
   incidente: IncidenteOperativo;
@@ -49,7 +50,10 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
     reportadoPorNombre = incAny.firma_creacion_email;
   }
 
-  const logoBase64 = await loadImageAsBase64(detectaLogoUrl);
+  const [logoBase64, logoFullBase64] = await Promise.all([
+    loadImageAsBase64(detectaIsotipoUrl),
+    loadImageAsBase64(detectaLogoFullUrl),
+  ]);
 
   const imageCache = new Map<string, string | null>();
   await Promise.all(
