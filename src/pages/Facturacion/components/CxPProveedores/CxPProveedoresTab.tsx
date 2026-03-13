@@ -8,14 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Building2, DollarSign, FileCheck2 } from 'lucide-react';
+import { Plus, Building2, DollarSign, FileCheck2, FileSpreadsheet, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { useProveedoresArmados } from '@/hooks/useProveedoresArmados';
 import {
   useCxPProveedores,
   useCreateCxP,
   useUpdateCxP,
+  type CxPProveedor,
 } from '../../hooks/useCxPProveedores';
+import { ConciliacionDialog } from './ConciliacionDialog';
+import { ConciliacionDetalleSheet } from './ConciliacionDetalleSheet';
 
 const ESTADO_BADGE: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
   borrador: { variant: 'outline', label: 'Borrador' },
@@ -28,6 +31,8 @@ const ESTADO_BADGE: Record<string, { variant: 'default' | 'secondary' | 'destruc
 export function CxPProveedoresTab() {
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [showDialog, setShowDialog] = useState(false);
+  const [conciliacionCxp, setConciliacionCxp] = useState<CxPProveedor | null>(null);
+  const [detalleCxpId, setDetalleCxpId] = useState<string | null>(null);
   const [form, setForm] = useState({
     proveedor_id: '',
     periodo_inicio: '',
@@ -125,9 +130,9 @@ export function CxPProveedoresTab() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : cxps.length === 0 ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Sin estados de cuenta</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Sin estados de cuenta</TableCell></TableRow>
               ) : (
                 cxps.map(cxp => {
                   const badge = ESTADO_BADGE[cxp.estado] || ESTADO_BADGE.borrador;
@@ -156,11 +161,25 @@ export function CxPProveedoresTab() {
                         />
                       </TableCell>
                       <TableCell>
-                        {cxp.factura_proveedor ? (
-                          <Badge variant="secondary" className="text-[10px]">Registrada</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px]">Sin factura</Badge>
-                        )}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-[10px]"
+                            onClick={() => setConciliacionCxp(cxp)}
+                          >
+                            <FileSpreadsheet className="h-3 w-3 mr-1" />
+                            Conciliar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-1"
+                            onClick={() => setDetalleCxpId(cxp.id)}
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell><Badge variant={badge.variant}>{badge.label}</Badge></TableCell>
                       <TableCell>
@@ -236,6 +255,24 @@ export function CxPProveedoresTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Conciliacion Dialog */}
+      {conciliacionCxp && (
+        <ConciliacionDialog
+          open={!!conciliacionCxp}
+          onOpenChange={v => { if (!v) setConciliacionCxp(null); }}
+          cxp={conciliacionCxp}
+        />
+      )}
+
+      {/* Conciliacion Detalle Sheet */}
+      {detalleCxpId && (
+        <ConciliacionDetalleSheet
+          open={!!detalleCxpId}
+          onOpenChange={v => { if (!v) setDetalleCxpId(null); }}
+          cxpId={detalleCxpId}
+        />
+      )}
     </div>
   );
 }
