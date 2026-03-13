@@ -52,6 +52,7 @@ interface ProveedorFormData {
   licencias_vigentes: boolean;
   documentos_completos: boolean;
   esquema_pago_id?: string | null;
+  frecuencia_pago: string;
 }
 
 const initialFormData: ProveedorFormData = {
@@ -68,7 +69,8 @@ const initialFormData: ProveedorFormData = {
   observaciones: '',
   licencias_vigentes: true,
   documentos_completos: true,
-  esquema_pago_id: null
+  esquema_pago_id: null,
+  frecuencia_pago: 'semanal',
 };
 
 export function ProveedoresArmadosTab() {
@@ -155,7 +157,8 @@ export function ProveedoresArmadosTab() {
       observaciones: proveedor.observaciones || '',
       licencias_vigentes: proveedor.licencias_vigentes ?? true,
       documentos_completos: proveedor.documentos_completos ?? true,
-      esquema_pago_id: proveedor.esquema_pago_id || null
+      esquema_pago_id: proveedor.esquema_pago_id || null,
+      frecuencia_pago: proveedor.frecuencia_pago || 'semanal',
     });
     setEditingProveedor(proveedor.id);
     setIsDialogOpen(true);
@@ -355,6 +358,25 @@ export function ProveedoresArmadosTab() {
                   />
                   <Label>Disponibilidad 24/7</Label>
                 </div>
+
+                {/* Frecuencia de Pago */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="frecuencia_pago">Frecuencia de Corte</Label>
+                  <Select
+                    value={formData.frecuencia_pago}
+                    onValueChange={(v) => handleInputChange('frecuencia_pago', v)}
+                  >
+                    <SelectTrigger id="frecuencia_pago">
+                      <SelectValue placeholder="Seleccionar frecuencia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="semanal">Semanal</SelectItem>
+                      <SelectItem value="quincenal">Quincenal</SelectItem>
+                      <SelectItem value="mensual">Mensual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">Define cada cuánto se generan estados de cuenta para este proveedor.</p>
+                </div>
                 
                 {/* Esquema de Pago */}
                 <div className="space-y-3">
@@ -552,6 +574,9 @@ export function ProveedoresArmadosTab() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="text-[10px]">
+                      {(proveedor as any).frecuencia_pago === 'mensual' ? 'Mensual' : (proveedor as any).frecuencia_pago === 'quincenal' ? 'Quincenal' : 'Semanal'}
+                    </Badge>
                     <Badge className={getStatusColor(proveedor)}>
                       {getStatusText(proveedor)}
                     </Badge>

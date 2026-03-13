@@ -121,6 +121,10 @@ Todas → Fase 9
 - ✅ Hook `useConciliacion` con CRUD completo
 - ✅ Integración en `CxPProveedoresTab` con botones "Conciliar" y "Ver detalle"
 
-## Fase 4 — Cortes Flexibles (Pendiente)
-- Adaptar generación de cortes a semanal/mensual por proveedor
-- UI de frecuencia en configuración de proveedor
+## Fase 4 — Cortes Flexibles ✅
+- ✅ Campo `frecuencia_pago` (semanal/quincenal/mensual) en formulario de proveedor (`ProveedoresArmadosTab`)
+- ✅ Badge de frecuencia visible en cards de proveedor
+- ✅ Auto-cálculo de periodo en `CxPProveedoresTab`: al seleccionar proveedor, calcula periodo anterior según frecuencia
+- ✅ Semanal: Lun-Dom semana anterior | Quincenal: 1-15 o 16-fin mes anterior | Mensual: mes anterior completo
+- ✅ Periodo editable manualmente después del auto-cálculo
+- ✅ Label de frecuencia visible en dropdown de proveedores del modal de creación
