@@ -2698,6 +2698,121 @@ export type Database = {
           },
         ]
       }
+      conciliacion_detalle: {
+        Row: {
+          asignacion_id: string | null
+          conciliacion_id: string
+          created_at: string
+          diferencia: number | null
+          fila_proveedor: Json | null
+          id: string
+          monto_detecta: number | null
+          monto_final: number | null
+          monto_proveedor: number | null
+          notas_finanzas: string | null
+          resolucion: string
+          resultado: string
+        }
+        Insert: {
+          asignacion_id?: string | null
+          conciliacion_id: string
+          created_at?: string
+          diferencia?: number | null
+          fila_proveedor?: Json | null
+          id?: string
+          monto_detecta?: number | null
+          monto_final?: number | null
+          monto_proveedor?: number | null
+          notas_finanzas?: string | null
+          resolucion?: string
+          resultado?: string
+        }
+        Update: {
+          asignacion_id?: string | null
+          conciliacion_id?: string
+          created_at?: string
+          diferencia?: number | null
+          fila_proveedor?: Json | null
+          id?: string
+          monto_detecta?: number | null
+          monto_final?: number | null
+          monto_proveedor?: number | null
+          notas_finanzas?: string | null
+          resolucion?: string
+          resultado?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacion_detalle_conciliacion_id_fkey"
+            columns: ["conciliacion_id"]
+            isOneToOne: false
+            referencedRelation: "conciliacion_proveedor_armados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conciliacion_proveedor_armados: {
+        Row: {
+          archivo_nombre: string | null
+          archivo_url: string | null
+          coincidencias: number
+          columnas_mapeo: Json | null
+          created_at: string
+          created_by: string | null
+          cxp_id: string
+          discrepancias_monto: number
+          estado: string
+          id: string
+          solo_detecta: number
+          solo_proveedor: number
+          total_filas_detecta: number
+          total_filas_proveedor: number
+          updated_at: string
+        }
+        Insert: {
+          archivo_nombre?: string | null
+          archivo_url?: string | null
+          coincidencias?: number
+          columnas_mapeo?: Json | null
+          created_at?: string
+          created_by?: string | null
+          cxp_id: string
+          discrepancias_monto?: number
+          estado?: string
+          id?: string
+          solo_detecta?: number
+          solo_proveedor?: number
+          total_filas_detecta?: number
+          total_filas_proveedor?: number
+          updated_at?: string
+        }
+        Update: {
+          archivo_nombre?: string | null
+          archivo_url?: string | null
+          coincidencias?: number
+          columnas_mapeo?: Json | null
+          created_at?: string
+          created_by?: string | null
+          cxp_id?: string
+          discrepancias_monto?: number
+          estado?: string
+          id?: string
+          solo_detecta?: number
+          solo_proveedor?: number
+          total_filas_detecta?: number
+          total_filas_proveedor?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacion_proveedor_armados_cxp_id_fkey"
+            columns: ["cxp_id"]
+            isOneToOne: false
+            referencedRelation: "cxp_proveedores_armados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracion_bonos_referidos: {
         Row: {
           activo: boolean
@@ -8671,6 +8786,51 @@ export type Database = {
         }
         Relationships: []
       }
+      inventario_gadgets: {
+        Row: {
+          created_at: string
+          es_propio: boolean
+          estado: string
+          fecha_alta: string
+          fecha_baja: string | null
+          id: string
+          notas: string | null
+          proveedor_nombre: string | null
+          renta_mensual: number
+          serial: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          es_propio?: boolean
+          estado?: string
+          fecha_alta?: string
+          fecha_baja?: string | null
+          id?: string
+          notas?: string | null
+          proveedor_nombre?: string | null
+          renta_mensual?: number
+          serial: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          es_propio?: boolean
+          estado?: string
+          fecha_alta?: string
+          fecha_baja?: string | null
+          id?: string
+          notas?: string | null
+          proveedor_nombre?: string | null
+          renta_mensual?: number
+          serial?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventario_gps: {
         Row: {
           bateria_estado: number | null
@@ -14123,6 +14283,7 @@ export type Database = {
           documentos_completos: boolean | null
           email_contacto: string
           esquema_pago_id: string | null
+          frecuencia_pago: string
           id: string
           licencias_vigentes: boolean | null
           nombre_empresa: string
@@ -14152,6 +14313,7 @@ export type Database = {
           documentos_completos?: boolean | null
           email_contacto: string
           esquema_pago_id?: string | null
+          frecuencia_pago?: string
           id?: string
           licencias_vigentes?: boolean | null
           nombre_empresa: string
@@ -14181,6 +14343,7 @@ export type Database = {
           documentos_completos?: boolean | null
           email_contacto?: string
           esquema_pago_id?: string | null
+          frecuencia_pago?: string
           id?: string
           licencias_vigentes?: boolean | null
           nombre_empresa?: string
@@ -14624,6 +14787,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rentas_gadgets_mensuales: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          estado: string
+          factura_proveedor: string | null
+          fecha_pago: string | null
+          id: string
+          mes: string
+          monto_total: number
+          notas: string | null
+          proveedor: string | null
+          renta_por_unidad: number
+          total_unidades: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          factura_proveedor?: string | null
+          fecha_pago?: string | null
+          id?: string
+          mes: string
+          monto_total?: number
+          notas?: string | null
+          proveedor?: string | null
+          renta_por_unidad?: number
+          total_unidades?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          factura_proveedor?: string | null
+          fecha_pago?: string | null
+          id?: string
+          mes?: string
+          monto_total?: number
+          notas?: string | null
+          proveedor?: string | null
+          renta_por_unidad?: number
+          total_unidades?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       respuestas_analisis_riesgo: {
         Row: {
