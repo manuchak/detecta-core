@@ -146,7 +146,7 @@ async function fetchServiceTimes({ dateFrom, dateTo, cliente, custodio, folio }:
 
 export function useServiceTimesReport(options: UseServiceTimesOptions) {
   return useQuery({
-    queryKey: ['service-times-report', options.dateFrom, options.dateTo, options.cliente],
+    queryKey: ['service-times-report', options.dateFrom, options.dateTo, options.cliente, options.custodio, options.folio],
     queryFn: () => fetchServiceTimes(options),
     staleTime: 2 * 60_000,
   });

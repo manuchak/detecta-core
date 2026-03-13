@@ -283,12 +283,24 @@ export const ServiceTimesTable: React.FC<Props> = ({ onSelectService, defaultDat
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
-              placeholder="Filtrar cliente..."
-              value={clienteFilter}
-              onChange={e => setClienteFilter(e.target.value)}
-              className="pl-7 w-44 h-8 text-xs"
+              placeholder="Folio..."
+              value={folioFilter}
+              onChange={e => setFolioFilter(e.target.value)}
+              className="pl-7 w-32 h-8 text-xs"
             />
           </div>
+          <Input
+            placeholder="Cliente..."
+            value={clienteFilter}
+            onChange={e => setClienteFilter(e.target.value)}
+            className="w-36 h-8 text-xs"
+          />
+          <Input
+            placeholder="Custodio..."
+            value={custodioFilter}
+            onChange={e => setCustodioFilter(e.target.value)}
+            className="w-36 h-8 text-xs"
+          />
           <span className="text-xs text-muted-foreground ml-auto">
             {rows.length} servicios
           </span>

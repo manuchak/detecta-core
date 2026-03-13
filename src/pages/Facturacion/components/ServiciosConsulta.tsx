@@ -342,6 +342,18 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
               </SelectContent>
             </Select>
 
+            <Select value={custodioFilter} onValueChange={setCustodioFilter}>
+              <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectValue placeholder="Custodio" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos custodios</SelectItem>
+                {custodios.slice(0, 50).map(c => (
+                  <SelectItem key={c} value={c!}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={localForaneoFilter} onValueChange={setLocalForaneoFilter}>
               <SelectTrigger className="w-[100px] h-8 text-xs">
                 <SelectValue placeholder="Tipo" />
