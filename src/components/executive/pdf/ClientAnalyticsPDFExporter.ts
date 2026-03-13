@@ -3,7 +3,8 @@ import { es } from 'date-fns/locale';
 import React from 'react';
 import type { ClientDashboardMetrics, ClientTableData, ClientMetrics } from '@/hooks/useClientAnalytics';
 
-const LOGO_URL = '/detecta-logo.png';
+const ISOTIPO_URL = '/detecta-isotipo.png';
+const LOGO_FULL_URL = '/detecta-logo-full.png';
 
 export interface ClientAnalyticsPDFData {
   dateRange: { from: Date; to: Date };
