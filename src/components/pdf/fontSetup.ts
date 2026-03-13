@@ -18,6 +18,11 @@ export function registerPDFFonts() {
         fontWeight: 400,
       },
       {
+        src: 'https://fonts.gstatic.com/s/poppins/v22/pxiGyp8kv8JHgFVrJJLedw.ttf',
+        fontWeight: 400,
+        fontStyle: 'italic',
+      },
+      {
         src: 'https://fonts.gstatic.com/s/poppins/v22/pxiByp8kv8JHgFVrLEj6V1s.ttf',
         fontWeight: 600,
       },
