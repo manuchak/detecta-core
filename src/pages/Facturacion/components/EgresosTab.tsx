@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { CxPOperativoTab } from './CxPOperativo/CxPOperativoTab';
 import { CxPProveedoresTab } from './CxPProveedores/CxPProveedoresTab';
 import AprobacionGastosPanel from './GastosExtraordinarios/AprobacionGastosPanel';
+import { GadgetsTab } from './Gadgets/GadgetsTab';
 
-type Segment = 'oca' | 'pe' | 'gastos';
+type Segment = 'oca' | 'pe' | 'gastos' | 'gadgets';
 
 export function EgresosTab() {
   const [segment, setSegment] = useState<Segment>('oca');
