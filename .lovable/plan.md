@@ -1,53 +1,94 @@
+# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
+## Resumen ejecutivo
+Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
+Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-# Auditoría completa de PDFs — Logos y diseño
+## Fase Dev 1 — Modelo de datos ✅
+- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
+- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
+- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
+- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
+- ✅ Índice `idx_wm_channel_sender` para queries de cliente
+- ✅ Backfill de registros existentes
 
-## Inventario de PDFs en el proyecto
+## Fase Dev 2 — Router de contexto en webhook ✅
+- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
+- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
+- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
+- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
+- ✅ Cliente con servicio activo → visible en tab, no crea ticket
+- ✅ Cliente sin servicio → crea ticket de atención
 
-| # | PDF | Método | Logo actual | Problemas |
-|---|-----|--------|-------------|-----------|
-| 1 | **Reporte de Incidente** | `@react-pdf/renderer` | ✅ Isotipo (corregido) | Ninguno tras fix anterior |
-| 2 | **Informe Histórico** | `@react-pdf/renderer` | ✅ Isotipo headers + Logo full cover (corregido) | Ninguno tras fix anterior |
-| 3 | **Client Analytics** | `@react-pdf/renderer` | ✅ Isotipo headers + Logo full cover (corregido) | Ninguno tras fix anterior |
-| 4 | **Acta de Cambio de Turno** | `@react-pdf/renderer` | ⚠️ No carga logo — `ShiftHandoffDialog` no pasa `logoBase64` al `HandoffActaPDF` | Sin logo, sin `registerPDFFonts()`, error silencioso |
-| 5 | **Certificado LMS** (CertificadoViewer) | `@react-pdf/renderer` | ❌ Carga `/lovable-uploads/detecta-logo.png` (ruta inexistente) | Logo roto, debería usar logo full |
-| 6 | **Certificado LMS** (CertificadoPlantillaViewer) | `@react-pdf/renderer` | ❌ Carga `/lovable-uploads/detecta-logo.png` (ruta inexistente) | Logo roto, debería usar logo full |
-| 7 | **Análisis de Ruta** | `@react-pdf/renderer` | ❌ No pasa `logoBase64` al `RouteAnalysisReport` | Headers sin logo |
-| 8 | **SIERCP Psicométrico** | `jsPDF` + `html2canvas` | ❌ Sin logo corporativo | Captura HTML, sin diseño corporativo |
-| 9 | **Estado de Cuenta** | `jsPDF` manual | ❌ Sin logo corporativo | Usa Helvetica, sin marca Detecta |
+## Fase Dev 3 — Clasificación en mensajes salientes ✅
+- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
+- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
-## Cambios propuestos
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
 
-### Grupo A — PDFs con `@react-pdf/renderer` (corrección de logos)
+## Fase Dev 5 — Handoff Planeación → C4 ✅
+- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
+- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
+- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
+- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
 
-**4. ShiftHandoffDialog.tsx**
-- Importar `loadImageAsBase64` y `registerPDFFonts`
-- Cargar isotipo como base64 antes de generar
-- Pasar `logoBase64` al `HandoffActaPDF`
-- Agregar `toast.error()` en el catch
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
 
-**5-6. CertificadoViewer.tsx y CertificadoPlantillaViewer.tsx**
-- Cambiar ruta de `/lovable-uploads/detecta-logo.png` → `/detecta-logo-full.png` (el certificado es un documento de portada, usa logo completo)
+## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
+- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
+- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
+- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
+- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
+- ✅ Fire-and-forget: no bloquea el flujo principal
 
-**7. RouteRiskIntelligence.tsx**
-- Cargar isotipo base64 antes de generar PDF
-- Pasar `logoBase64` al `<RouteAnalysisReport>`
+## Fase Dev 8 — Broadcast multi-contacto ✅
+- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
+- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
+- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
+- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
+- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
 
-### Grupo B — PDFs con `jsPDF` (agregar logo y marca)
+## Fase Dev 9 — Testing E2E + Switch WhatsApp ✅
+- ✅ Tabla `app_feature_flags` con RLS (read: authenticated, write: admin/owner/coordinador)
+- ✅ Seeds: `whatsapp_planeacion` (OFF), `whatsapp_monitoreo` (OFF)
+- ✅ Realtime habilitado en `app_feature_flags`
+- ✅ Hook `useWhatsAppMode` con react-query + realtime subscription
+- ✅ Switches "WA Plan" y "WA Mon" en `CoordinatorCommandCenter` header
+- ✅ `CompactServiceCard`: botón chat condicionado a flag `whatsapp_planeacion`
+- ✅ `ServiceCommSheet`: placeholder "WhatsApp deshabilitado" cuando flag `whatsapp_monitoreo` está OFF
+- ✅ `CommScenarioSimulator` con 3 escenarios guiados (Planeación, Monitoreo, Cliente)
+- ✅ Cada escenario: pasos individuales + "Ejecutar Todo" con barra de progreso
+- ✅ Verificaciones de persistencia y comm_channel en cada escenario
 
-**8. SIERCPReportDialog.tsx**
-- Este usa `html2canvas` para capturar el reporte renderizado en pantalla — el logo depende del HTML visible, no del PDF. Sin cambios requeridos a menos que se quiera rediseñar completamente.
+## Dependencias
+```
+Fase 1 → Fase 2, Fase 3 (paralelas)
+Fase 2+3 → Fase 4, Fase 6 (paralelas)
+Fase 4 → Fase 5
+Fase 5+6 → Fase 7
+Fase 6 → Fase 8
+Todas → Fase 9
+```
 
-**9. EstadoCuentaModal.tsx**
-- Cargar isotipo como imagen y agregarlo al header del `jsPDF` con `doc.addImage()`
-- Agregar línea roja decorativa debajo del header (consistente con diseño corporativo)
-- Usar colores corporativos (`#191919`, `#EB0000`) en lugar de grises genéricos
-
-## Archivos a modificar
-
-1. `src/components/monitoring/bitacora/ShiftHandoffDialog.tsx` — cargar logo + registerPDFFonts + toast.error
-2. `src/components/lms/certificados/CertificadoViewer.tsx` — corregir ruta logo
-3. `src/components/lms/CertificadoPlantillaViewer.tsx` — corregir ruta logo
-4. `src/components/security/routes/RouteRiskIntelligence.tsx` — cargar y pasar logo
-5. `src/pages/Facturacion/components/CuentasPorCobrar/EstadoCuentaModal.tsx` — agregar logo + marca corporativa
-
+## Templates Meta pendientes
+| Template | Estado |
+|---|---|
+| posicionamiento_cliente | Por crear |
+| cierre_servicio_cliente | Por crear |
+| incidencia_servicio_cliente | Por crear |
+| nudge_status_custodio | No aprobado aún |
+| reporte_servicio_cliente | No aprobado aún |

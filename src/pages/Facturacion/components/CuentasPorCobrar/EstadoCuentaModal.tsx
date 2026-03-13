@@ -69,47 +69,84 @@ export function EstadoCuentaModal({
     return { totalCargos: cargos, totalAbonos: abonos };
   }, [data?.movimientos]);
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!cliente || !data) return;
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    
-    // Header
-    doc.setFontSize(18);
+
+    // Load logo
+    let logoImg: HTMLImageElement | null = null;
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject();
+        img.src = '/detecta-isotipo.png';
+      });
+      logoImg = img;
+    } catch { /* logo optional */ }
+
+    // Header bar
+    doc.setFillColor(25, 25, 25); // #191919
+    doc.rect(0, 0, pageWidth, 18, 'F');
+    // Red accent line
+    doc.setFillColor(235, 0, 0); // #EB0000
+    doc.rect(0, 18, pageWidth, 2, 'F');
+
+    // Logo in header
+    if (logoImg) {
+      doc.addImage(logoImg, 'PNG', 8, 3, 12, 12);
+    }
+
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('ESTADO DE CUENTA', pageWidth / 2, 20, { align: 'center' });
+    doc.setTextColor(255, 255, 255);
+    doc.text('ESTADO DE CUENTA', logoImg ? 24 : 10, 12);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(format(new Date(), 'dd/MM/yyyy'), pageWidth - 10, 12, { align: 'right' });
     
+    // Reset text color
+    doc.setTextColor(25, 25, 25);
+
     // Company info
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('Detecta Security Services', 20, 35);
-    doc.text(`Fecha de emisión: ${format(new Date(), 'dd/MM/yyyy')}`, 20, 42);
+    doc.text('Detecta Security Services', 20, 30);
+    doc.text(`Fecha de emisión: ${format(new Date(), 'dd/MM/yyyy')}`, 20, 37);
     
     // Client info
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('Cliente:', 20, 55);
+    doc.text('Cliente:', 20, 50);
     doc.setFont('helvetica', 'normal');
-    doc.text(cliente.cliente_nombre || 'Sin nombre', 50, 55);
-    doc.text(`RFC: ${cliente.cliente_rfc || 'N/A'}`, 20, 62);
-    doc.text(`Período: ${format(new Date(fechaInicio), 'dd/MM/yyyy')} - ${format(new Date(fechaFin), 'dd/MM/yyyy')}`, 20, 69);
+    doc.text(cliente.cliente_nombre || 'Sin nombre', 50, 50);
+    doc.text(`RFC: ${cliente.cliente_rfc || 'N/A'}`, 20, 57);
+    doc.text(`Período: ${format(new Date(fechaInicio), 'dd/MM/yyyy')} - ${format(new Date(fechaFin), 'dd/MM/yyyy')}`, 20, 64);
     
-    // Summary
+    // Summary box
     doc.setFillColor(245, 245, 245);
-    doc.rect(20, 78, pageWidth - 40, 20, 'F');
+    doc.rect(20, 72, pageWidth - 40, 20, 'F');
+    doc.setDrawColor(235, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(20, 72, 20, 92); // Left red accent
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('RESUMEN', 25, 87);
+    doc.setTextColor(25, 25, 25);
+    doc.text('RESUMEN', 25, 81);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Total Cargos: ${formatCurrency(totalCargos)}`, 25, 93);
-    doc.text(`Total Abonos: ${formatCurrency(totalAbonos)}`, 90, 93);
+    doc.text(`Total Cargos: ${formatCurrency(totalCargos)}`, 25, 88);
+    doc.text(`Total Abonos: ${formatCurrency(totalAbonos)}`, 90, 88);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Saldo Actual: ${formatCurrency(data.saldoFinal)}`, 155, 93);
+    doc.setTextColor(235, 0, 0);
+    doc.text(`Saldo Actual: ${formatCurrency(data.saldoFinal)}`, 155, 88);
     
     // Movements table header
-    let yPos = 110;
-    doc.setFillColor(51, 51, 51);
+    let yPos = 105;
+    doc.setFillColor(25, 25, 25); // #191919
     doc.setTextColor(255, 255, 255);
     doc.rect(20, yPos - 7, pageWidth - 40, 10, 'F');
     doc.setFontSize(9);
@@ -122,13 +159,18 @@ export function EstadoCuentaModal({
     doc.text('Saldo', 180, yPos);
     
     // Movements
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(25, 25, 25);
     doc.setFont('helvetica', 'normal');
     yPos += 10;
     
     data.movimientos.forEach((mov, index) => {
       if (yPos > 270) {
         doc.addPage();
+        // Repeat header bar on new pages
+        doc.setFillColor(25, 25, 25);
+        doc.rect(0, 0, pageWidth, 8, 'F');
+        doc.setFillColor(235, 0, 0);
+        doc.rect(0, 8, pageWidth, 1.5, 'F');
         yPos = 20;
       }
       
@@ -138,12 +180,17 @@ export function EstadoCuentaModal({
         doc.rect(20, yPos - 5, pageWidth - 40, 8, 'F');
       }
       
+      doc.setTextColor(25, 25, 25);
       doc.text(format(new Date(mov.fecha), 'dd/MM/yy'), 25, yPos);
       doc.text(mov.concepto.substring(0, 20), 50, yPos);
       doc.text(mov.referencia.substring(0, 15), 95, yPos);
+      doc.setTextColor(mov.cargo > 0 ? 235 : 25, mov.cargo > 0 ? 0 : 25, mov.cargo > 0 ? 0 : 25);
       doc.text(mov.cargo > 0 ? formatCurrency(mov.cargo) : '-', 130, yPos);
+      doc.setTextColor(25, 25, 25);
       doc.text(mov.abono > 0 ? formatCurrency(mov.abono) : '-', 155, yPos);
+      doc.setFont('helvetica', 'bold');
       doc.text(formatCurrency(mov.saldo), 180, yPos);
+      doc.setFont('helvetica', 'normal');
       
       yPos += 8;
     });
@@ -152,7 +199,7 @@ export function EstadoCuentaModal({
     doc.setFontSize(8);
     doc.setTextColor(128, 128, 128);
     doc.text(
-      `Documento generado el ${format(new Date(), 'dd/MM/yyyy HH:mm')}`,
+      `Documento generado el ${format(new Date(), 'dd/MM/yyyy HH:mm')} — Detecta Core`,
       pageWidth / 2,
       285,
       { align: 'center' }

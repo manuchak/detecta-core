@@ -21,6 +21,9 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { SignaturePad } from '@/components/custodian/checklist/SignaturePad';
 import { pdf } from '@react-pdf/renderer';
 import { HandoffActaPDF, type HandoffActaData } from './pdf/HandoffActaPDF';
+import { loadImageAsBase64 } from '@/components/pdf/utils';
+import { registerPDFFonts } from '@/components/pdf/fontSetup';
+import { toast } from 'sonner';
 
 const PRIVILEGED_ROLES = ['admin', 'owner', 'coordinador_operaciones', 'monitoring_supervisor'] as const;
 
@@ -131,6 +134,12 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
 
         // Generate and download PDF
         try {
+          registerPDFFonts();
+          let logoBase64: string | null = null;
+          try {
+            logoBase64 = await loadImageAsBase64('/detecta-isotipo.png');
+          } catch { /* logo optional */ }
+
           const actaData: HandoffActaData = {
             turnoSaliente: getCurrentTurno(),
             turnoEntrante,
@@ -144,6 +153,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
             firmaEntranteBase64: firmaEntrante || undefined,
             firmaEmail: result.userEmail || undefined,
             firmaTimestamp: new Date().toISOString(),
+            logoBase64,
           };
           const blob = await pdf(<HandoffActaPDF data={actaData} />).toBlob();
           const url = URL.createObjectURL(blob);
@@ -154,6 +164,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
           URL.revokeObjectURL(url);
         } catch (e) {
           console.error('Error generando PDF del acta:', e);
+          toast.error('Error al generar el PDF del acta');
         }
 
         // Auto-close after 3s so coordinator can see summary

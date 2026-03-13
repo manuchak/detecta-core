@@ -27,7 +27,7 @@ export const CertificadoViewer = ({ certificado, open, onClose }: CertificadoVie
 
       let logoBase64: string | null = null;
       try {
-        logoBase64 = await loadImageAsBase64('/lovable-uploads/detecta-logo.png');
+        logoBase64 = await loadImageAsBase64('/detecta-logo-full.png');
       } catch { /* optional */ }
 
       const pdfData: CertificatePDFData = {
