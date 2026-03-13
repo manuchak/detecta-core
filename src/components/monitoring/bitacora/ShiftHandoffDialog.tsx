@@ -21,6 +21,9 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { SignaturePad } from '@/components/custodian/checklist/SignaturePad';
 import { pdf } from '@react-pdf/renderer';
 import { HandoffActaPDF, type HandoffActaData } from './pdf/HandoffActaPDF';
+import { loadImageAsBase64 } from '@/components/pdf/utils';
+import { registerPDFFonts } from '@/components/pdf/fontSetup';
+import { toast } from 'sonner';
 
 const PRIVILEGED_ROLES = ['admin', 'owner', 'coordinador_operaciones', 'monitoring_supervisor'] as const;
 
