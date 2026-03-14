@@ -119,11 +119,13 @@ export function useUpdateNPSSend() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('cs_nps_sends' as any)
         .update(updates)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo actualizar el envío NPS — posible bloqueo de permisos');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cs-nps-sends'] });

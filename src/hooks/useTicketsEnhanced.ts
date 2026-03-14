@@ -393,7 +393,7 @@ export const useTicketsEnhanced = () => {
 
   const recordFirstResponse = async (ticketId: string) => {
     try {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('tickets')
         .update({ 
           primera_respuesta_at: new Date().toISOString(),
@@ -401,9 +401,11 @@ export const useTicketsEnhanced = () => {
           updated_at: new Date().toISOString()
         })
         .eq('id', ticketId)
-        .is('primera_respuesta_at', null);
+        .is('primera_respuesta_at', null)
+        .select('id');
 
       if (error) throw error;
+      // Note: updated.length === 0 is OK here (means first response was already recorded)
       await loadTickets();
     } catch (error) {
       console.error('Error recording first response:', error);

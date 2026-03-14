@@ -160,11 +160,13 @@ export function useReactivateCliente() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('pc_clientes')
         .update({ activo: true, motivo_baja: null, fecha_baja: null } as any)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo reactivar al cliente — posible bloqueo de permisos');
     },
     onSuccess: () => {
       toast.success('Cliente reactivado correctamente');
