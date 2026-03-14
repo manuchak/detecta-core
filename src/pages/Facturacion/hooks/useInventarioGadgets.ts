@@ -87,8 +87,9 @@ export function useDeleteInventarioGadget() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('inventario_gadgets').delete().eq('id', id);
+      const { data: deleted, error } = await supabase.from('inventario_gadgets').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!deleted || deleted.length === 0) throw new Error('No se pudo eliminar el gadget — posible bloqueo de permisos');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [INVENTARIO_KEY] });
