@@ -179,12 +179,16 @@ export const useStockProductos = () => {
         }
 
         const nowIso = new Date().toISOString();
-        const { error: updateSerialsError } = await supabase
+        const { data: serialsUpdated, error: updateSerialsError } = await supabase
           .from('productos_serie')
           .update({ estado: 'dado_de_baja', updated_at: nowIso })
           .in('id', seriales_salida)
-          .eq('producto_id', producto_id);
+          .eq('producto_id', producto_id)
+          .select('id');
         if (updateSerialsError) throw updateSerialsError;
+        if (!serialsUpdated || serialsUpdated.length !== seriales_salida.length) {
+          throw new Error(`Solo se actualizaron ${serialsUpdated?.length || 0} de ${seriales_salida.length} seriales — posible bloqueo de permisos`);
+        }
 
         const serialNums = serialesRows.map(s => s.numero_serie).join(', ');
         motivoFinal = motivo ? `${motivo} | Seriales de baja: ${serialNums}` : `Seriales de baja: ${serialNums}`;
