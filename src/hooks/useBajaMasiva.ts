@@ -50,7 +50,7 @@ export function useBajaMasiva() {
       const fechaInactivacion = new Date().toISOString().split('T')[0];
 
       // Batch update all operatives
-      const { error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from(tableName)
         .update({
           estado: 'inactivo',
@@ -60,7 +60,8 @@ export function useBajaMasiva() {
           fecha_reactivacion_programada: null,
           updated_at: new Date().toISOString(),
         })
-        .in('id', operativoIds);
+        .in('id', operativoIds)
+        .select('id');
 
       if (updateError) {
         console.error('Error in bulk update:', updateError);
@@ -68,7 +69,10 @@ export function useBajaMasiva() {
         return { success: false, processed: 0, failed: operativoIds.length };
       }
 
-      processed = operativoIds.length;
+      processed = updateData?.length || 0;
+      if (processed < operativoIds.length) {
+        toast.warning(`Solo ${processed} de ${operativoIds.length} operativos fueron dados de baja. Algunos pueden estar bloqueados por permisos.`);
+      }
 
       // Record history for each operative
       const historyRecords = operativoIds.map(id => ({
