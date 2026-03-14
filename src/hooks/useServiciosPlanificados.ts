@@ -8,6 +8,12 @@ import { sendPositioningNotification } from '@/lib/lifecycleAutomations';
 
 const logger = createLogger('useServiciosPlanificados');
 
+function assertRowsAffected(data: any[] | null, operation: string) {
+  if (!data || data.length === 0) {
+    throw new Error(`Operación "${operation}" bloqueada — los datos no se persistieron. Verifique permisos o contacte al administrador.`);
+  }
+}
+
 export interface ServicioPlanificadoData {
   id_servicio: string;
   id_interno_cliente?: string;
