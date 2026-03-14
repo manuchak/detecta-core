@@ -995,7 +995,7 @@ export function useServiciosPlanificados() {
     try {
       const { data: user } = await supabase.auth.getUser();
       
-      await supabase
+      const { error: logError } = await supabase
         .from('service_modification_log')
         .insert({
           service_id: serviceId,
@@ -1005,10 +1005,15 @@ export function useServiciosPlanificados() {
           modified_by: user.user?.id,
           reason: reason,
           timestamp: new Date().toISOString()
-        });
+        })
+        .select('id');
+      if (logError) {
+        console.warn('Error logging service change:', logError);
+        toast.warning('⚠️ El cambio se aplicó pero no se pudo registrar en la bitácora de auditoría.');
+      }
     } catch (error) {
       console.warn('Error logging service change:', error);
-      // Don't throw error to avoid breaking the main operation
+      toast.warning('⚠️ El cambio se aplicó pero no se pudo registrar en la bitácora de auditoría.');
     }
   };
 
