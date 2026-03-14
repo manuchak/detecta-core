@@ -94,13 +94,21 @@ export default function ConfirmationStep() {
                 custodio_id: formData.custodioId || null,
               }));
               
-              const { error: asignError } = await supabase
+              const { data: insertedArmados, error: asignError } = await supabase
                 .from('asignacion_armados')
-                .insert(asignaciones);
+                .insert(asignaciones)
+                .select('id');
               
               if (asignError) {
                 console.error('Error inserting armado assignments:', asignError);
-                // Non-blocking: service was created, just log the error
+                toast.error('Error al asignar armados al servicio', {
+                  description: 'El servicio fue creado pero los armados no se asignaron. Asígnalos manualmente.'
+                });
+              } else if (!insertedArmados || insertedArmados.length !== asignaciones.length) {
+                console.error(`RLS silent block: expected ${asignaciones.length} armados, got ${insertedArmados?.length || 0}`);
+                toast.error('No se pudieron asignar todos los armados', {
+                  description: `Solo ${insertedArmados?.length || 0} de ${asignaciones.length} armados fueron asignados. Verifica permisos.`
+                });
               }
             } catch (err) {
               console.error('Error creating armado assignments:', err);

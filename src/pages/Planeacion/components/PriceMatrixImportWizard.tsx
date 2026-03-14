@@ -198,15 +198,20 @@ export const PriceMatrixImportWizard: React.FC<PriceMatrixImportWizardProps> = (
         const batch = deduplicatedData.slice(i, i + batchSize);
         
         try {
-          const { error } = await supabase
+          const { data: upserted, error } = await supabase
             .from('matriz_precios_rutas')
             .upsert(batch, { 
               onConflict: 'cliente_nombre,destino_texto',
               ignoreDuplicates: false 
-            });
+            })
+            .select('id');
 
           if (error) throw error;
-          imported += batch.length;
+          const actualCount = upserted?.length || 0;
+          imported += actualCount;
+          if (actualCount < batch.length) {
+            console.warn(`Batch upsert: expected ${batch.length}, got ${actualCount}`);
+          }
         } catch (err) {
           console.error('Error importing batch:', err);
           errors += batch.length;

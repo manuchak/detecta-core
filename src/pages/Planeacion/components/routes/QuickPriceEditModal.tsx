@@ -66,7 +66,7 @@ export function QuickPriceEditModal({ open, onOpenChange, route, onSuccess }: Qu
     try {
       // Only update editable columns - margen_neto_calculado and porcentaje_utilidad 
       // are GENERATED ALWAYS columns calculated automatically by PostgreSQL
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('matriz_precios_rutas')
         .update({
           valor_bruto: valorBrutoNum,
@@ -74,9 +74,13 @@ export function QuickPriceEditModal({ open, onOpenChange, route, onSuccess }: Qu
           distancia_km: distanciaKmNum,
           updated_at: new Date().toISOString()
         })
-        .eq('id', route.id);
+        .eq('id', route.id)
+        .select('id');
 
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        throw new Error('No se pudo actualizar el precio — verifica permisos');
+      }
 
       // Si hay motivo, guardarlo en el historial manualmente
       // El trigger solo guarda los valores, no el motivo
