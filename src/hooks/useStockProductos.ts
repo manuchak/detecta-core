@@ -215,6 +215,9 @@ export const useStockProductos = () => {
         }
         throw updateError;
       }
+      if (!stockUpdated || stockUpdated.length === 0) {
+        throw new Error('No se pudo actualizar el stock — posible bloqueo de permisos');
+      }
 
       // Registrar movimiento en el historial
       const { error: movError } = await supabase
