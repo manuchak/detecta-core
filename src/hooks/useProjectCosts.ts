@@ -56,17 +56,18 @@ export const useProjectCosts = () => {
       const { data, error } = await supabase
         .from('project_cost_entries')
         .insert(entry)
-        .select()
+        .select('id')
         .single();
       if (error) throw error;
+      if (!data) throw new Error('No se pudo registrar la entrada — posible bloqueo de permisos (RLS)');
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-cost-entries'] });
       toast({ title: "Éxito", description: "Entrada de costo registrada" });
     },
-    onError: () => {
-      toast({ title: "Error", description: "No se pudo registrar la entrada", variant: "destructive" });
+    onError: (error) => {
+      toast({ title: "Error", description: error.message || "No se pudo registrar la entrada", variant: "destructive" });
     },
   });
 
