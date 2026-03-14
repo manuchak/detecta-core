@@ -227,12 +227,14 @@ export function useEliminarContrato() {
         }
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('contratos_candidato')
         .delete()
-        .eq('id', contratoId);
+        .eq('id', contratoId)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo eliminar el contrato — operación bloqueada por permisos');
       return { candidatoId };
     },
     onSuccess: (result) => {
