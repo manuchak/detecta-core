@@ -300,7 +300,7 @@ export function useServiceChecklist({
           firma: firmaRef.current || undefined,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        }).catch(() => {});
+        }).catch((e) => { console.warn('[Checklist] Auto-save draft failed:', e); });
 
         return newFoto;
       },
