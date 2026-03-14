@@ -1,40 +1,83 @@
 
 
-# Evaluación Post-Blindaje: ¿Se necesita otro ciclo QA?
+# Plan: Blindaje RLS del Workflow de Rutas y Precios (Upstream de Planeación)
 
-## Veredicto: No se requiere un ciclo QA completo
+## Diagnóstico
 
-Las 3 rondas de hardening cubrieron los 3 módulos críticos de escritura. Un análisis de regresión rápido es suficiente.
+El módulo de **rutas y precios** (`matriz_precios_rutas`, `pc_clientes`) alimenta todo el flujo de creación de servicios. Si una escritura aquí falla silenciosamente por RLS, el coordinador cree que la ruta/precio existe pero en realidad no se guardó — propagando datos incorrectos a servicios planificados.
 
-### Riesgo de regresión identificado: Falsos positivos en `assertRowsAffected`
+### Mutaciones sin protección identificadas
 
-En las deactivaciones (ej. `assignService` línea 206-211), el patrón actual hace `.update({ activo: false }).eq('activo', true).select('id')` pero **no aplica `assertRowsAffected` al resultado de deactivación** — solo al insert posterior. Esto es **correcto**: si no hay asignaciones previas, deactivar 0 filas es legítimo. No hay regresión aquí.
+| Archivo | Operación | Riesgo |
+|---|---|---|
+| `ConfirmationStep/index.tsx:97-99` | Insert `asignacion_armados` en onSuccess | **ALTO** — armados no se persisten, servicio queda sin armado asignado |
+| `useRouteCreation.ts:67-75` | Insert `pc_clientes` (nuevo cliente) | MEDIO — cliente no se crea, ruta falla después |
+| `RouteManagementForm.tsx:193-196` | Update `matriz_precios_rutas` | MEDIO — edición de ruta silenciosamente ignorada |
+| `RouteManagementForm.tsx:203-205` | Insert `matriz_precios_rutas` | MEDIO — ruta nueva no se crea |
+| `QuickPriceEditModal.tsx:69-77` | Update precios de ruta | MEDIO — precio editado no se guarda |
+| `DeleteRouteDialog.tsx:59-65` | Soft-delete rutas (bulk `.in()`) | MEDIO — rutas no se desactivan |
+| `BulkPriceAdjustModal.tsx:93-96` | Update masivo de precios | MEDIO — ajuste parcial silencioso |
+| `ExcelImportWizard.tsx:202-207` | Upsert batch de precios | BAJO — error ya capturado con throw |
+| `PriceMatrixImportWizard.tsx:201-204` | Upsert batch similar | BAJO — mismo patrón |
 
-El patrón es consistente en `autoDistribute`, `reassignService`, `handoffTurno` — todos toleran 0 filas en deactivación y solo validan el insert.
+**Nota**: `CreateRouteModal.tsx:373-380` y `useRouteCreation.ts:144-159` ya usan `.select().single()` — están protegidos.
 
-### Conclusión: No hay regresiones ni gaps nuevos
+## Correcciones — 7 archivos
 
-Los 3 archivos blindados (`useBitacoraBoard`, `useServiciosPlanificados`, `useMonitoristaAssignment`) usan el patrón correctamente:
-- Updates de negocio: `.select('id')` + `assertRowsAffected` (falla si RLS bloquea)
-- Deactivaciones previas: `.select('id')` solo para logging, sin assert (tolera 0 filas)
-- Inserts: `.select('id')` + assert, con tolerancia a `23505` (duplicate constraint)
+### Patrón a aplicar
 
-**No se necesita plan de trabajo adicional.**
+```typescript
+// Updates individuales
+const { data, error } = await supabase
+  .from('tabla')
+  .update({ ... })
+  .eq('id', id)
+  .select('id');
+if (error) throw error;
+if (!data || data.length === 0) {
+  throw new Error('Operación bloqueada — cambios no guardados');
+}
 
----
+// Bulk updates (soft-delete, ajuste masivo)
+const { data, error } = await supabase
+  .from('tabla')
+  .update({ ... })
+  .in('id', ids)
+  .select('id');
+if (error) throw error;
+if (!data || data.length !== ids.length) {
+  toast.warning(`Solo ${data?.length || 0} de ${ids.length} registros actualizados`);
+}
+```
 
-## ¿Necesitan los monitoristas hacer refresh?
+### Detalle por archivo
 
-**Sí, es obligatorio e inmediato.**
+1. **`ConfirmationStep/index.tsx`** — Insert `asignacion_armados`: agregar `.select('id')` y verificar. Cambiar el `console.error` a `toast.error` porque un servicio sin armados asignados es un error operativo visible.
 
-Todas las correcciones son código cliente (hooks de React compilados en el bundle JS). Un navegador con sesión activa sigue ejecutando el bundle anterior. Las protecciones RLS, el retry de eventos, y la validación post-liberación **no existen** para usuarios que no refresquen.
+2. **`useRouteCreation.ts`** — Insert `pc_clientes`: agregar `.select('id')` y verificar que se creó (ya retorna `false` en error, pero RLS block no genera `error`).
 
-### Acción recomendada
+3. **`RouteManagementForm.tsx`** — Update y Insert de rutas: agregar `.select('id')` + verificación a ambas operaciones.
 
-No hay forma de forzar un refresh remotamente. Las opciones son:
+4. **`QuickPriceEditModal.tsx`** — Update de precios: agregar `.select('id')` + verificación.
 
-1. **Comunicación directa**: Notificar a coordinadores y monitoristas que recarguen el navegador (Ctrl+Shift+R)
-2. **Implementar version-check automático** (mejora futura): Un mecanismo que compare la versión del bundle actual con la desplegada y muestre un banner "Nueva versión disponible — recargar" cuando detecte diferencia
+5. **`DeleteRouteDialog.tsx`** — Soft-delete bulk: agregar `.select('id')` + verificación parcial (warning si count no coincide).
 
-La opción 1 es inmediata y suficiente. La opción 2 es una mejora de infraestructura que se puede implementar después si se desea.
+6. **`BulkPriceAdjustModal.tsx`** — Update masivo: agregar `.select('id')` a cada update individual dentro del `Promise.all` + conteo de éxitos/fallos.
+
+7. **`ExcelImportWizard.tsx`** y **`PriceMatrixImportWizard.tsx`** — Upsert batch: agregar `.select('id')` para verificar que el batch se guardó completo. Warning si count difiere.
+
+## Archivos a modificar
+
+1. `src/pages/Planeacion/ServiceCreation/steps/ConfirmationStep/index.tsx`
+2. `src/pages/Planeacion/ServiceCreation/steps/RouteStep/hooks/useRouteCreation.ts`
+3. `src/pages/Planeacion/components/RouteManagementForm.tsx`
+4. `src/pages/Planeacion/components/routes/QuickPriceEditModal.tsx`
+5. `src/pages/Planeacion/components/routes/DeleteRouteDialog.tsx`
+6. `src/pages/Planeacion/components/routes/BulkPriceAdjustModal.tsx`
+7. `src/pages/Planeacion/components/ExcelImportWizard.tsx`
+8. `src/pages/Planeacion/components/PriceMatrixImportWizard.tsx`
+
+## Impacto
+
+Cierra el último gap de escrituras desprotegidas en el módulo de Planeación completo (upstream + downstream), llevando la cobertura RLS del módulo al 100%.
 
