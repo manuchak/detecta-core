@@ -21,7 +21,6 @@ export const useLeadsStable = (dateFrom?: string, dateTo?: string) => {
   }, [user, userRole]);
 
   const fetchLeads = useCallback(async () => {
-    // No hacer nada si no está montado o no tiene acceso
     if (!mountedRef.current || !hasAccess()) {
       console.log('🚫 Fetch cancelled - not mounted or no access');
       return;
@@ -37,7 +36,6 @@ export const useLeadsStable = (dateFrom?: string, dateTo?: string) => {
         .from('leads')
         .select('*');
       
-      // Apply date filters
       if (dateFrom) {
         query = query.gte('created_at', dateFrom);
       }
@@ -52,7 +50,6 @@ export const useLeadsStable = (dateFrom?: string, dateTo?: string) => {
       }
 
       if (mountedRef.current) {
-        // Convertir datos de la DB al tipo Lead
         const typedLeads: Lead[] = (data || []).map(lead => ({
           ...lead,
           estado: lead.estado as LeadEstado
@@ -83,17 +80,19 @@ export const useLeadsStable = (dateFrom?: string, dateTo?: string) => {
     if (!mountedRef.current) return;
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('leads')
         .update({ 
           asignado_a: analystId,
           updated_at: new Date().toISOString()
         })
-        .eq('id', leadId);
+        .eq('id', leadId)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo asignar el lead — posible bloqueo de permisos (RLS)');
 
-      await fetchLeads(); // Refrescar datos
+      await fetchLeads();
       return { success: true };
     } catch (error) {
       console.error('Error assigning lead:', error);
@@ -106,17 +105,19 @@ export const useLeadsStable = (dateFrom?: string, dateTo?: string) => {
     if (!mountedRef.current) return;
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('leads')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
         })
-        .eq('id', leadId);
+        .eq('id', leadId)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo actualizar el lead — posible bloqueo de permisos (RLS)');
 
-      await fetchLeads(); // Refrescar datos
+      await fetchLeads();
       return { success: true };
     } catch (error) {
       console.error('Error updating lead:', error);
@@ -139,18 +140,20 @@ export const useLeadsStable = (dateFrom?: string, dateTo?: string) => {
     if (!mountedRef.current) return;
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('leads')
         .insert({
           ...leadData,
           fecha_creacion: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        });
+        })
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo crear el lead — posible bloqueo de permisos (RLS)');
 
-      await fetchLeads(); // Refrescar datos
+      await fetchLeads();
       return { success: true };
     } catch (error) {
       console.error('Error creating lead:', error);
@@ -161,13 +164,12 @@ export const useLeadsStable = (dateFrom?: string, dateTo?: string) => {
   useEffect(() => {
     mountedRef.current = true;
     
-    // Esperar a que todo esté completamente montado antes de hacer queries
     if (hasAccess()) {
       fetchTimeoutRef.current = setTimeout(() => {
         if (mountedRef.current) {
           fetchLeads();
         }
-      }, 100); // Pequeño delay para asegurar que el DOM esté listo
+      }, 100);
     }
 
     return () => {

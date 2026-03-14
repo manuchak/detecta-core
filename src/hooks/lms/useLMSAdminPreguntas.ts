@@ -30,9 +30,13 @@ export const useLMSCrearPreguntas = () => {
       const { data, error } = await supabase
         .from('lms_preguntas')
         .upsert(preguntasDB, { onConflict: 'id' })
-        .select();
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudieron guardar las preguntas — posible bloqueo de permisos (RLS)');
+      if (data.length < preguntasDB.length) {
+        console.warn(`⚠️ Solo se guardaron ${data.length} de ${preguntasDB.length} preguntas`);
+      }
       return data;
     },
     onSuccess: (_, { cursoId }) => {
@@ -46,12 +50,14 @@ export const useLMSEliminarPreguntas = () => {
     mutationFn: async (ids: string[]) => {
       if (ids.length === 0) return;
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('lms_preguntas')
         .update({ activa: false })
-        .in('id', ids);
+        .in('id', ids)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudieron desactivar las preguntas — posible bloqueo de permisos (RLS)');
     }
   });
 };

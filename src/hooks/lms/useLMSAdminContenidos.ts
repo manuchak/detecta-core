@@ -72,6 +72,7 @@ export const useLMSCrearContenido = () => {
         .single();
 
       if (error) throw error;
+      if (!contenido) throw new Error('No se pudo crear el contenido — posible bloqueo de permisos (RLS)');
       return { contenido, cursoId };
     },
     onSuccess: (result, variables) => {
@@ -115,10 +116,11 @@ export const useLMSActualizarContenido = () => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!contenido) throw new Error('No se pudo actualizar el contenido — posible bloqueo de permisos (RLS)');
       return { contenido, moduloId, cursoId };
     },
     onSuccess: (result) => {
@@ -156,21 +158,27 @@ export const useLMSEliminarContenido = () => {
 
       if (progresos && progresos.length > 0) {
         // Soft delete
-        await supabase
+        const { data: updated, error } = await supabase
           .from('lms_contenidos')
           .update({ activo: false })
-          .eq('id', contenidoId);
+          .eq('id', contenidoId)
+          .select('id');
+
+        if (error) throw error;
+        if (!updated || updated.length === 0) throw new Error('No se pudo desactivar el contenido — posible bloqueo de permisos (RLS)');
 
         return { contenidoId, moduloId, cursoId, softDeleted: true };
       }
 
       // Hard delete
-      const { error } = await supabase
+      const { data: deleted, error } = await supabase
         .from('lms_contenidos')
         .delete()
-        .eq('id', contenidoId);
+        .eq('id', contenidoId)
+        .select('id');
 
       if (error) throw error;
+      if (!deleted || deleted.length === 0) throw new Error('No se pudo eliminar el contenido — posible bloqueo de permisos (RLS)');
       return { contenidoId, moduloId, cursoId, softDeleted: false };
     },
     onSuccess: (result) => {
@@ -200,9 +208,11 @@ export const useLMSReordenarContenidos = () => {
       contenidos: { id: string; orden: number }[] 
     }) => {
       const updates = contenidos.map(({ id, orden }) =>
-        supabase.from('lms_contenidos').update({ orden }).eq('id', id)
+        supabase.from('lms_contenidos').update({ orden }).eq('id', id).select('id')
       );
-      await Promise.all(updates);
+      const results = await Promise.all(updates);
+      const failed = results.filter(r => r.error || !r.data || r.data.length === 0);
+      if (failed.length > 0) throw new Error(`No se pudieron reordenar ${failed.length} contenidos — posible bloqueo de permisos (RLS)`);
       return { moduloId, cursoId };
     },
     onSuccess: (result) => {
@@ -239,15 +249,17 @@ export const useLMSMoverContenido = () => {
 
       const nuevoOrden = (maxOrden?.orden ?? 0) + 1;
 
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('lms_contenidos')
         .update({ 
           modulo_id: moduloDestinoId, 
           orden: nuevoOrden 
         })
-        .eq('id', contenidoId);
+        .eq('id', contenidoId)
+        .select('id');
 
       if (error) throw error;
+      if (!updated || updated.length === 0) throw new Error('No se pudo mover el contenido — posible bloqueo de permisos (RLS)');
       return { moduloOrigenId, moduloDestinoId, cursoId };
     },
     onSuccess: (result) => {
