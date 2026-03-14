@@ -155,7 +155,7 @@ export const useServiciosMonitoreoCompleto = () => {
           condiciones_paro_motor: data.condiciones_paro_motor?.trim() || null,
           ejecutivo_ventas_id: user.id,
           observaciones: data.observaciones?.trim() || null,
-          estado_general: 'pendiente_evaluacion' // Set initial workflow state
+          estado_general: 'pendiente_evaluacion'
         })
         .select()
         .single();
@@ -164,6 +164,7 @@ export const useServiciosMonitoreoCompleto = () => {
         console.error('Error creating service:', servicioError);
         throw new Error(`Error al crear servicio: ${servicioError.message}`);
       }
+      if (!servicio) throw new Error('No se pudo crear el servicio — posible bloqueo de permisos (RLS)');
 
       // 2. Crear configuración de sensores con validación
       if (data.configuracion_sensores) {
