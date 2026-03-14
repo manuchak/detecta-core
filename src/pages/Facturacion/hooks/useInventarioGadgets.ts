@@ -65,12 +65,14 @@ export function useUpsertInventarioGadget() {
     mutationFn: async (data: Partial<InventarioGadget> & { serial: string; tipo: string }) => {
       if (data.id) {
         const { id, created_at, updated_at, ...rest } = data;
-        const { error } = await supabase.from('inventario_gadgets').update(rest).eq('id', id);
+        const { data: updated, error } = await supabase.from('inventario_gadgets').update(rest).eq('id', id).select('id');
         if (error) throw error;
+        if (!updated || updated.length === 0) throw new Error('No se pudo actualizar el gadget — posible bloqueo de permisos');
       } else {
         const { id, created_at, updated_at, ...rest } = data;
-        const { error } = await supabase.from('inventario_gadgets').insert(rest);
+        const { data: inserted, error } = await supabase.from('inventario_gadgets').insert(rest).select('id');
         if (error) throw error;
+        if (!inserted || inserted.length === 0) throw new Error('No se pudo crear el gadget — posible bloqueo de permisos');
       }
     },
     onSuccess: () => {
