@@ -220,7 +220,7 @@ export const useStockProductos = () => {
       }
 
       // Registrar movimiento en el historial
-      const { error: movError } = await supabase
+      const { data: movInserted, error: movError } = await supabase
         .from('movimientos_inventario')
         .insert({
           producto_id,
@@ -233,9 +233,13 @@ export const useStockProductos = () => {
           referencia_id: null,
           usuario_id: user?.id,
           fecha_movimiento: new Date().toISOString()
-        });
+        })
+        .select('id');
 
       if (movError) throw movError;
+      if (!movInserted || movInserted.length === 0) {
+        throw new Error('No se pudo registrar el movimiento de inventario — posible bloqueo de permisos');
+      }
 
       // Si hay seriales para registrar (para entradas de productos serializados)
       if (seriales && seriales.length > 0 && diferencia > 0) {
