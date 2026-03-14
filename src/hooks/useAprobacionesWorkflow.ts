@@ -377,10 +377,11 @@ export const useAprobacionesWorkflow = () => {
           ...(observaciones && { observaciones: observaciones })
         })
         .eq('id', servicioId)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!data) throw new Error('No se pudo aprobar el servicio — posible bloqueo de permisos (RLS)');
 
       // Registrar el seguimiento
       await supabase
