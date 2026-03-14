@@ -38,11 +38,13 @@ export function useUpsertContacto() {
     mutationFn: async (data: Omit<ClienteContacto, 'id' | 'created_at' | 'activo'> & { id?: string }) => {
       if (data.id) {
         const { id, ...rest } = data;
-        const { error } = await supabase.from('pc_clientes_contactos').update(rest).eq('id', id);
+        const { data: updated, error } = await supabase.from('pc_clientes_contactos').update(rest).eq('id', id).select('id');
         if (error) throw error;
+        if (!updated || updated.length === 0) throw new Error('No se pudo actualizar el contacto — posible bloqueo de permisos');
       } else {
-        const { error } = await supabase.from('pc_clientes_contactos').insert(data);
+        const { data: inserted, error } = await supabase.from('pc_clientes_contactos').insert(data).select('id');
         if (error) throw error;
+        if (!inserted || inserted.length === 0) throw new Error('No se pudo crear el contacto — posible bloqueo de permisos');
       }
     },
     onSuccess: () => {
