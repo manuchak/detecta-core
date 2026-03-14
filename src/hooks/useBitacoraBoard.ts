@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import type { EventoRuta, TipoEventoRuta } from './useEventosRuta';
 import { sendCompletionNotifications } from '@/lib/lifecycleAutomations';
+import { sleep } from '@/lib/retryUtils';
 
 /* ───────── Types ───────── */
 
@@ -39,6 +40,118 @@ export interface BoardService {
 export type SpecialEventType = 'combustible' | 'baño' | 'descanso' | 'pernocta' | 'incidencia' | 'trafico';
 
 const SPECIAL_EVENT_TYPES: SpecialEventType[] = ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia', 'trafico'];
+
+/* ───────── Helpers de integridad ───────── */
+
+/**
+ * Verifica que un update/insert afectó al menos 1 fila.
+ * Previene fallos silenciosos de RLS.
+ */
+function assertRowsAffected(data: any[] | null, operationName: string): void {
+  if (!data || data.length === 0) {
+    throw new Error(`[${operationName}] Operación bloqueada por permisos o registro no encontrado. Contacta al coordinador.`);
+  }
+}
+
+/**
+ * Inserta un evento de ruta con retry automático (2 reintentos, 2s entre cada uno).
+ * Garantiza que eventos críticos de trazabilidad no se pierdan por fallos transientes.
+ */
+async function insertEventoConRetry(
+  params: {
+    servicio_id: string;
+    tipo_evento: string;
+    descripcion: string;
+    registrado_por: string | null;
+    foto_urls?: string[];
+    lat?: number | null;
+    lng?: number | null;
+    ubicacion_texto?: string | null;
+    hora_inicio?: string;
+    hora_fin?: string;
+    duracion_segundos?: number;
+  },
+  maxRetries = 2
+): Promise<void> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('servicio_eventos_ruta')
+        .insert({
+          servicio_id: params.servicio_id,
+          tipo_evento: params.tipo_evento,
+          descripcion: params.descripcion,
+          registrado_por: params.registrado_por,
+          foto_urls: params.foto_urls || [],
+          lat: params.lat || null,
+          lng: params.lng || null,
+          ubicacion_texto: params.ubicacion_texto || null,
+          ...(params.hora_inicio ? { hora_inicio: params.hora_inicio } : {}),
+          ...(params.hora_fin ? { hora_fin: params.hora_fin } : {}),
+          ...(params.duracion_segundos !== undefined ? { duracion_segundos: params.duracion_segundos } : {}),
+        })
+        .select('id');
+
+      if (error) throw error;
+      assertRowsAffected(data, `insertEvento:${params.tipo_evento}`);
+      return; // Success
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.error(`[insertEventoConRetry] Intento ${attempt + 1}/${maxRetries + 1} fallido para ${params.tipo_evento}:`, lastError.message);
+
+      if (attempt < maxRetries) {
+        await sleep(2000);
+      }
+    }
+  }
+
+  // All retries exhausted
+  console.error(`[insertEventoConRetry] CRÍTICO: Evento "${params.tipo_evento}" para servicio ${params.servicio_id} NO se pudo persistir después de ${maxRetries + 1} intentos`);
+  toast.error(`⚠️ Error crítico: No se pudo registrar evento "${params.tipo_evento}". Contacta al coordinador.`);
+  throw lastError!;
+}
+
+/**
+ * Inserta múltiples eventos de ruta con retry.
+ */
+async function insertMultipleEventosConRetry(
+  events: Array<{
+    servicio_id: string;
+    tipo_evento: string;
+    descripcion: string;
+    registrado_por: string | null;
+    foto_urls?: string[];
+  }>,
+  maxRetries = 2
+): Promise<void> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('servicio_eventos_ruta')
+        .insert(events)
+        .select('id');
+
+      if (error) throw error;
+      assertRowsAffected(data, `insertMultipleEventos`);
+      return;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.error(`[insertMultipleEventosConRetry] Intento ${attempt + 1}/${maxRetries + 1} fallido:`, lastError.message);
+
+      if (attempt < maxRetries) {
+        await sleep(2000);
+      }
+    }
+  }
+
+  console.error(`[insertMultipleEventosConRetry] CRÍTICO: Eventos no persistidos después de ${maxRetries + 1} intentos`);
+  toast.error('⚠️ Error crítico: No se pudieron registrar eventos de trazabilidad. Contacta al coordinador.');
+  throw lastError!;
+}
 
 /* ───────── Hook ───────── */
 
@@ -316,20 +429,23 @@ export function useBitacoraBoard() {
       if (!svc.hora_llegada_custodio) throw new Error('El custodio aún no ha sido marcado "En Sitio" por Planeación. No se puede iniciar.');
 
       const nowTs = new Date().toISOString();
-      const { error } = await supabase
+
+      // RLS-protected update with .select('id') verification
+      const { data: updateData, error } = await supabase
         .from('servicios_planificados')
         .update({ hora_inicio_real: nowTs } as any)
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id');
       if (error) throw error;
+      assertRowsAffected(updateData, 'iniciarServicio');
 
-      // Insert inicio_servicio event
+      // Insert inicio_servicio event with retry
       const { data: { user } } = await supabase.auth.getUser();
-      await (supabase as any).from('servicio_eventos_ruta').insert({
+      await insertEventoConRetry({
         servicio_id: svc.id_servicio,
         tipo_evento: 'inicio_servicio',
         descripcion: 'Servicio iniciado',
         registrado_por: user?.id || null,
-        foto_urls: [],
       });
     },
     onSuccess: () => {
@@ -351,17 +467,16 @@ export function useBitacoraBoard() {
       foto_urls?: string[];
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from('servicio_eventos_ruta').insert({
+      await insertEventoConRetry({
         servicio_id: params.servicioIdServicio,
         tipo_evento: 'checkpoint',
-        descripcion: params.descripcion || null,
+        descripcion: params.descripcion || '',
+        registrado_por: user?.id || null,
+        foto_urls: params.foto_urls || [],
         lat: params.lat || null,
         lng: params.lng || null,
         ubicacion_texto: params.ubicacion_texto || null,
-        foto_urls: params.foto_urls || [],
-        registrado_por: user?.id || null,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       invalidateAll();
@@ -392,14 +507,12 @@ export function useBitacoraBoard() {
       if (svc?.en_destino) throw new Error('No se pueden crear eventos después de llegar a destino');
 
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from('servicio_eventos_ruta').insert({
+      await insertEventoConRetry({
         servicio_id: params.servicioIdServicio,
         tipo_evento: params.tipo,
-        descripcion: params.descripcion || null,
-        foto_urls: [],
+        descripcion: params.descripcion || '',
         registrado_por: user?.id || null,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       invalidateAll();
@@ -420,11 +533,13 @@ export function useBitacoraBoard() {
       const nowDate = new Date();
       const dur = Math.round((nowDate.getTime() - new Date(evento.hora_inicio).getTime()) / 1000);
 
-      const { error } = await (supabase as any)
+      const { data: updateData, error } = await (supabase as any)
         .from('servicio_eventos_ruta')
         .update({ hora_fin: nowDate.toISOString(), duracion_segundos: dur })
-        .eq('id', eventoId);
+        .eq('id', eventoId)
+        .select('id');
       if (error) throw error;
+      assertRowsAffected(updateData, 'cerrarEventoEspecial');
     },
     onSuccess: () => {
       invalidateAll();
@@ -447,21 +562,22 @@ export function useBitacoraBoard() {
 
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Insert llegada_destino event
-      await (supabase as any).from('servicio_eventos_ruta').insert({
+      // Insert llegada_destino event with retry
+      await insertEventoConRetry({
         servicio_id: params.servicioIdServicio,
         tipo_evento: 'llegada_destino',
         descripcion: 'Llegada a destino',
-        foto_urls: [],
         registrado_por: user?.id || null,
       });
 
-      // Set en_destino flag
-      const { error } = await supabase
+      // Set en_destino flag with RLS verification
+      const { data: updateData, error } = await supabase
         .from('servicios_planificados')
         .update({ en_destino: true } as any)
-        .eq('id', params.serviceUUID);
+        .eq('id', params.serviceUUID)
+        .select('id');
       if (error) throw error;
+      assertRowsAffected(updateData, 'registrarLlegadaDestino');
     },
     onSuccess: () => {
       invalidateAll();
@@ -483,8 +599,8 @@ export function useBitacoraBoard() {
       const { data: { user } } = await supabase.auth.getUser();
       const nowTs = new Date().toISOString();
 
-      // Insert liberacion + fin events
-      await (supabase as any).from('servicio_eventos_ruta').insert([
+      // Insert liberacion + fin events with retry
+      await insertMultipleEventosConRetry([
         {
           servicio_id: params.servicioIdServicio,
           tipo_evento: 'liberacion_custodio',
@@ -501,22 +617,40 @@ export function useBitacoraBoard() {
         },
       ]);
 
-      // Update service to completed
-      const { error } = await supabase
+      // Update service to completed with RLS verification
+      const { data: updateData, error } = await supabase
         .from('servicios_planificados')
         .update({
           hora_fin_real: nowTs,
           estado_planeacion: 'completado',
         } as any)
-        .eq('id', params.serviceUUID);
+        .eq('id', params.serviceUUID)
+        .select('id');
       if (error) throw error;
+      assertRowsAffected(updateData, 'liberarCustodio:completar');
 
-      // Deactivate monitorista assignment to keep coordinator view in sync
+      // Deactivate monitorista assignment
       await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .update({ activo: false, fin_turno: nowTs })
         .eq('servicio_id', params.servicioIdServicio)
         .eq('activo', true);
+
+      // ── Corrección 4: Validación de integridad post-liberación ──
+      const { data: verification } = await supabase
+        .from('servicios_planificados')
+        .select('hora_fin_real, estado_planeacion')
+        .eq('id', params.serviceUUID)
+        .single();
+
+      if (!verification?.hora_fin_real || verification?.estado_planeacion !== 'completado') {
+        console.error('[liberarCustodio] INTEGRIDAD FALLIDA: Re-fetch muestra estado inconsistente', {
+          serviceUUID: params.serviceUUID,
+          hora_fin_real: verification?.hora_fin_real,
+          estado_planeacion: verification?.estado_planeacion,
+        });
+        throw new Error('Error de integridad: El servicio no se marcó como completado correctamente. Intenta nuevamente o contacta al coordinador.');
+      }
 
       return { custodioTelefono: (svc as any)?.custodio_telefono || null };
     },
@@ -548,12 +682,14 @@ export function useBitacoraBoard() {
 
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Revert en_destino flag
-      const { error } = await supabase
+      // Revert en_destino flag with RLS verification
+      const { data: updateData, error } = await supabase
         .from('servicios_planificados')
         .update({ en_destino: false } as any)
-        .eq('id', params.serviceUUID);
+        .eq('id', params.serviceUUID)
+        .select('id');
       if (error) throw error;
+      assertRowsAffected(updateData, 'revertirEnDestino');
 
       // Delete most recent llegada_destino event
       const { data: llegadaEvents } = await (supabase as any)
@@ -571,12 +707,11 @@ export function useBitacoraBoard() {
           .eq('id', llegadaEvents[0].id);
       }
 
-      // Insert audit event
-      await (supabase as any).from('servicio_eventos_ruta').insert({
+      // Insert audit event with retry
+      await insertEventoConRetry({
         servicio_id: params.servicioIdServicio,
         tipo_evento: 'checkpoint',
         descripcion: `⚠️ Reversión: Se devolvió el servicio a "En Ruta" (corrección de estado). Revertido por coordinador.`,
-        foto_urls: [],
         registrado_por: user?.id || null,
       });
     },
