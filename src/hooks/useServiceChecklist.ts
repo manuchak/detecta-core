@@ -91,7 +91,7 @@ export function useServiceChecklist({
         try {
           localStorage.removeItem(`checklist_wizard_${servicioId}`);
           sessionStorage.removeItem(`checklist_wizard_${servicioId}`);
-        } catch {}
+        } catch (e) { console.warn('[Checklist] localStorage cleanup failed:', e); }
       }
     }, [existingChecklistQuery.data?.estado, servicioId]);
 
