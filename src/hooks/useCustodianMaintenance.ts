@@ -220,9 +220,10 @@ export const useCustodianMaintenance = (rawPhone?: string, currentKm?: number) =
         notas: data.notas ? `${data.notas} (Paquete: ${data.tipos.length} servicios)` : undefined,
       }));
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('custodio_mantenimientos')
-        .insert(records);
+        .insert(records)
+        .select('id');
 
       if (error) {
         console.error('Error creating batch maintenance:', error);
@@ -232,6 +233,19 @@ export const useCustodianMaintenance = (rawPhone?: string, currentKm?: number) =
           variant: 'destructive',
         });
         return false;
+      }
+
+      if (!inserted || inserted.length === 0) {
+        toast({
+          title: 'Error',
+          description: 'Los mantenimientos no se persistieron — posible bloqueo de permisos',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      if (inserted.length < records.length) {
+        console.warn(`⚠️ Solo se guardaron ${inserted.length} de ${records.length} mantenimientos`);
       }
 
       toast({

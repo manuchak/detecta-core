@@ -555,13 +555,14 @@ export function useServiciosPlanificados() {
         .from('servicios_planificados')
         .update(updateData)
         .eq('id', id)
-        .select()
+        .select('id')
         .single();
 
       if (error) {
         console.error('Error updating service configuration:', error);
         throw new Error(`Error al actualizar configuración: ${error.message}`);
       }
+      if (!result) throw new Error('No se pudo actualizar la configuración — posible bloqueo de permisos (RLS)');
 
       console.log('🎉 Service configuration updated successfully:', result);
       return result;

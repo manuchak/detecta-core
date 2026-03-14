@@ -33,6 +33,7 @@ export const useMarcasGPS = () => {
         .single();
 
       if (error) throw error;
+      if (!data) throw new Error('No se pudo crear la marca — posible bloqueo de permisos (RLS)');
       return data;
     },
     onSuccess: () => {
@@ -45,7 +46,7 @@ export const useMarcasGPS = () => {
     onError: (error) => {
       toast({
         title: "Error",
-        description: "No se pudo crear la marca.",
+        description: error.message || "No se pudo crear la marca.",
         variant: "destructive",
       });
     }
@@ -57,10 +58,11 @@ export const useMarcasGPS = () => {
         .from('marcas_gps')
         .update(updates)
         .eq('id', id)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!data) throw new Error('No se pudo actualizar la marca — posible bloqueo de permisos (RLS)');
       return data;
     },
     onSuccess: () => {
@@ -69,10 +71,15 @@ export const useMarcasGPS = () => {
         title: "Marca actualizada",
         description: "Los cambios han sido guardados.",
       });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar la marca.",
+        variant: "destructive",
+      });
     }
   });
-
-  // Removed initializeMarcasGPS since data is now pre-loaded in database
 
   return {
     marcas,
