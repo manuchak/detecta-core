@@ -464,10 +464,11 @@ export const useAprobacionesWorkflow = () => {
           estado_general: 'programacion_instalacion'
         })
         .eq('id', servicioId)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!data) throw new Error('No se pudo programar la instalación — posible bloqueo de permisos (RLS)');
 
       // Registrar el seguimiento
       await supabase

@@ -214,7 +214,7 @@ export const useServiciosMonitoreoCompleto = () => {
 
       // 4. Crear configuración de reportes con validación
       if (data.configuracion_reportes) {
-        const { error: reportesError } = await supabase
+        const { data: reportesResult, error: reportesError } = await supabase
           .from('configuracion_reportes')
           .insert({
             servicio_id: servicio.id,
@@ -222,12 +222,14 @@ export const useServiciosMonitoreoCompleto = () => {
             limitantes_protocolos: data.configuracion_reportes.limitantes_protocolos?.trim() || null,
             medio_contacto_preferido: data.configuracion_reportes.medio_contacto_preferido,
             observaciones_adicionales: data.configuracion_reportes.observaciones_adicionales?.trim() || null
-          });
+          })
+          .select('id');
 
         if (reportesError) {
           console.error('Error creating reports config:', reportesError);
           throw new Error(`Error en configuración de reportes: ${reportesError.message}`);
         }
+        if (!reportesResult || reportesResult.length === 0) throw new Error('No se pudo crear la configuración de reportes — posible bloqueo de permisos (RLS)');
       }
 
       return servicio;

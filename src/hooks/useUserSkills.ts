@@ -117,7 +117,7 @@ export const useUserSkills = (userId?: string) => {
         console.log(`Revoking skill ${skill} from user ${userId}`);
         
         // Deactivate the skill instead of deleting it
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('user_skills')
           .update({ 
             is_active: false,
@@ -125,10 +125,14 @@ export const useUserSkills = (userId?: string) => {
           })
           .eq('user_id', userId)
           .eq('skill', skill)
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .select('id');
 
         if (error) {
           throw new Error(`Error al revocar skill: ${error.message}`);
+        }
+        if (!data || data.length === 0) {
+          throw new Error('No se pudo revocar el skill — posible bloqueo de permisos (RLS)');
         }
 
         return { userId, skill };

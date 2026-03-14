@@ -113,10 +113,11 @@ export function useUpdateInterview() {
         .from('entrevistas_estructuradas')
         .update(data)
         .eq('id', id)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!interview) throw new Error('No se pudo actualizar la entrevista — posible bloqueo de permisos (RLS)');
       return interview;
     },
     onSuccess: () => {
