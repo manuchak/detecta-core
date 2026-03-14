@@ -86,7 +86,7 @@ export function useServiceChecklist({
     // Limpiar drafts automáticamente si el checklist ya está completo en Supabase
     useEffect(() => {
       if (existingChecklistQuery.data?.estado === 'completo') {
-        clearServiceData(servicioId).catch(() => {});
+        clearServiceData(servicioId).catch((e) => { console.warn('[Checklist] clearServiceData failed:', e); });
         // También limpiar localStorage del wizard
         try {
           localStorage.removeItem(`checklist_wizard_${servicioId}`);
