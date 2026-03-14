@@ -363,7 +363,14 @@ export function useCreateCxPCorte() {
           servicio_custodia_id: d.servicio_custodia_id,
           referencia_id: d.referencia_id,
         }));
-        await supabase.from('cxp_cortes_detalle').insert(lines);
+        const { data: detInserted, error: detError } = await supabase
+          .from('cxp_cortes_detalle')
+          .insert(lines)
+          .select('id');
+        if (detError) throw detError;
+        if (!detInserted || detInserted.length !== lines.length) {
+          console.warn(`[CxP Corte] Solo ${detInserted?.length || 0}/${lines.length} detalles insertados`);
+        }
       }
 
       return corte;
