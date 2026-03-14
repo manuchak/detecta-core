@@ -88,10 +88,10 @@ export function useUpdateCSCapa() {
         .from('cs_capa')
         .update(updates)
         .eq('id', id)
-        .select()
-        .single();
+        .select('id');
       if (error) throw error;
-      return data;
+      if (!data || data.length === 0) throw new Error('No se pudo actualizar el CAPA — posible bloqueo de permisos');
+      return data[0];
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cs-capas'] });

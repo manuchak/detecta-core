@@ -352,12 +352,14 @@ export const useTicketsEnhanced = () => {
         updateData.resuelto_at = new Date().toISOString();
       }
 
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('tickets')
         .update(updateData)
-        .eq('id', ticketId);
+        .eq('id', ticketId)
+        .select('id');
 
       if (error) throw error;
+      if (!updated || updated.length === 0) throw new Error('No se pudo actualizar el ticket — posible bloqueo de permisos');
 
       toast.success('Estado del ticket actualizado');
       await loadTickets();
@@ -369,15 +371,17 @@ export const useTicketsEnhanced = () => {
 
   const assignTicket = async (ticketId: string, userId: string | null) => {
     try {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('tickets')
         .update({ 
           assigned_to: userId,
           updated_at: new Date().toISOString()
         })
-        .eq('id', ticketId);
+        .eq('id', ticketId)
+        .select('id');
 
       if (error) throw error;
+      if (!updated || updated.length === 0) throw new Error('No se pudo asignar el ticket — posible bloqueo de permisos');
 
       toast.success('Ticket asignado correctamente');
       await loadTickets();
@@ -389,7 +393,7 @@ export const useTicketsEnhanced = () => {
 
   const recordFirstResponse = async (ticketId: string) => {
     try {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('tickets')
         .update({ 
           primera_respuesta_at: new Date().toISOString(),
@@ -397,9 +401,11 @@ export const useTicketsEnhanced = () => {
           updated_at: new Date().toISOString()
         })
         .eq('id', ticketId)
-        .is('primera_respuesta_at', null);
+        .is('primera_respuesta_at', null)
+        .select('id');
 
       if (error) throw error;
+      // Note: updated.length === 0 is OK here (means first response was already recorded)
       await loadTickets();
     } catch (error) {
       console.error('Error recording first response:', error);

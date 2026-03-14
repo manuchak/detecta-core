@@ -48,10 +48,12 @@ export function useCreateCSAT() {
   return useMutation({
     mutationFn: async (input: CSATInsert) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('cs_csat_surveys' as any)
-        .insert({ ...input, created_by: user?.id });
+        .insert({ ...input, created_by: user?.id })
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo registrar la encuesta CSAT — posible bloqueo de permisos');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cs-csat-surveys'] });

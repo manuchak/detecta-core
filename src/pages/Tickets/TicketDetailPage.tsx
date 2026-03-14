@@ -195,7 +195,7 @@ export const TicketDetailPage = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('ticket_respuestas')
         .insert({
           ticket_id: ticket.id,
@@ -204,9 +204,11 @@ export const TicketDetailPage = () => {
           autor_id: user?.id,
           autor_nombre: user?.email?.split('@')[0] || 'Agente',
           es_interno: isInternal
-        });
+        })
+        .select('id');
 
       if (error) throw error;
+      if (!inserted || inserted.length === 0) throw new Error('No se pudo enviar la respuesta — posible bloqueo de permisos');
       
       if (!ticket.primera_respuesta_at && !isInternal) {
         await recordFirstResponse(ticket.id);

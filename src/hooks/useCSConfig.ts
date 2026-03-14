@@ -87,13 +87,15 @@ export function useCSConfig<T>(categoria: 'health_score' | 'loyalty_funnel' | 'n
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id;
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('cs_config' as any)
         .upsert(
           { categoria, config, updated_by: userId } as any,
           { onConflict: 'categoria' }
-        );
+        )
+        .select('categoria');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Configuración no guardada — posible bloqueo de permisos');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cs-config', categoria] });

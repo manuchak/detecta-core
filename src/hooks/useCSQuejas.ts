@@ -126,10 +126,10 @@ export function useUpdateCSQueja() {
         .from('cs_quejas')
         .update(updates)
         .eq('id', id)
-        .select()
-        .single();
+        .select('id');
       if (error) throw error;
-      return data;
+      if (!data || data.length === 0) throw new Error('No se pudo actualizar la queja — posible bloqueo de permisos');
+      return data[0];
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cs-quejas'] });

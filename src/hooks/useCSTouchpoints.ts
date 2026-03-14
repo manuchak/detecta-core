@@ -99,11 +99,13 @@ export function useCompleteTouchpoint() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('cs_touchpoints')
         .update({ estado: 'completado' } as any)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo completar el touchpoint — posible bloqueo de permisos');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cs-touchpoints'] });
@@ -118,11 +120,13 @@ export function useRescheduleTouchpoint() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, fecha }: { id: string; fecha: string }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('cs_touchpoints')
         .update({ fecha_siguiente_accion: fecha, estado: 'pendiente' } as any)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo reprogramar el touchpoint — posible bloqueo de permisos');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cs-touchpoints'] });
