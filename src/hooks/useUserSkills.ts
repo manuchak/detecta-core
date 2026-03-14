@@ -80,12 +80,13 @@ export const useUserSkills = (userId?: string) => {
             granted_by: user?.id,
             is_active: true
           })
-          .select()
+          .select('id')
           .single();
 
         if (error) {
           throw new Error(`Error al otorgar skill: ${error.message}`);
         }
+        if (!data) throw new Error('No se pudo otorgar el skill — posible bloqueo de permisos (RLS)');
 
         return data;
       } catch (err) {
