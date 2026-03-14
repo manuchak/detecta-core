@@ -133,10 +133,11 @@ export const useOrdenesCompra = () => {
         .from('ordenes_compra')
         .update(updates)
         .eq('id', id)
-        .select()
-        .single();
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo actualizar la orden — posible bloqueo de permisos');
+      return data[0];
       return data;
     },
     onSuccess: () => {
