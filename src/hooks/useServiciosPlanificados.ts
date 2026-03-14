@@ -451,7 +451,7 @@ export function useServiciosPlanificados() {
       });
 
       // Update scalar fields (legacy compat) + state
-      const { error } = await supabase
+      const { data: updateData, error } = await supabase
         .from('servicios_planificados')
         .update({
           armado_asignado: armadoName,
@@ -459,9 +459,11 @@ export function useServiciosPlanificados() {
           fecha_asignacion_armado: new Date().toISOString(),
           estado_planeacion: newState
         })
-        .eq('id', currentService.id);
+        .eq('id', currentService.id)
+        .select('id');
 
       if (error) throw error;
+      assertRowsAffected(updateData, 'assignArmedGuard.updateService');
     },
     onSuccess: () => {
       toast.success('Armado asignado exitosamente');
