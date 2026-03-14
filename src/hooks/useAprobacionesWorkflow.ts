@@ -285,13 +285,14 @@ export const useAprobacionesWorkflow = () => {
       const { data: result, error } = await supabase
         .from('analisis_riesgo_seguridad')
         .insert([analisisData])
-        .select()
+        .select('id')
         .single();
 
       if (error) {
         console.error('Error al insertar análisis de riesgo:', error);
         throw error;
       }
+      if (!result) throw new Error('No se pudo crear el análisis de riesgo — posible bloqueo de permisos (RLS)');
 
       console.log('Análisis de riesgo creado:', result);
 
