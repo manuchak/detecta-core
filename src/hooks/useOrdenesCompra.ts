@@ -155,15 +155,17 @@ export const useOrdenesCompra = () => {
       detallesRecepcion: any[] 
     }) => {
       // Actualizar estado de la orden
-      const { error: ordenError } = await supabase
+      const { data: updated, error: ordenError } = await supabase
         .from('ordenes_compra')
         .update({ 
           estado: 'recibida_completa',
           fecha_entrega_real: new Date().toISOString().split('T')[0]
         })
-        .eq('id', ordenId);
+        .eq('id', ordenId)
+        .select('id');
 
       if (ordenError) throw ordenError;
+      if (!updated || updated.length === 0) throw new Error('No se pudo actualizar estado de la orden — posible bloqueo de permisos');
       return { ordenId };
     },
     onSuccess: () => {

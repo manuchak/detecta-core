@@ -253,13 +253,17 @@ export const useStockProductos = () => {
           // orden_compra_id se puede agregar después si es necesario
         }));
 
-        const { error: serialesError } = await supabase
+        const { data: serialesInserted, error: serialesError } = await supabase
           .from('productos_serie')
-          .insert(serialesParaInsertar);
+          .insert(serialesParaInsertar)
+          .select('id');
 
         if (serialesError) {
           console.error('Error inserting serials:', serialesError);
           throw new Error(`Error al registrar números de serie: ${serialesError.message}`);
+        }
+        if (!serialesInserted || serialesInserted.length !== serialesParaInsertar.length) {
+          console.warn(`[Stock] Solo ${serialesInserted?.length || 0}/${serialesParaInsertar.length} seriales insertados`);
         }
       }
 

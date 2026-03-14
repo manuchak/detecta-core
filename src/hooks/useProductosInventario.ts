@@ -85,11 +85,11 @@ export const useProductosInventario = () => {
         .from('productos_inventario')
         .update(updates)
         .eq('id', id)
-        .select()
-        .single();
+        .select('id');
 
       if (error) throw error;
-      return data;
+      if (!data || data.length === 0) throw new Error('No se pudo actualizar el producto — posible bloqueo de permisos');
+      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['productos-inventario'] });

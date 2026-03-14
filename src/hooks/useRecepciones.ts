@@ -163,11 +163,11 @@ export const useRecepciones = () => {
           recibido_por: user?.id
         })
         .eq('id', recepcionId)
-        .select()
-        .single();
+        .select('id');
 
       if (error) throw error;
-      return data;
+      if (!data || data.length === 0) throw new Error('No se pudo completar la recepción — posible bloqueo de permisos');
+      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recepciones'] });

@@ -78,11 +78,11 @@ export const useProveedores = () => {
         .from('proveedores')
         .update(updates)
         .eq('id', id)
-        .select()
-        .single();
+        .select('id');
 
       if (error) throw error;
-      return data;
+      if (!data || data.length === 0) throw new Error('No se pudo actualizar el proveedor — posible bloqueo de permisos');
+      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proveedores'] });
@@ -95,12 +95,14 @@ export const useProveedores = () => {
 
   const deleteProveedor = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('proveedores')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo eliminar el proveedor — posible bloqueo de permisos');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proveedores'] });
