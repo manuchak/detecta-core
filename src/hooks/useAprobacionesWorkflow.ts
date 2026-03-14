@@ -176,15 +176,17 @@ export const useAprobacionesWorkflow = () => {
       }
 
       // Actualizar el estado del servicio
-      const { error: updateError } = await supabase
+      const { data: updatedSvc, error: updateError } = await supabase
         .from('servicios_monitoreo')
         .update({ estado_general: nuevoEstado })
-        .eq('id', data.servicio_id);
+        .eq('id', data.servicio_id)
+        .select('id');
 
       if (updateError) {
         console.error('Error al actualizar estado del servicio:', updateError);
         throw updateError;
       }
+      if (!updatedSvc || updatedSvc.length === 0) throw new Error('No se pudo actualizar el estado del servicio — posible bloqueo de permisos (RLS)');
 
       console.log('Aprobación creada exitosamente:', aprobacion);
       
