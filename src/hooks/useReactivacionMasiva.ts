@@ -63,31 +63,43 @@ export function useReactivacionMasiva() {
 
       // Update custodios
       if (custodios.length > 0) {
-        const { error } = await supabase
+        const { data: custData, error } = await supabase
           .from('custodios_operativos')
           .update(updateData)
-          .in('id', custodios.map(c => c.id));
+          .in('id', custodios.map(c => c.id))
+          .select('id');
 
         if (error) {
           console.error('Error reactivating custodios:', error);
           failed += custodios.length;
         } else {
-          processed += custodios.length;
+          const actualCount = custData?.length || 0;
+          processed += actualCount;
+          if (actualCount < custodios.length) {
+            failed += custodios.length - actualCount;
+            console.warn(`[RLS] Solo ${actualCount}/${custodios.length} custodios reactivados`);
+          }
         }
       }
 
       // Update armados
       if (armados.length > 0) {
-        const { error } = await supabase
+        const { data: armData, error } = await supabase
           .from('armados_operativos')
           .update(updateData)
-          .in('id', armados.map(a => a.id));
+          .in('id', armados.map(a => a.id))
+          .select('id');
 
         if (error) {
           console.error('Error reactivating armados:', error);
           failed += armados.length;
         } else {
-          processed += armados.length;
+          const actualCount = armData?.length || 0;
+          processed += actualCount;
+          if (actualCount < armados.length) {
+            failed += armados.length - actualCount;
+            console.warn(`[RLS] Solo ${actualCount}/${armados.length} armados reactivados`);
+          }
         }
       }
 
