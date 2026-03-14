@@ -86,12 +86,12 @@ export function useServiceChecklist({
     // Limpiar drafts automáticamente si el checklist ya está completo en Supabase
     useEffect(() => {
       if (existingChecklistQuery.data?.estado === 'completo') {
-        clearServiceData(servicioId).catch(() => {});
+        clearServiceData(servicioId).catch((e) => { console.warn('[Checklist] clearServiceData failed:', e); });
         // También limpiar localStorage del wizard
         try {
           localStorage.removeItem(`checklist_wizard_${servicioId}`);
           sessionStorage.removeItem(`checklist_wizard_${servicioId}`);
-        } catch {}
+        } catch (e) { console.warn('[Checklist] localStorage cleanup failed:', e); }
       }
     }, [existingChecklistQuery.data?.estado, servicioId]);
 
@@ -300,7 +300,7 @@ export function useServiceChecklist({
           firma: firmaRef.current || undefined,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        }).catch(() => {});
+        }).catch((e) => { console.warn('[Checklist] Auto-save draft failed:', e); });
 
         return newFoto;
       },

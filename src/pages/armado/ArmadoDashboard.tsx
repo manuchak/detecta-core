@@ -56,7 +56,7 @@ const ArmadoDashboard = () => {
     setRefreshing(true);
     try {
       await Promise.all([refetchProfile?.(), refetchServices?.()]);
-    } catch {}
+    } catch (e) { console.warn('[ArmadoDashboard] Refresh failed:', e); }
     setRefreshing(false);
   };
 
