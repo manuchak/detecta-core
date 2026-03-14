@@ -184,17 +184,21 @@ export function useProveedoresPagos(proveedorId?: string, startDate?: Date, endD
       }
 
       // 2. Update assignment status
-      const { error: updateError } = await supabase
+      const { data: updatedAssig, error: updateError } = await supabase
         .from('asignacion_armados')
         .update({
           estado_pago: 'pagado',
           fecha_ultima_actualizacion_pago: new Date().toISOString(),
         })
-        .eq('id', pagoData.asignacion_id);
+        .eq('id', pagoData.asignacion_id)
+        .select('id');
 
       if (updateError) {
         console.error('Error updating assignment:', updateError);
         throw updateError;
+      }
+      if (!updatedAssig || updatedAssig.length === 0) {
+        throw new Error('No se pudo actualizar estado de pago en asignación — posible bloqueo de permisos');
       }
 
       toast.success('Pago registrado exitosamente');
