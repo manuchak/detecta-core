@@ -1041,14 +1041,24 @@ export function useServiciosPlanificados() {
         .single();
       if (fetchErr) throw fetchErr;
 
-      const { error } = await supabase
+      const { data: opData, error } = await supabase
         .from('servicios_planificados')
         .update(updateData)
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id, hora_llegada_custodio');
       
       if (error) {
         logger.error('updateOperationalStatus', 'Failed to update', error);
         throw error;
+      }
+      assertRowsAffected(opData, 'updateOperationalStatus');
+
+      // Post-verify: confirm persistence for the critical bridge
+      if (action === 'mark_on_site') {
+        const persisted = opData?.[0] as any;
+        if (!persisted?.hora_llegada_custodio) {
+          throw new Error('Verificación post-escritura falló: hora_llegada_custodio no persistió. El servicio NO fue transferido a Monitoreo.');
+        }
       }
       
       logger.operation('updateOperationalStatus', 'success', { serviceId, action });
