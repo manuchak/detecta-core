@@ -95,11 +95,15 @@ export function useGenerateNPSCampaign() {
         enviado_por: userData?.user?.id,
       }));
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('cs_nps_sends' as any)
-        .insert(rows);
+        .insert(rows)
+        .select('id');
 
       if (error) throw error;
+      if (!inserted || inserted.length !== rows.length) {
+        console.warn(`[NPS Campaign] Solo ${inserted?.length || 0}/${rows.length} envíos creados`);
+      }
       return { generated: newClients.length, total: eligible.length };
     },
     onSuccess: (result) => {
