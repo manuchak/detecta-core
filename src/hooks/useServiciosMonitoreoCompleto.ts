@@ -168,17 +168,19 @@ export const useServiciosMonitoreoCompleto = () => {
 
       // 2. Crear configuración de sensores con validación
       if (data.configuracion_sensores) {
-        const { error: sensoresError } = await supabase
+        const { data: sensorData, error: sensoresError } = await supabase
           .from('configuracion_sensores')
           .insert({
             servicio_id: servicio.id,
             ...data.configuracion_sensores
-          });
+          })
+          .select('id');
 
         if (sensoresError) {
           console.error('Error creating sensor config:', sensoresError);
           throw new Error(`Error en configuración de sensores: ${sensoresError.message}`);
         }
+        if (!sensorData || sensorData.length === 0) throw new Error('No se pudo crear la configuración de sensores — posible bloqueo de permisos (RLS)');
       }
 
       // 3. Crear contactos de emergencia con validación
