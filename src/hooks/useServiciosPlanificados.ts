@@ -207,7 +207,6 @@ export function useServiciosPlanificados() {
           condiciones_especiales: data.condiciones_especiales,
           estado_planeacion: data.estado_planeacion || 'planificado',
           gadgets_cantidades: data.gadgets_cantidades || [],
-          // Override de conflictos
           override_conflicto_motivo: data.override_conflicto_motivo,
           override_conflicto_autorizado_por: data.override_conflicto_autorizado_por,
           override_conflicto_timestamp: data.override_conflicto_timestamp
@@ -219,6 +218,7 @@ export function useServiciosPlanificados() {
         console.error('Error inserting planned service:', error);
         throw new Error(`Error al crear servicio planificado: ${error.message}`);
       }
+      if (!result) throw new Error('No se pudo crear el servicio — posible bloqueo de permisos (RLS)');
 
       console.log('Planned service created successfully:', result);
       return result;
