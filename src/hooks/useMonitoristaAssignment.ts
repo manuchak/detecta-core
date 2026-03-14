@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { sendCompletionNotifications } from '@/lib/lifecycleAutomations';
 
 export interface MonitoristaAssignment {
   id: string;
@@ -457,7 +458,9 @@ export function useMonitoristaAssignment() {
       if (fetchErr) throw fetchErr;
 
       const sixHoursAgo = new Date(Date.now() - 6 * 3600_000).toISOString();
+      const twelveHoursAgo = new Date(Date.now() - 12 * 3600_000).toISOString();
       let closedCount = 0;
+      let protectedCount = 0;
       const assignmentsToTransfer: any[] = [];
 
       for (const a of (activeAssignments || [])) {
@@ -468,34 +471,91 @@ export function useMonitoristaAssignment() {
           .gte('hora_inicio', sixHoursAgo)
           .limit(1);
 
-        if (!recentEvents || recentEvents.length === 0) {
-          await (supabase as any)
-            .from('servicios_planificados')
-            .update({ hora_fin_real: nowTs, estado_planeacion: 'completado' })
-            .eq('id_servicio', a.servicio_id)
-            .is('hora_fin_real', null);
+        const hasRecentActivity = recentEvents && recentEvents.length > 0;
 
-          await (supabase as any)
-            .from('servicio_eventos_ruta')
-            .insert({
-              servicio_id: a.servicio_id,
-              tipo_evento: 'fin_servicio',
-              descripcion: 'Cerrado automáticamente en cambio de turno (>6h sin actividad)',
-              registrado_por: user?.id || null,
-              hora_inicio: nowTs,
-              hora_fin: nowTs,
-            });
-
-          await (supabase as any)
-            .from('bitacora_asignaciones_monitorista')
-            .update({ activo: false, fin_turno: nowTs, notas_handoff: params.notas })
-            .eq('servicio_id', a.servicio_id)
-            .eq('activo', true);
-
-          closedCount++;
-        } else {
+        if (hasRecentActivity) {
+          // Has recent activity → always transfer
           assignmentsToTransfer.push(a);
+          continue;
         }
+
+        // ── Corrección 2 & 5: Guardia anti-cierre para servicios activos ──
+        // Before closing, check if service has protected state
+        const { data: svcState } = await (supabase as any)
+          .from('servicios_planificados')
+          .select('en_destino, hora_inicio_real, id')
+          .eq('id_servicio', a.servicio_id)
+          .is('hora_fin_real', null)
+          .limit(1)
+          .single();
+
+        // Check for active special events (pernocta, incidencia, etc.)
+        const { data: activeSpecialEvents } = await (supabase as any)
+          .from('servicio_eventos_ruta')
+          .select('id, tipo_evento')
+          .eq('servicio_id', a.servicio_id)
+          .is('hora_fin', null)
+          .in('tipo_evento', ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia', 'trafico'])
+          .limit(1);
+
+        const isEnDestino = svcState?.en_destino === true;
+        const hasRecentStart = svcState?.hora_inicio_real && svcState.hora_inicio_real > twelveHoursAgo;
+        const hasActiveSpecialEvent = activeSpecialEvents && activeSpecialEvents.length > 0;
+
+        if (isEnDestino || hasRecentStart || hasActiveSpecialEvent) {
+          // PROTECT: Transfer instead of close
+          console.log(`[Handoff] Servicio ${a.servicio_id} PROTEGIDO de cierre — en_destino=${isEnDestino}, inicio_reciente=${!!hasRecentStart}, evento_activo=${hasActiveSpecialEvent ? activeSpecialEvents[0].tipo_evento : 'none'}`);
+          assignmentsToTransfer.push(a);
+          protectedCount++;
+          continue;
+        }
+
+        // Safe to close: no recent activity, not en_destino, no recent start, no active events
+        // Close with RLS verification
+        const { data: closeData } = await (supabase as any)
+          .from('servicios_planificados')
+          .update({ hora_fin_real: nowTs, estado_planeacion: 'completado' })
+          .eq('id_servicio', a.servicio_id)
+          .is('hora_fin_real', null)
+          .select('id, custodio_telefono');
+
+        // Insert fin_servicio event
+        await (supabase as any)
+          .from('servicio_eventos_ruta')
+          .insert({
+            servicio_id: a.servicio_id,
+            tipo_evento: 'fin_servicio',
+            descripcion: 'Cerrado automáticamente en cambio de turno (>6h sin actividad)',
+            registrado_por: user?.id || null,
+            foto_urls: [],
+            hora_inicio: nowTs,
+            hora_fin: nowTs,
+          });
+
+        await (supabase as any)
+          .from('bitacora_asignaciones_monitorista')
+          .update({ activo: false, fin_turno: nowTs, notas_handoff: params.notas })
+          .eq('servicio_id', a.servicio_id)
+          .eq('activo', true);
+
+        // Registrar anomalía por cierre automático en handoff
+        await (supabase as any).from('bitacora_anomalias_turno').insert({
+          tipo: 'cierre_automatico_handoff',
+          descripcion: `Servicio ${a.servicio_id} cerrado automáticamente durante handoff (>6h sin actividad)`,
+          ejecutado_por: user?.id || null,
+          servicio_id: a.servicio_id,
+          monitorista_original: params.fromMonitoristaId,
+          metadata: { turno_saliente: params.turno, motivo: 'inactividad_6h' },
+        });
+
+        // Enviar notificaciones de cierre al cliente/custodio
+        if (closeData && closeData.length > 0) {
+          const svcUUID = closeData[0].id;
+          const custodioTel = closeData[0].custodio_telefono;
+          sendCompletionNotifications(a.servicio_id, svcUUID, custodioTel);
+        }
+
+        closedCount++;
       }
 
       for (const a of assignmentsToTransfer) {
@@ -522,7 +582,7 @@ export function useMonitoristaAssignment() {
         if (error) throw error;
       }
 
-      return { closedCount, transferredCount: assignmentsToTransfer.length };
+      return { closedCount, transferredCount: assignmentsToTransfer.length, protectedCount };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey });
@@ -530,6 +590,7 @@ export function useMonitoristaAssignment() {
       const parts: string[] = ['Turno entregado'];
       if (result.transferredCount > 0) parts.push(`${result.transferredCount} transferidos`);
       if (result.closedCount > 0) parts.push(`${result.closedCount} cerrados por inactividad`);
+      if (result.protectedCount > 0) parts.push(`${result.protectedCount} protegidos de cierre`);
       toast.success(parts.join(' · '));
     },
     onError: () => toast.error('Error en cambio de turno'),
