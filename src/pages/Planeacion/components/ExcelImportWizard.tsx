@@ -199,14 +199,19 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSuccess 
           activo: true
         }));
 
-        const { error } = await supabase
+        const { data: upserted, error } = await supabase
           .from('matriz_precios_rutas')
           .upsert(batch, { 
             onConflict: 'cliente_nombre,destino_texto',
             ignoreDuplicates: false 
-          });
+          })
+          .select('id');
 
         if (error) throw error;
+
+        if (upserted && upserted.length < batch.length) {
+          console.warn(`Batch ${i}: expected ${batch.length} upserts, got ${upserted.length}`);
+        }
 
         setProgress(((i + 1) / batches.length) * 100);
       }

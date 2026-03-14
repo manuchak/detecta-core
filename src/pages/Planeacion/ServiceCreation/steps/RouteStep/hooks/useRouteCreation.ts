@@ -64,7 +64,7 @@ export function useRouteCreation(): UseRouteCreationReturn {
 
       // Si no existe, crear con campos obligatorios
       console.log('🆕 Creando nuevo cliente en pc_clientes:', clienteNombre);
-      const { error } = await supabase
+      const { data: newClient, error } = await supabase
         .from('pc_clientes')
         .insert({ 
           nombre: clienteNombre.trim(), 
@@ -72,7 +72,8 @@ export function useRouteCreation(): UseRouteCreationReturn {
           contacto_nombre: 'Por definir',
           contacto_tel: 'Por definir',
           notas: 'Cliente creado automáticamente desde flujo de nuevo servicio'
-        });
+        })
+        .select('id');
       
       if (error) {
         // Si el error es de duplicado, el cliente ya existe (race condition safe)
@@ -81,6 +82,12 @@ export function useRouteCreation(): UseRouteCreationReturn {
           return true;
         }
         console.error('Error creating client:', error);
+        return false;
+      }
+
+      // RLS silent block protection
+      if (!newClient || newClient.length === 0) {
+        console.error('RLS silent block: pc_clientes insert returned 0 rows');
         return false;
       }
       

@@ -190,21 +190,29 @@ const RouteManagementFormComponent = ({
 
       if (editingRoute?.id) {
         // Update existing route
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from('matriz_precios_rutas')
           .update(routeData)
-          .eq('id', editingRoute.id);
+          .eq('id', editingRoute.id)
+          .select('id');
         
         if (error) throw error;
+        if (!updated || updated.length === 0) {
+          throw new Error('No se pudo actualizar la ruta — verifica permisos');
+        }
         
         toast.success('Ruta actualizada correctamente');
       } else {
         // Create new route
-        const { error } = await supabase
+        const { data: created, error } = await supabase
           .from('matriz_precios_rutas')
-          .insert([routeData]);
+          .insert([routeData])
+          .select('id');
         
         if (error) throw error;
+        if (!created || created.length === 0) {
+          throw new Error('No se pudo crear la ruta — verifica permisos');
+        }
         
         // Clear draft on successful creation
         persistence.clearDraft(true);

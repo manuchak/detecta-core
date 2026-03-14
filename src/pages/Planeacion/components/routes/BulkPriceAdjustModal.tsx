@@ -70,6 +70,9 @@ export function BulkPriceAdjustModal({ open, onOpenChange, selectedRoutes, onSuc
     setSaving(true);
     try {
       // Actualizar cada ruta individualmente para que el trigger capture los cambios
+      let successCount = 0;
+      let failCount = 0;
+
       const updates = preview.map(async (route) => {
         const updateData: Record<string, any> = {
           updated_at: new Date().toISOString()
@@ -90,17 +93,32 @@ export function BulkPriceAdjustModal({ open, onOpenChange, selectedRoutes, onSuc
           ? (updateData.margen_neto_calculado / valorBruto) * 100 
           : 0;
         
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from('matriz_precios_rutas')
           .update(updateData)
-          .eq('id', route.id);
+          .eq('id', route.id)
+          .select('id');
         
-        if (error) throw error;
+        if (error) {
+          console.error(`Error updating route ${route.id}:`, error);
+          failCount++;
+          return;
+        }
+        if (!updated || updated.length === 0) {
+          console.error(`RLS silent block on route ${route.id}`);
+          failCount++;
+          return;
+        }
+        successCount++;
       });
 
       await Promise.all(updates);
 
-      toast.success(`${selectedRoutes.length} rutas actualizadas correctamente`);
+      if (failCount > 0) {
+        toast.warning(`${successCount} rutas actualizadas, ${failCount} fallaron — verifica permisos`);
+      } else {
+        toast.success(`${selectedRoutes.length} rutas actualizadas correctamente`);
+      }
       queryClient.invalidateQueries({ queryKey: ['routes-pending-prices'] });
       queryClient.invalidateQueries({ queryKey: ['all-routes'] });
       queryClient.invalidateQueries({ queryKey: ['routes-stats'] });

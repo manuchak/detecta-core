@@ -56,17 +56,24 @@ export function DeleteRouteDialog({ open, onOpenChange, routes, onSuccess }: Del
     setIsDeleting(true);
     try {
       // Soft delete: set activo = false instead of hard delete
-      const { error } = await supabase
+      const routeIds = routes.map(r => r.id);
+      const { data: deleted, error } = await supabase
         .from('matriz_precios_rutas')
         .update({ 
           activo: false,
           notas: `[ELIMINADA ${new Date().toLocaleDateString('es-MX')}] ${reason}`
         })
-        .in('id', routes.map(r => r.id));
+        .in('id', routeIds)
+        .select('id');
 
       if (error) throw error;
 
-      toast.success(`${routes.length} ruta${routes.length > 1 ? 's' : ''} eliminada${routes.length > 1 ? 's' : ''} correctamente`);
+      const deletedCount = deleted?.length || 0;
+      if (deletedCount < routeIds.length) {
+        toast.warning(`Solo ${deletedCount} de ${routeIds.length} rutas fueron eliminadas — verifica permisos`);
+      } else {
+        toast.success(`${routes.length} ruta${routes.length > 1 ? 's' : ''} eliminada${routes.length > 1 ? 's' : ''} correctamente`);
+      }
       
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['routes-pending-prices'] });
