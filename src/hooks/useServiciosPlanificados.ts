@@ -737,7 +737,7 @@ export function useServiciosPlanificados() {
         throw new Error(`Error al cancelar asignaciones previas: ${cancelError.message}`);
       }
 
-      await supabase.from('asignacion_armados').insert({
+      const { data: reInsertData, error: reInsertError } = await supabase.from('asignacion_armados').insert({
         servicio_custodia_id: currentService.id_servicio,
         custodio_id: currentService.custodio_id,
         armado_id: newArmadoId || null,
@@ -750,7 +750,9 @@ export function useServiciosPlanificados() {
         tarifa_acordada: tarifaAcordada || null,
         asignado_por: userId,
         observaciones: nombrePersonal ? `Personal: ${nombrePersonal}` : null
-      });
+      }).select('id');
+      if (reInsertError) throw reInsertError;
+      assertRowsAffected(reInsertData, 'reassignArmedGuard.insert');
 
       // Determine final state using count from asignacion_armados
       const { countArmadosAsignados } = await import('@/hooks/useArmadosDelServicio');
