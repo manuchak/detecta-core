@@ -1118,7 +1118,7 @@ export function useServiciosPlanificados() {
     }) => {
       logger.operation('markFalsePositioning', 'start', { serviceId, motivo, cobroPosicionamiento });
       
-      const { error } = await supabase
+      const { data: fpData, error } = await supabase
         .from('servicios_planificados')
         .update({
           estado_planeacion: 'cancelado',
@@ -1126,17 +1126,19 @@ export function useServiciosPlanificados() {
           motivo_posicionamiento_falso: motivo,
           cobro_posicionamiento: cobroPosicionamiento,
           hora_llegada_custodio: horaLlegada,
-          hora_inicio_real: new Date().toISOString(), // Mark that custodian arrived
+          hora_inicio_real: new Date().toISOString(),
           observaciones: `Posicionamiento en falso: ${motivo}. ${cobroPosicionamiento ? 'Se cobrará posicionamiento.' : 'Sin cargo de posicionamiento.'}`,
           cancelado_por: (await supabase.auth.getUser()).data.user?.id,
           fecha_cancelacion: new Date().toISOString()
         })
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id');
       
       if (error) {
         logger.error('markFalsePositioning', 'Failed to update', error);
         throw error;
       }
+      assertRowsAffected(fpData, 'markFalsePositioning');
       
       logger.operation('markFalsePositioning', 'success', { serviceId });
       return { serviceId };
