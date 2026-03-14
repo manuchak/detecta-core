@@ -865,12 +865,14 @@ export function useServiciosPlanificados() {
       }
 
       // Update assignment
-      const { error: updateError } = await supabase
+      const { data: rmUpdateData, error: updateError } = await supabase
         .from('servicios_planificados')
         .update(updateData)
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id');
 
       if (updateError) throw updateError;
+      assertRowsAffected(rmUpdateData, 'removeAssignment');
 
       // Log the change
       await logServiceChange({
