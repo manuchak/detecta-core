@@ -160,7 +160,14 @@ export function useCreateCxP() {
           monto_servicio: Number(a.tarifa_acordada) || 0,
         }));
 
-        await supabase.from('cxp_detalle_servicios').insert(detalles);
+        const { data: detInserted, error: detError } = await supabase
+          .from('cxp_detalle_servicios')
+          .insert(detalles)
+          .select('id');
+        if (detError) throw detError;
+        if (!detInserted || detInserted.length !== detalles.length) {
+          console.warn(`[CxP] Solo ${detInserted?.length || 0}/${detalles.length} detalles insertados`);
+        }
       }
 
       return cxp;
