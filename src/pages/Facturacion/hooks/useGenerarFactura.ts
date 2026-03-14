@@ -160,14 +160,19 @@ export function useGenerarFactura() {
         } as any);
       }
 
-      const { error: errorPartidas } = await supabase
+      const { data: partidasInserted, error: errorPartidas } = await supabase
         .from('factura_partidas')
-        .insert(partidas);
+        .insert(partidas)
+        .select('id');
 
       if (errorPartidas) {
         await supabase.from('facturas').delete().eq('id', factura.id);
         console.error('Error creando partidas:', errorPartidas);
         throw new Error(`Error al crear partidas: ${errorPartidas.message}`);
+      }
+      if (!partidasInserted || partidasInserted.length !== partidas.length) {
+        await supabase.from('facturas').delete().eq('id', factura.id);
+        throw new Error(`Solo se crearon ${partidasInserted?.length || 0} de ${partidas.length} partidas — operación revertida`);
       }
 
       return {

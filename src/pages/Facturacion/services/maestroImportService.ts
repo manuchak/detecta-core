@@ -489,9 +489,11 @@ export async function executeMaestroImport(
         }
 
         if (Object.keys(updateData).length > 0) {
-          const { error } = await supabase.from('pc_clientes').update(updateData).eq('id', clienteId);
+          const { data: updated, error } = await supabase.from('pc_clientes').update(updateData).eq('id', clienteId).select('id');
           if (error) {
             result.errors.push(`${match.clienteNombre}: Error actualizando reglas - ${error.message}`);
+          } else if (!updated || updated.length === 0) {
+            result.errors.push(`${match.clienteNombre}: Reglas no guardadas — posible bloqueo de permisos`);
           } else {
             result.updated++;
           }
@@ -518,10 +520,11 @@ export async function executeMaestroImport(
         }
 
         if (Object.keys(estadiaUpdate).length > 0) {
-          // Use reglas_estadias_cliente for granular rules
-          const { error } = await supabase.from('pc_clientes').update(estadiaUpdate).eq('id', clienteId);
+          const { data: updated, error } = await supabase.from('pc_clientes').update(estadiaUpdate).eq('id', clienteId).select('id');
           if (error) {
             result.errors.push(`${match.clienteNombre}: Error actualizando estadías - ${error.message}`);
+          } else if (!updated || updated.length === 0) {
+            result.errors.push(`${match.clienteNombre}: Estadías no guardadas — posible bloqueo de permisos`);
           }
         }
       }

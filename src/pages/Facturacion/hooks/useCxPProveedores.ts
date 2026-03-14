@@ -160,7 +160,14 @@ export function useCreateCxP() {
           monto_servicio: Number(a.tarifa_acordada) || 0,
         }));
 
-        await supabase.from('cxp_detalle_servicios').insert(detalles);
+        const { data: detInserted, error: detError } = await supabase
+          .from('cxp_detalle_servicios')
+          .insert(detalles)
+          .select('id');
+        if (detError) throw detError;
+        if (!detInserted || detInserted.length !== detalles.length) {
+          console.warn(`[CxP] Solo ${detInserted?.length || 0}/${detalles.length} detalles insertados`);
+        }
       }
 
       return cxp;
@@ -186,10 +193,10 @@ export function useUpdateCxP() {
         .from('cxp_proveedores_armados')
         .update(updateData)
         .eq('id', id)
-        .select()
-        .single();
+        .select('id');
       if (error) throw error;
-      return result;
+      if (!result || result.length === 0) throw new Error('No se pudo actualizar el estado de cuenta — posible bloqueo de permisos');
+      return result[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
