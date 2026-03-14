@@ -58,10 +58,11 @@ export const useCreatePromotion = () => {
           ...promotion,
           created_by: user.user?.id,
         })
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!data) throw new Error('No se pudo crear la promoción — posible bloqueo de permisos (RLS)');
       return data;
     },
     onSuccess: () => {
