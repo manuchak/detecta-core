@@ -945,7 +945,7 @@ export function useServiciosPlanificados() {
       }
 
       // Cancel the service
-      const { error } = await supabase
+      const { data: cancelData, error } = await supabase
         .from('servicios_planificados')
         .update({
           estado_planeacion: 'cancelado',
@@ -953,12 +953,14 @@ export function useServiciosPlanificados() {
           cancelado_por: (await supabase.auth.getUser()).data.user?.id,
           fecha_cancelacion: new Date().toISOString()
         })
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id');
 
       if (error) {
         logger.error('cancelService', 'Error updating service', error);
         throw new Error(`Error al cancelar servicio: ${error.message}`);
       }
+      assertRowsAffected(cancelData, 'cancelService');
 
       logger.operation('cancelService', 'success', { serviceId });
       return { serviceId };
