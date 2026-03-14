@@ -625,7 +625,7 @@ export function useServiciosPlanificados() {
       const finalState = shouldBeConfirmed ? 'confirmado' : 'pendiente_asignacion';
 
       // Update assignment
-      const { error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('servicios_planificados')
         .update({
           custodio_asignado: newCustodioName,
@@ -634,9 +634,11 @@ export function useServiciosPlanificados() {
           asignado_por: (await supabase.auth.getUser()).data.user?.id,
           estado_planeacion: finalState
         })
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id');
 
       if (updateError) throw updateError;
+      assertRowsAffected(updateData, 'reassignCustodian');
 
       // Log the change
       await logServiceChange({
