@@ -352,12 +352,14 @@ export const useTicketsEnhanced = () => {
         updateData.resuelto_at = new Date().toISOString();
       }
 
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('tickets')
         .update(updateData)
-        .eq('id', ticketId);
+        .eq('id', ticketId)
+        .select('id');
 
       if (error) throw error;
+      if (!updated || updated.length === 0) throw new Error('No se pudo actualizar el ticket — posible bloqueo de permisos');
 
       toast.success('Estado del ticket actualizado');
       await loadTickets();
