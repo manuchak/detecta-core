@@ -145,7 +145,7 @@ export const useCustodianMaintenance = (rawPhone?: string, currentKm?: number) =
 
   const createMaintenance = async (data: CreateMaintenanceData): Promise<boolean> => {
     try {
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('custodio_mantenimientos')
         .insert({
           custodio_telefono: custodianPhone,
@@ -156,13 +156,23 @@ export const useCustodianMaintenance = (rawPhone?: string, currentKm?: number) =
           taller_mecanico: data.taller_mecanico,
           notas: data.notas,
           evidencia_url: data.evidencia_url,
-        });
+        })
+        .select('id');
 
       if (error) {
         console.error('Error creating maintenance:', error);
         toast({
           title: 'Error',
           description: 'No se pudo registrar el mantenimiento',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      if (!inserted || inserted.length === 0) {
+        toast({
+          title: 'Error',
+          description: 'No se pudo registrar el mantenimiento — posible bloqueo de permisos',
           variant: 'destructive',
         });
         return false;
