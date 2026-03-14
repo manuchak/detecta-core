@@ -152,13 +152,14 @@ export const useAprobacionesWorkflow = () => {
           elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
           observaciones: data.observaciones || null
         })
-        .select()
+        .select('id')
         .single();
 
       if (aprobacionError) {
         console.error('Error al crear aprobación:', aprobacionError);
         throw aprobacionError;
       }
+      if (!aprobacion) throw new Error('No se pudo crear la aprobación — posible bloqueo de permisos (RLS)');
 
       // Determinar el nuevo estado del servicio
       let nuevoEstado = 'pendiente_evaluacion'; // Default
@@ -175,15 +176,17 @@ export const useAprobacionesWorkflow = () => {
       }
 
       // Actualizar el estado del servicio
-      const { error: updateError } = await supabase
+      const { data: updatedSvc, error: updateError } = await supabase
         .from('servicios_monitoreo')
         .update({ estado_general: nuevoEstado })
-        .eq('id', data.servicio_id);
+        .eq('id', data.servicio_id)
+        .select('id');
 
       if (updateError) {
         console.error('Error al actualizar estado del servicio:', updateError);
         throw updateError;
       }
+      if (!updatedSvc || updatedSvc.length === 0) throw new Error('No se pudo actualizar el estado del servicio — posible bloqueo de permisos (RLS)');
 
       console.log('Aprobación creada exitosamente:', aprobacion);
       
@@ -282,13 +285,14 @@ export const useAprobacionesWorkflow = () => {
       const { data: result, error } = await supabase
         .from('analisis_riesgo_seguridad')
         .insert([analisisData])
-        .select()
+        .select('id')
         .single();
 
       if (error) {
         console.error('Error al insertar análisis de riesgo:', error);
         throw error;
       }
+      if (!result) throw new Error('No se pudo crear el análisis de riesgo — posible bloqueo de permisos (RLS)');
 
       console.log('Análisis de riesgo creado:', result);
 
@@ -300,15 +304,17 @@ export const useAprobacionesWorkflow = () => {
 
       console.log('Actualizando estado del servicio a:', nuevoEstado);
 
-      const { error: updateError } = await supabase
+      const { data: updRiesgo, error: updateError } = await supabase
         .from('servicios_monitoreo')
         .update({ estado_general: nuevoEstado })
-        .eq('id', data.servicio_id);
+        .eq('id', data.servicio_id)
+        .select('id');
 
       if (updateError) {
         console.error('Error al actualizar estado del servicio:', updateError);
         throw updateError;
       }
+      if (!updRiesgo || updRiesgo.length === 0) throw new Error('No se pudo actualizar estado del servicio — posible bloqueo de permisos (RLS)');
 
       // Registrar el seguimiento del cambio de estado
       const { error: seguimientoError } = await supabase
@@ -371,10 +377,11 @@ export const useAprobacionesWorkflow = () => {
           ...(observaciones && { observaciones: observaciones })
         })
         .eq('id', servicioId)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!data) throw new Error('No se pudo aprobar el servicio — posible bloqueo de permisos (RLS)');
 
       // Registrar el seguimiento
       await supabase
@@ -418,10 +425,11 @@ export const useAprobacionesWorkflow = () => {
           observaciones: motivo
         })
         .eq('id', servicioId)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!data) throw new Error('No se pudo rechazar el servicio — posible bloqueo de permisos (RLS)');
 
       // Registrar el seguimiento
       await supabase
@@ -456,10 +464,11 @@ export const useAprobacionesWorkflow = () => {
           estado_general: 'programacion_instalacion'
         })
         .eq('id', servicioId)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!data) throw new Error('No se pudo programar la instalación — posible bloqueo de permisos (RLS)');
 
       // Registrar el seguimiento
       await supabase

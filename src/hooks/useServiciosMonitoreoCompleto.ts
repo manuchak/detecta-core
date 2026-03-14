@@ -155,7 +155,7 @@ export const useServiciosMonitoreoCompleto = () => {
           condiciones_paro_motor: data.condiciones_paro_motor?.trim() || null,
           ejecutivo_ventas_id: user.id,
           observaciones: data.observaciones?.trim() || null,
-          estado_general: 'pendiente_evaluacion' // Set initial workflow state
+          estado_general: 'pendiente_evaluacion'
         })
         .select()
         .single();
@@ -164,20 +164,23 @@ export const useServiciosMonitoreoCompleto = () => {
         console.error('Error creating service:', servicioError);
         throw new Error(`Error al crear servicio: ${servicioError.message}`);
       }
+      if (!servicio) throw new Error('No se pudo crear el servicio — posible bloqueo de permisos (RLS)');
 
       // 2. Crear configuración de sensores con validación
       if (data.configuracion_sensores) {
-        const { error: sensoresError } = await supabase
+        const { data: sensorData, error: sensoresError } = await supabase
           .from('configuracion_sensores')
           .insert({
             servicio_id: servicio.id,
             ...data.configuracion_sensores
-          });
+          })
+          .select('id');
 
         if (sensoresError) {
           console.error('Error creating sensor config:', sensoresError);
           throw new Error(`Error en configuración de sensores: ${sensoresError.message}`);
         }
+        if (!sensorData || sensorData.length === 0) throw new Error('No se pudo crear la configuración de sensores — posible bloqueo de permisos (RLS)');
       }
 
       // 3. Crear contactos de emergencia con validación
@@ -197,19 +200,21 @@ export const useServiciosMonitoreoCompleto = () => {
           orden_prioridad: contacto.orden_prioridad
         }));
 
-        const { error: contactosError } = await supabase
+        const { data: contactosResult, error: contactosError } = await supabase
           .from('contactos_emergencia_servicio')
-          .insert(contactosParaInsertar);
+          .insert(contactosParaInsertar)
+          .select('id');
 
         if (contactosError) {
           console.error('Error creating emergency contacts:', contactosError);
           throw new Error(`Error en contactos de emergencia: ${contactosError.message}`);
         }
+        if (!contactosResult || contactosResult.length === 0) throw new Error('No se pudieron crear los contactos de emergencia — posible bloqueo de permisos (RLS)');
       }
 
       // 4. Crear configuración de reportes con validación
       if (data.configuracion_reportes) {
-        const { error: reportesError } = await supabase
+        const { data: reportesResult, error: reportesError } = await supabase
           .from('configuracion_reportes')
           .insert({
             servicio_id: servicio.id,
@@ -217,12 +222,14 @@ export const useServiciosMonitoreoCompleto = () => {
             limitantes_protocolos: data.configuracion_reportes.limitantes_protocolos?.trim() || null,
             medio_contacto_preferido: data.configuracion_reportes.medio_contacto_preferido,
             observaciones_adicionales: data.configuracion_reportes.observaciones_adicionales?.trim() || null
-          });
+          })
+          .select('id');
 
         if (reportesError) {
           console.error('Error creating reports config:', reportesError);
           throw new Error(`Error en configuración de reportes: ${reportesError.message}`);
         }
+        if (!reportesResult || reportesResult.length === 0) throw new Error('No se pudo crear la configuración de reportes — posible bloqueo de permisos (RLS)');
       }
 
       return servicio;

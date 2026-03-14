@@ -124,11 +124,12 @@ export function useServicioComm(servicioId: string | null, commChannel?: string)
   const markAsRead = useMutation({
     mutationFn: async () => {
       if (!servicioId) return;
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('whatsapp_messages')
         .update({ is_read: true } as any)
         .eq('servicio_id', servicioId)
-        .eq('is_read', false);
+        .eq('is_read', false)
+        .select('id');
       if (error) throw error;
     },
     onSuccess: () => {
@@ -141,11 +142,13 @@ export function useServicioComm(servicioId: string | null, commChannel?: string)
   const validateMedia = useMutation({
     mutationFn: async (mediaId: string) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('servicio_comm_media')
         .update({ validado: true, validado_por: user?.id, validado_at: new Date().toISOString() })
-        .eq('id', mediaId);
+        .eq('id', mediaId)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo validar el media — posible bloqueo de permisos (RLS)');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['servicio-comm-media', servicioId] });

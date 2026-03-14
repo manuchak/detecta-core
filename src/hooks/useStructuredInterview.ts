@@ -85,10 +85,11 @@ export function useCreateInterview() {
           tipo_entrevista: data.tipo_entrevista || 'inicial',
           duracion_minutos: data.duracion_minutos,
         })
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!interview) throw new Error('No se pudo guardar la entrevista — posible bloqueo de permisos (RLS)');
       return interview;
     },
     onSuccess: (_, variables) => {
@@ -112,10 +113,11 @@ export function useUpdateInterview() {
         .from('entrevistas_estructuradas')
         .update(data)
         .eq('id', id)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!interview) throw new Error('No se pudo actualizar la entrevista — posible bloqueo de permisos (RLS)');
       return interview;
     },
     onSuccess: () => {

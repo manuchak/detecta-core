@@ -101,13 +101,18 @@ export const useSIERCPReport = () => {
 
   const saveReport = async (evaluacionId: string, reportData: SIERCPReport) => {
     try {
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from('evaluaciones_psicometricas')
         .update({ ai_report: reportData as any })
-        .eq('id', evaluacionId);
+        .eq('id', evaluacionId)
+        .select('id');
 
       if (updateError) {
         console.error('Error saving report:', updateError);
+        toast({ title: "⚠️ Advertencia", description: "El informe no se pudo guardar en la base de datos", variant: "destructive" });
+      } else if (!data || data.length === 0) {
+        console.error('Report save blocked by RLS');
+        toast({ title: "⚠️ Advertencia", description: "El informe no se guardó — posible bloqueo de permisos", variant: "destructive" });
       }
     } catch (err) {
       console.error('Error saving report to DB:', err);
