@@ -57,7 +57,7 @@ export const useDesechosInventario = () => {
 
       // 3) Registrar movimiento que actualizará stock vía trigger
       const { data: { user } } = await supabase.auth.getUser();
-      const { error: movError } = await supabase
+      const { data: movInserted, error: movError } = await supabase
         .from('movimientos_inventario')
         .insert({
           producto_id: input.producto_id,
@@ -72,8 +72,10 @@ export const useDesechosInventario = () => {
           fecha_movimiento: new Date().toISOString(),
           costo_unitario: input.costo_unitario ?? 0,
           valor_total: (input.costo_unitario ?? 0) * input.cantidad,
-        });
+        })
+        .select('id');
       if (movError) throw movError;
+      if (!movInserted || movInserted.length === 0) throw new Error('Movimiento de desecho no registrado — posible bloqueo de permisos');
 
       return desecho as DesechoInventario;
     },

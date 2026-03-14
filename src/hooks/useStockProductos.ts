@@ -179,25 +179,30 @@ export const useStockProductos = () => {
         }
 
         const nowIso = new Date().toISOString();
-        const { error: updateSerialsError } = await supabase
+        const { data: serialsUpdated, error: updateSerialsError } = await supabase
           .from('productos_serie')
           .update({ estado: 'dado_de_baja', updated_at: nowIso })
           .in('id', seriales_salida)
-          .eq('producto_id', producto_id);
+          .eq('producto_id', producto_id)
+          .select('id');
         if (updateSerialsError) throw updateSerialsError;
+        if (!serialsUpdated || serialsUpdated.length !== seriales_salida.length) {
+          throw new Error(`Solo se actualizaron ${serialsUpdated?.length || 0} de ${seriales_salida.length} seriales — posible bloqueo de permisos`);
+        }
 
         const serialNums = serialesRows.map(s => s.numero_serie).join(', ');
         motivoFinal = motivo ? `${motivo} | Seriales de baja: ${serialNums}` : `Seriales de baja: ${serialNums}`;
       }
 
       // Actualizar el stock en la tabla stock_productos
-      const { error: updateError } = await supabase
+      const { data: stockUpdated, error: updateError } = await supabase
         .from('stock_productos')
         .update({ 
           cantidad_disponible: nueva_cantidad,
           ultima_actualizacion: new Date().toISOString()
         })
-        .eq('producto_id', producto_id);
+        .eq('producto_id', producto_id)
+        .select('id');
 
       if (updateError) {
         // Intentar revertir actualización de seriales en caso de error al actualizar stock
@@ -210,9 +215,12 @@ export const useStockProductos = () => {
         }
         throw updateError;
       }
+      if (!stockUpdated || stockUpdated.length === 0) {
+        throw new Error('No se pudo actualizar el stock — posible bloqueo de permisos');
+      }
 
       // Registrar movimiento en el historial
-      const { error: movError } = await supabase
+      const { data: movInserted, error: movError } = await supabase
         .from('movimientos_inventario')
         .insert({
           producto_id,
@@ -225,9 +233,13 @@ export const useStockProductos = () => {
           referencia_id: null,
           usuario_id: user?.id,
           fecha_movimiento: new Date().toISOString()
-        });
+        })
+        .select('id');
 
       if (movError) throw movError;
+      if (!movInserted || movInserted.length === 0) {
+        throw new Error('No se pudo registrar el movimiento de inventario — posible bloqueo de permisos');
+      }
 
       // Si hay seriales para registrar (para entradas de productos serializados)
       if (seriales && seriales.length > 0 && diferencia > 0) {
@@ -241,13 +253,17 @@ export const useStockProductos = () => {
           // orden_compra_id se puede agregar después si es necesario
         }));
 
-        const { error: serialesError } = await supabase
+        const { data: serialesInserted, error: serialesError } = await supabase
           .from('productos_serie')
-          .insert(serialesParaInsertar);
+          .insert(serialesParaInsertar)
+          .select('id');
 
         if (serialesError) {
           console.error('Error inserting serials:', serialesError);
           throw new Error(`Error al registrar números de serie: ${serialesError.message}`);
+        }
+        if (!serialesInserted || serialesInserted.length !== serialesParaInsertar.length) {
+          console.warn(`[Stock] Solo ${serialesInserted?.length || 0}/${serialesParaInsertar.length} seriales insertados`);
         }
       }
 
