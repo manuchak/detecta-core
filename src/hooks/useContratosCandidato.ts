@@ -289,16 +289,18 @@ export function useMarcarVisto() {
 
   return useMutation({
     mutationFn: async ({ contratoId, candidatoId }: { contratoId: string; candidatoId: string }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('contratos_candidato')
         .update({
           estado: 'visto',
           visto_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-        .eq('id', contratoId);
+        .eq('id', contratoId)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo marcar como visto — operación bloqueada');
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['contratos-candidato', variables.candidatoId] });

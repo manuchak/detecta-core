@@ -122,12 +122,14 @@ export function useActualizarEstudioSocioeconomico() {
         (updates as any).score_global = parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1));
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('estudios_socioeconomicos')
         .update(updates)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo actualizar el estudio — operación bloqueada por permisos');
       return { candidatoId };
     },
     onSuccess: (result) => {

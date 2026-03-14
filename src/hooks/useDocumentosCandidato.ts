@@ -265,12 +265,14 @@ export function useDeleteDocumento() {
         await supabase.storage.from('candidato-documentos').remove([urlParts[1]]);
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('documentos_candidato')
         .delete()
-        .eq('id', documentoId);
+        .eq('id', documentoId)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo eliminar el documento — operación bloqueada por permisos');
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['documentos-candidato', variables.candidatoId] });

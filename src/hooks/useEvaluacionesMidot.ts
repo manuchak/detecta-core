@@ -155,12 +155,14 @@ export function useDeleteMidot() {
 
   return useMutation({
     mutationFn: async ({ id, candidato_id }: { id: string; candidato_id: string }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('evaluaciones_midot')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo eliminar la evaluación — operación bloqueada por permisos');
       return { candidato_id };
     },
     onSuccess: (result) => {

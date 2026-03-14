@@ -86,12 +86,13 @@ export function useBajaMasiva() {
         creado_por: user.id,
       }));
 
-      const { error: historyError } = await supabase
+      const { data: historyData, error: historyError } = await supabase
         .from('operativo_estatus_historial')
-        .insert(historyRecords);
+        .insert(historyRecords)
+        .select('id');
 
-      if (historyError) {
-        console.warn('History not fully recorded:', historyError);
+      if (historyError || !historyData?.length) {
+        console.warn('[audit] History not fully recorded:', historyError);
         // Don't fail the operation, just log the warning
       }
 

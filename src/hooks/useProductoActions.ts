@@ -64,18 +64,25 @@ export const useProductoActions = () => {
         .single();
 
       // Eliminar registro de stock
-      await supabase
+      const { data: stockDelData, error: stockDelError } = await supabase
         .from('stock_productos')
         .delete()
-        .eq('producto_id', id);
+        .eq('producto_id', id)
+        .select('id');
+
+      if (stockDelError) {
+        console.warn('Error eliminando stock:', stockDelError);
+      }
       
       // Eliminar producto
-      const { error } = await supabase
+      const { data: prodDelData, error } = await supabase
         .from('productos_inventario')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) throw error;
+      if (!prodDelData || prodDelData.length === 0) throw new Error('No se pudo eliminar el producto — operación bloqueada por permisos');
 
       // Registrar en audit log
       if (producto) {
