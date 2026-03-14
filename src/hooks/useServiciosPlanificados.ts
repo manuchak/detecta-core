@@ -420,7 +420,7 @@ export function useServiciosPlanificados() {
       const serviceDate = new Date(currentService.fecha_hora_cita).toISOString().split('T')[0];
       const userId = (await supabase.auth.getUser()).data.user?.id;
 
-      await supabase.from('asignacion_armados').insert({
+      const { data: insertData, error: insertError } = await supabase.from('asignacion_armados').insert({
         servicio_custodia_id: currentService.id_servicio,
         custodio_id: currentService.custodio_id,
         armado_id: armadoId || null,
@@ -432,7 +432,9 @@ export function useServiciosPlanificados() {
         armado_nombre_verificado: armadoName,
         tarifa_acordada: tarifaAcordada || null,
         asignado_por: userId,
-      });
+      }).select('id');
+      if (insertError) throw insertError;
+      assertRowsAffected(insertData, 'insertAsignacionArmado');
 
       // Determine final state using count from asignacion_armados
       const { countArmadosAsignados } = await import('@/hooks/useArmadosDelServicio');
