@@ -255,13 +255,14 @@ export function useServiciosPlanificados() {
         .from('servicios_planificados')
         .update(data)
         .eq('id', id)
-        .select()
+        .select('id')
         .single();
 
       if (error) {
         console.error('Error updating planned service:', error);
         throw new Error(`Error al actualizar servicio: ${error.message}`);
       }
+      if (!result) throw new Error('No se pudo actualizar el servicio — posible bloqueo de permisos (RLS)');
 
       return result;
     },
