@@ -195,13 +195,14 @@ export const useStockProductos = () => {
       }
 
       // Actualizar el stock en la tabla stock_productos
-      const { error: updateError } = await supabase
+      const { data: stockUpdated, error: updateError } = await supabase
         .from('stock_productos')
         .update({ 
           cantidad_disponible: nueva_cantidad,
           ultima_actualizacion: new Date().toISOString()
         })
-        .eq('producto_id', producto_id);
+        .eq('producto_id', producto_id)
+        .select('id');
 
       if (updateError) {
         // Intentar revertir actualización de seriales en caso de error al actualizar stock
