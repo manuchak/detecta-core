@@ -1,130 +1,77 @@
-# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
-## Resumen ejecutivo
-Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
-Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-## Fase Dev 1 — Modelo de datos ✅
-- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
-- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
-- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
-- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
-- ✅ Índice `idx_wm_channel_sender` para queries de cliente
-- ✅ Backfill de registros existentes
+# Auditoría QA — Gaps restantes para superar 9/10
 
-## Fase Dev 2 — Router de contexto en webhook ✅
-- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
-- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
-- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
-- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
-- ✅ Cliente con servicio activo → visible en tab, no crea ticket
-- ✅ Cliente sin servicio → crea ticket de atención
+## Hallazgos por Severidad
 
-## Fase Dev 3 — Clasificación en mensajes salientes ✅
-- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
-- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
+### SEVERIDAD ALTA — useMonitoristaAssignment.ts sin protección RLS
 
-## Fase Dev 4 — Chat de Planeación con custodio ✅
-- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
-- ✅ Filtra por `comm_channel='custodio_planeacion'`
-- ✅ Read-only después del handoff (`isHandedOff` prop)
-- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
-- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
+Mientras `useBitacoraBoard.ts` y `useServiciosPlanificados.ts` ya están blindados, **useMonitoristaAssignment.ts tiene 15+ operaciones de escritura sin `.select('id')` ni verificación de filas afectadas**. Estas son las mutaciones del módulo de asignación de monitoristas — el motor de distribución de carga.
 
-## Fase Dev 5 — Handoff Planeación → C4 ✅
-- ✅ Mensaje de sistema insertado en `whatsapp_messages` al marcar "En Sitio" (comm_channel='sistema', sender_type='sistema')
-- ✅ Separador visual amber en `CustodioChat.tsx` para mensajes con sender_type='sistema' y texto "transferido"
-- ✅ `PlanningCustodioComm` integrado en `CompactServiceCard` via Sheet lateral con botón MessageCircle + badge unread
-- ✅ RPC `get_real_planned_services_summary` actualizado para incluir `custodio_telefono`
-
-## Fase Dev 6 — Tab Cliente bidireccional ✅
-- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
-- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
-- ✅ WindowPill con countdown en tiempo real
-- ✅ Input deshabilitado cuando ventana cerrada, solo templates
-- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
-- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
-- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
-
-## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
-- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
-- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
-- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
-- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
-- ✅ Fire-and-forget: no bloquea el flujo principal
-
-## Fase Dev 8 — Broadcast multi-contacto ✅
-- ✅ Checkboxes multi-selección con "Todos/Ninguno" en tab Cliente
-- ✅ Envío individual por contacto via `Promise.allSettled` con toast resumen (ok/fail)
-- ✅ Agrupación visual: mensajes broadcast (mismo texto, ±5s) se muestran como una sola burbuja con badge "Enviado a N contactos"
-- ✅ Placeholder dinámico refleja cantidad de contactos seleccionados
-- ✅ Badge en composer muestra "N dest." cuando hay múltiples seleccionados
-
-## Fase Dev 9 — Testing E2E + Switch WhatsApp ✅
-- ✅ Tabla `app_feature_flags` con RLS (read: authenticated, write: admin/owner/coordinador)
-- ✅ Seeds: `whatsapp_planeacion` (OFF), `whatsapp_monitoreo` (OFF)
-- ✅ Realtime habilitado en `app_feature_flags`
-- ✅ Hook `useWhatsAppMode` con react-query + realtime subscription
-- ✅ Switches "WA Plan" y "WA Mon" en `CoordinatorCommandCenter` header
-- ✅ `CompactServiceCard`: botón chat condicionado a flag `whatsapp_planeacion`
-- ✅ `ServiceCommSheet`: placeholder "WhatsApp deshabilitado" cuando flag `whatsapp_monitoreo` está OFF
-- ✅ `CommScenarioSimulator` con 3 escenarios guiados (Planeación, Monitoreo, Cliente)
-- ✅ Cada escenario: pasos individuales + "Ejecutar Todo" con barra de progreso
-- ✅ Verificaciones de persistencia y comm_channel en cada escenario
-
-## Dependencias
-```
-Fase 1 → Fase 2, Fase 3 (paralelas)
-Fase 2+3 → Fase 4, Fase 6 (paralelas)
-Fase 4 → Fase 5
-Fase 5+6 → Fase 7
-Fase 6 → Fase 8
-Todas → Fase 9
-```
-
-## Templates Meta pendientes
-| Template | Estado |
+| Mutación | Operaciones sin proteger |
 |---|---|
-| posicionamiento_cliente | Por crear |
-| cierre_servicio_cliente | Por crear |
-| incidencia_servicio_cliente | Por crear |
-| nudge_status_custodio | No aprobado aún |
-| reporte_servicio_cliente | No aprobado aún |
+| `assignService` | 1 deactivate + 1 insert sin verify |
+| `autoDistribute` | 1 deactivate masivo + N inserts sin verify |
+| `resetAndRedistribute` | 1 deactivate global + N inserts + 1 anomalía insert sin verify |
+| `reassignService` | 1 deactivate + 1 insert sin verify |
+| `handoffTurno` | 3 deactivates + 2 inserts sin verify (el update a servicios_planificados SÍ tiene .select) |
+| `rebalanceLoad` | N deactivates + N inserts + 1 anomalía sin verify |
+| `endTurno` | 1 update sin verify |
 
-# Auditoría Proveedores Externos y P&L Gadgets
+**Riesgo**: Si RLS bloquea una desactivación, el insert posterior crea una asignación duplicada. El índice parcial único `idx_unique_active_assignment` la atraparía con error `23505`, pero el servicio podría quedar con 0 monitoristas asignados si el insert también falla silenciosamente.
 
-## Fase 1 — Base de Datos ✅
-- ✅ Tabla `inventario_gadgets` (serial, tipo, proveedor, renta_mensual, estado)
-- ✅ Tabla `rentas_gadgets_mensuales` (mes, unidades, renta/unidad, total, factura)
-- ✅ Tabla `conciliacion_proveedor_armados` (cxp_id, archivo, mapeo, conteos, estado)
-- ✅ Tabla `conciliacion_detalle` (asignacion_id, fila_proveedor, resultado, resolución)
-- ✅ ALTER `proveedores_armados` ADD `frecuencia_pago`
-- ✅ RLS con `has_facturacion_role()` / `has_facturacion_write_role()`
-- ✅ Índices optimizados
+### SEVERIDAD MEDIA — Anomalías y notificaciones fire-and-forget
 
-## Fase 2 — Inventario Gadgets + P&L ✅
-- ✅ Hook `useInventarioGadgets` (CRUD inventario, rentas, P&L calculation)
-- ✅ `InventarioGadgetsPanel` — tabla con filtros, CRUD dialog, KPIs
-- ✅ `RentasGadgetsPanel` — registro mensual de rentas con auto-cálculo
-- ✅ `GadgetsPnLPanel` — dashboard ingresos vs egresos con margen
-- ✅ `GadgetsTab` — segmented control integrado en EgresosTab
-- ✅ Integración en `EgresosTab` como cuarto segmento "Gadgets & P&L"
+- `bitacora_anomalias_turno` inserts en `handoffTurno`, `resetAndRedistribute`, `rebalanceLoad` no verifican persistencia. Si falla, se pierde trazabilidad del evento operativo.
+- `lifecycleAutomations.ts` — `sendCompletionNotifications` es fire-and-forget con `.catch(console.error)`. Si la notificación al cliente falla, nadie se entera.
 
-## Fase 3 — Conciliación Proveedores ✅
-- ✅ Upload + parser Excel/CSV (`conciliacionParserService.ts`)
-- ✅ Mapeo de columnas asistido con auto-detección
-- ✅ Motor de conciliación fuzzy (Dice coefficient: fecha 40% + nombre 40% + ruta 20%)
-- ✅ `ConciliacionDialog` — flujo 3 pasos: upload → mapeo → resultados
-- ✅ `ConciliacionDetalleSheet` — resolución línea a línea (aceptar/rechazar/ajustar)
-- ✅ Hook `useConciliacion` con CRUD completo
-- ✅ Integración en `CxPProveedoresTab` con botones "Conciliar" y "Ver detalle"
+### SEVERIDAD MEDIA — Empty catch blocks en módulos operativos
 
-## Fase 4 — Cortes Flexibles ✅
-- ✅ Campo `frecuencia_pago` (semanal/quincenal/mensual) en formulario de proveedor (`ProveedoresArmadosTab`)
-- ✅ Badge de frecuencia visible en cards de proveedor
-- ✅ Auto-cálculo de periodo en `CxPProveedoresTab`: al seleccionar proveedor, calcula periodo anterior según frecuencia
-- ✅ Semanal: Lun-Dom semana anterior | Quincenal: 1-15 o 16-fin mes anterior | Mensual: mes anterior completo
-- ✅ Periodo editable manualmente después del auto-cálculo
-- ✅ Label de frecuencia visible en dropdown de proveedores del modal de creación
+110 `catch {}` o `catch(e) {}` encontrados. Los más peligrosos:
+- `src/hooks/useServiceChecklist.ts` — fallos en limpieza de checklist ignorados
+- `src/pages/armado/ArmadoDashboard.tsx` — refresh de servicios de armado silenciado
+
+---
+
+## Plan de Correcciones — 3 Bloques
+
+### Bloque 1: Protección RLS en useMonitoristaAssignment.ts (Crítico)
+
+Agregar `assertRowsAffected` al archivo y aplicar el patrón `.select('id')` + verificación a:
+
+- **Deactivaciones**: Todas las operaciones `.update({ activo: false })` deben usar `.select('id')` y verificar que se desactivó al menos 1 fila antes de hacer el insert de nueva asignación.
+- **Inserts**: Los inserts que no son 23505-tolerant deben verificar persistencia.
+- **`endTurno`**: Agregar `.select('id')` + assert para confirmar que el turno se cerró.
+- **Anomalías**: Los inserts a `bitacora_anomalias_turno` deben usar `.select('id')` con `toast.warning` si fallan (sin bloquear el flujo principal).
+
+### Bloque 2: Notificaciones con fallback visible
+
+En `lifecycleAutomations.ts`, cambiar `.catch(console.error)` a un patrón que registre el fallo en `bitacora_anomalias_turno` como tipo `notificacion_fallida`. Esto garantiza que si un cliente no recibe su notificación de cierre/posicionamiento, quede registro para seguimiento manual.
+
+### Bloque 3: Sanitización de empty catches en módulos críticos
+
+Reemplazar `catch {}` por `catch (e) { console.warn('[módulo] operación falló:', e) }` en:
+- `useServiceChecklist.ts`
+- `ArmadoDashboard.tsx`
+
+(Los `catch {}` en localStorage/sessionStorage y `.json().catch(() => ({}))` de edge functions son aceptables y se mantienen).
+
+---
+
+## Archivos a modificar
+
+1. `src/hooks/useMonitoristaAssignment.ts` — Bloque 1 (15+ correcciones)
+2. `src/lib/lifecycleAutomations.ts` — Bloque 2 (3 correcciones)
+3. `src/hooks/useServiceChecklist.ts` — Bloque 3
+4. `src/pages/armado/ArmadoDashboard.tsx` — Bloque 3
+
+## Proyección de calificación
+
+| Módulo | Actual | Post-corrección |
+|---|---|---|
+| Monitoreo (Bitácora) | 8.5 | 8.5 (ya blindado) |
+| Planeación | 8.5 | 8.5 (ya blindado) |
+| Asignaciones Monitorista | 6.0 | 9.0 |
+| Notificaciones | 6.5 | 8.5 |
+| **General** | **7.5** | **9.0+** |
+
