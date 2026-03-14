@@ -47,7 +47,7 @@ export const useLMSCertificados = () => {
   });
 };
 
-// Hook para generar certificado
+// Hook para generar certificado (RPC — already returns success/error)
 export const useLMSGenerarCertificado = () => {
   const queryClient = useQueryClient();
 

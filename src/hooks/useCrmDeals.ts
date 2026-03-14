@@ -23,19 +23,15 @@ export function useCrmDeals(filters?: DealFilters) {
         .eq('is_deleted', false)
         .order('updated_at', { ascending: false });
 
-      // Apply filters
       if (filters?.status && filters.status !== 'all') {
         query = query.eq('status', filters.status);
       }
-
       if (filters?.stageId) {
         query = query.eq('stage_id', filters.stageId);
       }
-
       if (filters?.ownerName) {
         query = query.ilike('owner_name', `%${filters.ownerName}%`);
       }
-
       if (filters?.search) {
         query = query.or(`title.ilike.%${filters.search}%,organization_name.ilike.%${filters.search}%`);
       }
@@ -49,7 +45,7 @@ export function useCrmDeals(filters?: DealFilters) {
 
       return (data || []) as CrmDealWithStage[];
     },
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 30 * 1000,
   });
 }
 
@@ -107,16 +103,18 @@ export function useUpdateDealMatch() {
       matchedClientName: string | null; 
       matchConfidence: number;
     }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('crm_deals')
         .update({
           matched_client_name: matchedClientName,
           match_confidence: matchConfidence,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', dealId);
+        .eq('id', dealId)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo actualizar el deal — posible bloqueo de permisos (RLS)');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['crm-deals'] });

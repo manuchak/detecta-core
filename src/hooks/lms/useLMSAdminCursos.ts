@@ -115,7 +115,6 @@ export const useLMSCrearCurso = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No autenticado');
 
-      // Obtener el máximo orden actual
       const { data: maxOrden } = await supabase
         .from('lms_cursos')
         .select('orden')
@@ -136,6 +135,7 @@ export const useLMSCrearCurso = () => {
         .single();
 
       if (error) throw error;
+      if (!curso) throw new Error('No se pudo crear el curso — posible bloqueo de permisos (RLS)');
       return curso;
     },
     onSuccess: () => {
@@ -158,7 +158,6 @@ export const useLMSCrearCursoCompleto = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No autenticado');
 
-      // 1. Obtener el máximo orden actual
       const { data: maxOrden } = await supabase
         .from('lms_cursos')
         .select('orden')
@@ -168,7 +167,7 @@ export const useLMSCrearCursoCompleto = () => {
 
       const nuevoOrden = (maxOrden?.orden ?? 0) + 1;
 
-      // 2. Crear el curso
+      // Crear el curso
       const { data: nuevoCurso, error: cursoError } = await supabase
         .from('lms_cursos')
         .insert({
@@ -180,8 +179,9 @@ export const useLMSCrearCursoCompleto = () => {
         .single();
 
       if (cursoError) throw cursoError;
+      if (!nuevoCurso) throw new Error('No se pudo crear el curso — posible bloqueo de permisos (RLS)');
 
-      // 3. Crear módulos y contenidos
+      // Crear módulos y contenidos
       for (const modulo of modulos) {
         const { data: nuevoModulo, error: moduloError } = await supabase
           .from('lms_modulos')
@@ -199,13 +199,17 @@ export const useLMSCrearCursoCompleto = () => {
           console.error('Error creating module:', moduloError);
           continue;
         }
+        if (!nuevoModulo) {
+          console.error('Módulo no creado — posible bloqueo RLS');
+          continue;
+        }
 
-        // 4. Crear contenidos del módulo
+        // Crear contenidos del módulo
         for (const contenido of modulo.contenidos) {
           const contenidoData = contenido.contenido 
             ? mergeContenidoWithAssessment(contenido.tipo, contenido.contenido, assessmentConfig)
             : getDefaultContenidoData(contenido.tipo, assessmentConfig);
-          const { error: contenidoError } = await supabase
+          const { data: newContent, error: contenidoError } = await supabase
             .from('lms_contenidos')
             .insert({
               modulo_id: nuevoModulo.id,
@@ -216,10 +220,13 @@ export const useLMSCrearCursoCompleto = () => {
               es_obligatorio: true,
               orden: contenido.orden,
               activo: true,
-            });
+            })
+            .select('id');
 
           if (contenidoError) {
             console.error('Error creating content:', contenidoError);
+          } else if (!newContent || newContent.length === 0) {
+            console.error('Contenido no creado — posible bloqueo RLS');
           }
         }
       }
@@ -288,10 +295,11 @@ export const useLMSActualizarCurso = () => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!curso) throw new Error('No se pudo actualizar el curso — posible bloqueo de permisos (RLS)');
       return curso;
     },
     onSuccess: (_, variables) => {
@@ -441,6 +449,7 @@ export const useLMSDuplicarCurso = () => {
         .single();
 
       if (cursoError) throw cursoError;
+      if (!nuevoCurso) throw new Error('No se pudo duplicar el curso — posible bloqueo de permisos (RLS)');
 
       // 3. Duplicar módulos y contenidos
       for (const modulo of originalModulos || []) {
@@ -456,17 +465,22 @@ export const useLMSDuplicarCurso = () => {
           .single();
 
         if (moduloError) throw moduloError;
+        if (!nuevoModulo) throw new Error('No se pudo duplicar un módulo — posible bloqueo de permisos (RLS)');
 
         // Duplicar contenidos del módulo
         for (const contenido of originalContenidos || []) {
           const { id: contenidoId, created_at: cc, updated_at: cu, ...contenidoData } = contenido;
           
-          await supabase
+          const { data: newContent, error: contentErr } = await supabase
             .from('lms_contenidos')
             .insert({
               ...contenidoData,
               modulo_id: nuevoModulo.id,
-            });
+            })
+            .select('id');
+
+          if (contentErr) throw contentErr;
+          if (!newContent || newContent.length === 0) throw new Error('No se pudo duplicar contenido — posible bloqueo de permisos (RLS)');
         }
       }
 
@@ -490,9 +504,11 @@ export const useLMSReordenarCursos = () => {
   return useMutation({
     mutationFn: async (cursos: { id: string; orden: number }[]) => {
       const updates = cursos.map(({ id, orden }) =>
-        supabase.from('lms_cursos').update({ orden }).eq('id', id)
+        supabase.from('lms_cursos').update({ orden }).eq('id', id).select('id')
       );
-      await Promise.all(updates);
+      const results = await Promise.all(updates);
+      const failed = results.filter(r => r.error || !r.data || r.data.length === 0);
+      if (failed.length > 0) throw new Error(`No se pudieron reordenar ${failed.length} cursos — posible bloqueo de permisos (RLS)`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lms-admin-cursos'] });
@@ -506,12 +522,14 @@ export const useLMSTogglePublicacion = () => {
 
   return useMutation({
     mutationFn: async ({ cursoId, publicado }: { cursoId: string; publicado: boolean }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('lms_cursos')
         .update({ publicado, updated_at: new Date().toISOString() })
-        .eq('id', cursoId);
+        .eq('id', cursoId)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo cambiar el estado de publicación — posible bloqueo de permisos (RLS)');
       return { cursoId, publicado };
     },
     onSuccess: (data) => {

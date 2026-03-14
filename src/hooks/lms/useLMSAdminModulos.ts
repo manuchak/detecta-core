@@ -61,6 +61,7 @@ export const useLMSCrearModulo = () => {
         .single();
 
       if (error) throw error;
+      if (!modulo) throw new Error('No se pudo crear el módulo — posible bloqueo de permisos (RLS)');
       return modulo;
     },
     onSuccess: (_, variables) => {
@@ -96,10 +97,11 @@ export const useLMSActualizarModulo = () => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
+      if (!modulo) throw new Error('No se pudo actualizar el módulo — posible bloqueo de permisos (RLS)');
       return { modulo, cursoId };
     },
     onSuccess: (result) => {
@@ -137,15 +139,22 @@ export const useLMSEliminarModulo = () => {
 
         if (progresos && progresos.length > 0) {
           // Soft delete - desactivar módulo y contenidos
-          await supabase
+          const { data: updMod, error: errMod } = await supabase
             .from('lms_modulos')
             .update({ activo: false })
-            .eq('id', moduloId);
+            .eq('id', moduloId)
+            .select('id');
+
+          if (errMod) throw errMod;
+          if (!updMod || updMod.length === 0) throw new Error('No se pudo desactivar el módulo — posible bloqueo de permisos (RLS)');
           
-          await supabase
+          const { data: updCont, error: errCont } = await supabase
             .from('lms_contenidos')
             .update({ activo: false })
-            .eq('modulo_id', moduloId);
+            .eq('modulo_id', moduloId)
+            .select('id');
+
+          if (errCont) throw errCont;
 
           return { moduloId, cursoId, softDeleted: true };
         }
@@ -154,12 +163,14 @@ export const useLMSEliminarModulo = () => {
       // Hard delete si no hay progreso
       await supabase.from('lms_contenidos').delete().eq('modulo_id', moduloId);
       
-      const { error } = await supabase
+      const { data: deleted, error } = await supabase
         .from('lms_modulos')
         .delete()
-        .eq('id', moduloId);
+        .eq('id', moduloId)
+        .select('id');
 
       if (error) throw error;
+      if (!deleted || deleted.length === 0) throw new Error('No se pudo eliminar el módulo — posible bloqueo de permisos (RLS)');
       return { moduloId, cursoId, softDeleted: false };
     },
     onSuccess: (result) => {
@@ -187,9 +198,11 @@ export const useLMSReordenarModulos = () => {
       modulos: { id: string; orden: number }[] 
     }) => {
       const updates = modulos.map(({ id, orden }) =>
-        supabase.from('lms_modulos').update({ orden }).eq('id', id)
+        supabase.from('lms_modulos').update({ orden }).eq('id', id).select('id')
       );
-      await Promise.all(updates);
+      const results = await Promise.all(updates);
+      const failed = results.filter(r => r.error || !r.data || r.data.length === 0);
+      if (failed.length > 0) throw new Error(`No se pudieron reordenar ${failed.length} módulos — posible bloqueo de permisos (RLS)`);
       return cursoId;
     },
     onSuccess: (cursoId) => {
