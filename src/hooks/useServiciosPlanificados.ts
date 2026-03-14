@@ -845,14 +845,16 @@ export function useServiciosPlanificados() {
 
         // Cancel all active records in asignacion_armados for this service
         if (currentService.id_servicio) {
-          const { error: cancelError } = await supabase
+          const { data: rmCancelData, error: cancelError } = await supabase
             .from('asignacion_armados')
             .update({ estado_asignacion: 'cancelado' })
             .eq('servicio_custodia_id', currentService.id_servicio)
-            .not('estado_asignacion', 'eq', 'cancelado');
+            .not('estado_asignacion', 'eq', 'cancelado')
+            .select('id');
 
           if (cancelError) {
             console.error('Error cancelling asignacion_armados records:', cancelError);
+            throw new Error(`Error al cancelar registros de armados: ${cancelError.message}`);
           }
         }
         
