@@ -8,6 +8,12 @@ import { sendPositioningNotification } from '@/lib/lifecycleAutomations';
 
 const logger = createLogger('useServiciosPlanificados');
 
+function assertRowsAffected(data: any[] | null, operation: string) {
+  if (!data || data.length === 0) {
+    throw new Error(`Operación "${operation}" bloqueada — los datos no se persistieron. Verifique permisos o contacte al administrador.`);
+  }
+}
+
 export interface ServicioPlanificadoData {
   id_servicio: string;
   id_interno_cliente?: string;
@@ -349,7 +355,7 @@ export function useServiciosPlanificados() {
       });
 
       // Update the service with custodian assignment
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('servicios_planificados')
         .update({
           custodio_asignado: custodioName,
@@ -358,9 +364,11 @@ export function useServiciosPlanificados() {
           estado_planeacion: newState,
           asignado_por: (await supabase.auth.getUser()).data.user?.id
         })
-        .eq('id', serviceId); // Use UUID id, not id_servicio
+        .eq('id', serviceId)
+        .select('id');
 
       if (error) throw error;
+      assertRowsAffected(data, 'assignCustodian');
       
       console.log('🎉 Custodio asignado exitosamente. Nuevo estado:', newState);
     },
@@ -412,7 +420,7 @@ export function useServiciosPlanificados() {
       const serviceDate = new Date(currentService.fecha_hora_cita).toISOString().split('T')[0];
       const userId = (await supabase.auth.getUser()).data.user?.id;
 
-      await supabase.from('asignacion_armados').insert({
+      const { data: insertData, error: insertError } = await supabase.from('asignacion_armados').insert({
         servicio_custodia_id: currentService.id_servicio,
         custodio_id: currentService.custodio_id,
         armado_id: armadoId || null,
@@ -424,7 +432,9 @@ export function useServiciosPlanificados() {
         armado_nombre_verificado: armadoName,
         tarifa_acordada: tarifaAcordada || null,
         asignado_por: userId,
-      });
+      }).select('id');
+      if (insertError) throw insertError;
+      assertRowsAffected(insertData, 'insertAsignacionArmado');
 
       // Determine final state using count from asignacion_armados
       const { countArmadosAsignados } = await import('@/hooks/useArmadosDelServicio');
@@ -441,7 +451,7 @@ export function useServiciosPlanificados() {
       });
 
       // Update scalar fields (legacy compat) + state
-      const { error } = await supabase
+      const { data: updateData, error } = await supabase
         .from('servicios_planificados')
         .update({
           armado_asignado: armadoName,
@@ -449,9 +459,11 @@ export function useServiciosPlanificados() {
           fecha_asignacion_armado: new Date().toISOString(),
           estado_planeacion: newState
         })
-        .eq('id', currentService.id);
+        .eq('id', currentService.id)
+        .select('id');
 
       if (error) throw error;
+      assertRowsAffected(updateData, 'assignArmedGuard.updateService');
     },
     onSuccess: () => {
       toast.success('Armado asignado exitosamente');
@@ -613,7 +625,7 @@ export function useServiciosPlanificados() {
       const finalState = shouldBeConfirmed ? 'confirmado' : 'pendiente_asignacion';
 
       // Update assignment
-      const { error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('servicios_planificados')
         .update({
           custodio_asignado: newCustodioName,
@@ -622,9 +634,11 @@ export function useServiciosPlanificados() {
           asignado_por: (await supabase.auth.getUser()).data.user?.id,
           estado_planeacion: finalState
         })
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id');
 
       if (updateError) throw updateError;
+      assertRowsAffected(updateData, 'reassignCustodian');
 
       // Log the change
       await logServiceChange({
@@ -708,20 +722,22 @@ export function useServiciosPlanificados() {
       const userId = (await supabase.auth.getUser()).data.user?.id;
 
       // Cancel previous active assignments for this service (reassignment = replace, not add)
-      const { error: cancelError } = await supabase
+      const { data: cancelData, error: cancelError } = await supabase
         .from('asignacion_armados')
         .update({ 
           estado_asignacion: 'cancelado',
           observaciones: `Reemplazado por: ${newArmadoName}. Motivo: ${reason}`
         })
         .eq('servicio_custodia_id', currentService.id_servicio)
-        .not('estado_asignacion', 'eq', 'cancelado');
+        .not('estado_asignacion', 'eq', 'cancelado')
+        .select('id');
 
       if (cancelError) {
         console.error('Error cancelling previous assignments:', cancelError);
+        throw new Error(`Error al cancelar asignaciones previas: ${cancelError.message}`);
       }
 
-      await supabase.from('asignacion_armados').insert({
+      const { data: reInsertData, error: reInsertError } = await supabase.from('asignacion_armados').insert({
         servicio_custodia_id: currentService.id_servicio,
         custodio_id: currentService.custodio_id,
         armado_id: newArmadoId || null,
@@ -734,7 +750,9 @@ export function useServiciosPlanificados() {
         tarifa_acordada: tarifaAcordada || null,
         asignado_por: userId,
         observaciones: nombrePersonal ? `Personal: ${nombrePersonal}` : null
-      });
+      }).select('id');
+      if (reInsertError) throw reInsertError;
+      assertRowsAffected(reInsertData, 'reassignArmedGuard.insert');
 
       // Determine final state using count from asignacion_armados
       const { countArmadosAsignados } = await import('@/hooks/useArmadosDelServicio');
@@ -744,7 +762,7 @@ export function useServiciosPlanificados() {
       const finalState = shouldBeConfirmed ? 'confirmado' : currentService.estado_planeacion;
 
       // Update scalar fields (legacy compat) + state
-      const { error: updateError } = await supabase
+      const { data: reUpdateData, error: updateError } = await supabase
         .from('servicios_planificados')
         .update({
           armado_asignado: newArmadoName,
@@ -752,9 +770,11 @@ export function useServiciosPlanificados() {
           fecha_asignacion_armado: new Date().toISOString(),
           estado_planeacion: finalState
         })
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id');
 
       if (updateError) throw updateError;
+      assertRowsAffected(reUpdateData, 'reassignArmedGuard.updateService');
 
       await logServiceChange({
         serviceId,
@@ -825,14 +845,16 @@ export function useServiciosPlanificados() {
 
         // Cancel all active records in asignacion_armados for this service
         if (currentService.id_servicio) {
-          const { error: cancelError } = await supabase
+          const { data: rmCancelData, error: cancelError } = await supabase
             .from('asignacion_armados')
             .update({ estado_asignacion: 'cancelado' })
             .eq('servicio_custodia_id', currentService.id_servicio)
-            .not('estado_asignacion', 'eq', 'cancelado');
+            .not('estado_asignacion', 'eq', 'cancelado')
+            .select('id');
 
           if (cancelError) {
             console.error('Error cancelling asignacion_armados records:', cancelError);
+            throw new Error(`Error al cancelar registros de armados: ${cancelError.message}`);
           }
         }
         
@@ -843,12 +865,14 @@ export function useServiciosPlanificados() {
       }
 
       // Update assignment
-      const { error: updateError } = await supabase
+      const { data: rmUpdateData, error: updateError } = await supabase
         .from('servicios_planificados')
         .update(updateData)
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id');
 
       if (updateError) throw updateError;
+      assertRowsAffected(rmUpdateData, 'removeAssignment');
 
       // Log the change
       await logServiceChange({
@@ -921,7 +945,7 @@ export function useServiciosPlanificados() {
       }
 
       // Cancel the service
-      const { error } = await supabase
+      const { data: cancelData, error } = await supabase
         .from('servicios_planificados')
         .update({
           estado_planeacion: 'cancelado',
@@ -929,12 +953,14 @@ export function useServiciosPlanificados() {
           cancelado_por: (await supabase.auth.getUser()).data.user?.id,
           fecha_cancelacion: new Date().toISOString()
         })
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id');
 
       if (error) {
         logger.error('cancelService', 'Error updating service', error);
         throw new Error(`Error al cancelar servicio: ${error.message}`);
       }
+      assertRowsAffected(cancelData, 'cancelService');
 
       logger.operation('cancelService', 'success', { serviceId });
       return { serviceId };
@@ -969,7 +995,7 @@ export function useServiciosPlanificados() {
     try {
       const { data: user } = await supabase.auth.getUser();
       
-      await supabase
+      const { error: logError } = await supabase
         .from('service_modification_log')
         .insert({
           service_id: serviceId,
@@ -979,10 +1005,15 @@ export function useServiciosPlanificados() {
           modified_by: user.user?.id,
           reason: reason,
           timestamp: new Date().toISOString()
-        });
+        })
+        .select('id');
+      if (logError) {
+        console.warn('Error logging service change:', logError);
+        toast.warning('⚠️ El cambio se aplicó pero no se pudo registrar en la bitácora de auditoría.');
+      }
     } catch (error) {
       console.warn('Error logging service change:', error);
-      // Don't throw error to avoid breaking the main operation
+      toast.warning('⚠️ El cambio se aplicó pero no se pudo registrar en la bitácora de auditoría.');
     }
   };
 
@@ -1015,14 +1046,24 @@ export function useServiciosPlanificados() {
         .single();
       if (fetchErr) throw fetchErr;
 
-      const { error } = await supabase
+      const { data: opData, error } = await supabase
         .from('servicios_planificados')
         .update(updateData)
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id, hora_llegada_custodio');
       
       if (error) {
         logger.error('updateOperationalStatus', 'Failed to update', error);
         throw error;
+      }
+      assertRowsAffected(opData, 'updateOperationalStatus');
+
+      // Post-verify: confirm persistence for the critical bridge
+      if (action === 'mark_on_site') {
+        const persisted = opData?.[0] as any;
+        if (!persisted?.hora_llegada_custodio) {
+          throw new Error('Verificación post-escritura falló: hora_llegada_custodio no persistió. El servicio NO fue transferido a Monitoreo.');
+        }
       }
       
       logger.operation('updateOperationalStatus', 'success', { serviceId, action });
@@ -1082,7 +1123,7 @@ export function useServiciosPlanificados() {
     }) => {
       logger.operation('markFalsePositioning', 'start', { serviceId, motivo, cobroPosicionamiento });
       
-      const { error } = await supabase
+      const { data: fpData, error } = await supabase
         .from('servicios_planificados')
         .update({
           estado_planeacion: 'cancelado',
@@ -1090,17 +1131,19 @@ export function useServiciosPlanificados() {
           motivo_posicionamiento_falso: motivo,
           cobro_posicionamiento: cobroPosicionamiento,
           hora_llegada_custodio: horaLlegada,
-          hora_inicio_real: new Date().toISOString(), // Mark that custodian arrived
+          hora_inicio_real: new Date().toISOString(),
           observaciones: `Posicionamiento en falso: ${motivo}. ${cobroPosicionamiento ? 'Se cobrará posicionamiento.' : 'Sin cargo de posicionamiento.'}`,
           cancelado_por: (await supabase.auth.getUser()).data.user?.id,
           fecha_cancelacion: new Date().toISOString()
         })
-        .eq('id', serviceId);
+        .eq('id', serviceId)
+        .select('id');
       
       if (error) {
         logger.error('markFalsePositioning', 'Failed to update', error);
         throw error;
       }
+      assertRowsAffected(fpData, 'markFalsePositioning');
       
       logger.operation('markFalsePositioning', 'success', { serviceId });
       return { serviceId };
