@@ -127,16 +127,18 @@ export function useUpsertRentaGadget() {
     mutationFn: async (data: Partial<RentaGadgetMensual> & { mes: string }) => {
       if (data.id) {
         const { id, created_at, created_by, ...rest } = data;
-        const { error } = await supabase.from('rentas_gadgets_mensuales').update(rest).eq('id', id);
+        const { data: updated, error } = await supabase.from('rentas_gadgets_mensuales').update(rest).eq('id', id).select('id');
         if (error) throw error;
+        if (!updated || updated.length === 0) throw new Error('No se pudo actualizar la renta — posible bloqueo de permisos');
       } else {
         const { id, created_at, created_by, ...rest } = data;
         const { data: user } = await supabase.auth.getUser();
-        const { error } = await supabase.from('rentas_gadgets_mensuales').insert({
+        const { data: inserted, error } = await supabase.from('rentas_gadgets_mensuales').insert({
           ...rest,
           created_by: user.user?.id,
-        });
+        }).select('id');
         if (error) throw error;
+        if (!inserted || inserted.length === 0) throw new Error('No se pudo crear la renta — posible bloqueo de permisos');
       }
     },
     onSuccess: () => {

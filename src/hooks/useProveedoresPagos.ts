@@ -242,30 +242,38 @@ export function useProveedoresPagos(proveedorId?: string, startDate?: Date, endD
         registrado_por: user.user.id,
       }));
 
-      const { error: insertError } = await supabase
+      const { data: pagosInserted, error: insertError } = await supabase
         .from('pagos_proveedores_armados')
-        .insert(pagosToInsert);
+        .insert(pagosToInsert)
+        .select('id');
 
       if (insertError) {
         console.error('Error creating bulk payments:', insertError);
         throw insertError;
       }
+      if (!pagosInserted || pagosInserted.length !== pagosToInsert.length) {
+        throw new Error(`Solo se crearon ${pagosInserted?.length || 0} de ${pagosToInsert.length} pagos — posible bloqueo de permisos`);
+      }
 
       // Update all assignments
-      const { error: updateError } = await supabase
+      const { data: updatedAssigs, error: updateError } = await supabase
         .from('asignacion_armados')
         .update({
           estado_pago: 'pagado',
           fecha_ultima_actualizacion_pago: new Date().toISOString(),
         })
-        .in('id', asignacionIds);
+        .in('id', asignacionIds)
+        .select('id');
 
       if (updateError) {
         console.error('Error updating assignments:', updateError);
         throw updateError;
       }
+      if (!updatedAssigs || updatedAssigs.length !== asignacionIds.length) {
+        console.warn(`[PagosMasivos] Solo ${updatedAssigs?.length || 0}/${asignacionIds.length} asignaciones actualizadas`);
+      }
 
-      toast.success(`${asignacionIds.length} pagos registrados exitosamente`);
+      toast.success(`${pagosInserted.length} pagos registrados exitosamente`);
       await loadServiciosConPagos();
     } catch (error: any) {
       console.error('Error in registrarPagosMasivos:', error);

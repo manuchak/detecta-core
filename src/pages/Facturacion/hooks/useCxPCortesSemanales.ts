@@ -420,18 +420,21 @@ export function useDeleteCxPCorte() {
       if (corte.estado !== 'borrador') throw new Error('Solo se pueden eliminar cortes en estado borrador');
 
       // Delete details first (FK dependency)
-      const { error: detErr } = await supabase
+      const { data: detDeleted, error: detErr } = await supabase
         .from('cxp_cortes_detalle')
         .delete()
-        .eq('corte_id', id);
+        .eq('corte_id', id)
+        .select('id');
       if (detErr) throw detErr;
 
       // Delete the corte
-      const { error } = await supabase
+      const { data: corteDeleted, error } = await supabase
         .from('cxp_cortes_semanales')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!corteDeleted || corteDeleted.length === 0) throw new Error('No se pudo eliminar el corte — posible bloqueo de permisos');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });

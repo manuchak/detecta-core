@@ -59,8 +59,9 @@ export function useDeleteContacto() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('pc_clientes_contactos').delete().eq('id', id);
+      const { data: deleted, error } = await supabase.from('pc_clientes_contactos').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!deleted || deleted.length === 0) throw new Error('No se pudo eliminar el contacto — posible bloqueo de permisos');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clientes-contactos'] });

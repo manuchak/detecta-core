@@ -520,10 +520,11 @@ export async function executeMaestroImport(
         }
 
         if (Object.keys(estadiaUpdate).length > 0) {
-          // Use reglas_estadias_cliente for granular rules
-          const { error } = await supabase.from('pc_clientes').update(estadiaUpdate).eq('id', clienteId);
+          const { data: updated, error } = await supabase.from('pc_clientes').update(estadiaUpdate).eq('id', clienteId).select('id');
           if (error) {
             result.errors.push(`${match.clienteNombre}: Error actualizando estadías - ${error.message}`);
+          } else if (!updated || updated.length === 0) {
+            result.errors.push(`${match.clienteNombre}: Estadías no guardadas — posible bloqueo de permisos`);
           }
         }
       }
