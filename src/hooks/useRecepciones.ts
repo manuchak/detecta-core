@@ -131,8 +131,8 @@ export const useRecepciones = () => {
       detalles: Partial<DetalleRecepcion>[] 
     }) => {
       // Procesar cada detalle
-      const detallesPromises = detalles.map(detalle =>
-        supabase
+      const detallesPromises = detalles.map(async (detalle) => {
+        const { data, error } = await supabase
           .from('detalles_recepcion')
           .upsert({
             producto_id: detalle.producto_id!,
@@ -146,7 +146,11 @@ export const useRecepciones = () => {
             subtotal_recibido: detalle.subtotal_recibido,
             notas: detalle.notas
           })
-      );
+          .select('id');
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error(`Detalle de recepción no guardado para producto ${detalle.producto_id}`);
+        return data;
+      });
 
       await Promise.all(detallesPromises);
 
