@@ -355,7 +355,7 @@ export function useServiciosPlanificados() {
       });
 
       // Update the service with custodian assignment
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('servicios_planificados')
         .update({
           custodio_asignado: custodioName,
@@ -364,9 +364,11 @@ export function useServiciosPlanificados() {
           estado_planeacion: newState,
           asignado_por: (await supabase.auth.getUser()).data.user?.id
         })
-        .eq('id', serviceId); // Use UUID id, not id_servicio
+        .eq('id', serviceId)
+        .select('id');
 
       if (error) throw error;
+      assertRowsAffected(data, 'assignCustodian');
       
       console.log('🎉 Custodio asignado exitosamente. Nuevo estado:', newState);
     },
