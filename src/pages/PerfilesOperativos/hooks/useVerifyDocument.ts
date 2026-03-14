@@ -37,10 +37,11 @@ export function useVerifyDocument(telefono: string | null) {
         .from('documentos_custodio')
         .update(updateData)
         .eq('id', docId)
-        .select()
+        .select('id')
         .single();
       
       if (error) throw error;
+      if (!data) throw new Error('No se pudo verificar el documento — operación bloqueada por permisos');
       return data;
     },
     onSuccess: (_, variables) => {
@@ -73,10 +74,11 @@ export function useRejectDocument(telefono: string | null) {
           fecha_rechazo: new Date().toISOString()
         })
         .eq('id', docId)
-        .select()
+        .select('id')
         .single();
       
       if (error) throw error;
+      if (!data) throw new Error('No se pudo rechazar el documento — operación bloqueada por permisos');
       return data;
     },
     onSuccess: () => {

@@ -430,13 +430,14 @@ export const useLeadApprovals = () => {
           if (datosPersonales.direccion) updatePayload.direccion = datosPersonales.direccion;
 
           if (Object.keys(updatePayload).length > 0) {
-            const { error: vehicleError } = await supabase
+            const { data: vehData, error: vehicleError } = await supabase
               .from('candidatos_custodios')
               .update(updatePayload)
-              .eq('id', candidatoId);
+              .eq('id', candidatoId)
+              .select('id');
 
-            if (vehicleError) {
-              console.warn('⚠️ No se pudieron migrar datos vehiculares:', vehicleError);
+            if (vehicleError || !vehData?.length) {
+              console.warn('⚠️ No se pudieron migrar datos vehiculares:', vehicleError || 'RLS block');
             } else {
               console.log('✅ Datos vehiculares migrados al candidato:', Object.keys(updatePayload));
             }
@@ -453,13 +454,14 @@ export const useLeadApprovals = () => {
           if (seguridadArmada.años_experiencia_armada) updatePayload.experiencia_seguridad = true;
 
           if (Object.keys(updatePayload).length > 0) {
-            const { error: armadoError } = await supabase
+            const { data: armUpdData, error: armadoError } = await supabase
               .from('candidatos_armados')
               .update(updatePayload)
-              .eq('id', candidatoId);
+              .eq('id', candidatoId)
+              .select('id');
 
-            if (armadoError) {
-              console.warn('⚠️ No se pudieron migrar datos de armado:', armadoError);
+            if (armadoError || !armUpdData?.length) {
+              console.warn('⚠️ No se pudieron migrar datos de armado:', armadoError || 'RLS block');
             } else {
               console.log('✅ Datos de seguridad armada migrados:', Object.keys(updatePayload));
             }

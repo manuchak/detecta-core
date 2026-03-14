@@ -89,17 +89,21 @@ export const useCustodioLiberacion = () => {
 
       // 🔄 SINCRONIZACIÓN CRÍTICA: Actualizar estado del candidato (intentar ambas tablas)
       let candidatoError: any = null;
-      const { error: custodioErr } = await supabase
+      const { data: custSyncData, error: custodioErr } = await supabase
         .from('candidatos_custodios')
         .update({ estado_proceso: 'en_liberacion', updated_at: new Date().toISOString() })
-        .eq('id', candidato_id);
-      if (custodioErr) {
+        .eq('id', candidato_id)
+        .select('id');
+      if (custodioErr || !custSyncData?.length) {
         // Intentar en candidatos_armados
-        const { error: armadoErr } = await supabase
+        const { data: armSyncData, error: armadoErr } = await supabase
           .from('candidatos_armados')
           .update({ estado_proceso: 'en_liberacion', updated_at: new Date().toISOString() })
-          .eq('id', candidato_id);
-        candidatoError = armadoErr;
+          .eq('id', candidato_id)
+          .select('id');
+        if (armadoErr || !armSyncData?.length) {
+          candidatoError = armadoErr || new Error('Candidato no encontrado en ninguna tabla');
+        }
       }
 
       if (candidatoError) {
