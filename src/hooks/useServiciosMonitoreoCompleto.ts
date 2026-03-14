@@ -200,14 +200,16 @@ export const useServiciosMonitoreoCompleto = () => {
           orden_prioridad: contacto.orden_prioridad
         }));
 
-        const { error: contactosError } = await supabase
+        const { data: contactosResult, error: contactosError } = await supabase
           .from('contactos_emergencia_servicio')
-          .insert(contactosParaInsertar);
+          .insert(contactosParaInsertar)
+          .select('id');
 
         if (contactosError) {
           console.error('Error creating emergency contacts:', contactosError);
           throw new Error(`Error en contactos de emergencia: ${contactosError.message}`);
         }
+        if (!contactosResult || contactosResult.length === 0) throw new Error('No se pudieron crear los contactos de emergencia — posible bloqueo de permisos (RLS)');
       }
 
       // 4. Crear configuración de reportes con validación
