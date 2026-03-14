@@ -138,11 +138,13 @@ export function useDeactivateCliente() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('pc_clientes')
         .update({ activo: false, motivo_baja: motivo, fecha_baja: new Date().toISOString() } as any)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo dar de baja al cliente — posible bloqueo de permisos');
     },
     onSuccess: () => {
       toast.success('Cliente dado de baja correctamente');
