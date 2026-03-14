@@ -152,13 +152,14 @@ export const useAprobacionesWorkflow = () => {
           elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
           observaciones: data.observaciones || null
         })
-        .select()
+        .select('id')
         .single();
 
       if (aprobacionError) {
         console.error('Error al crear aprobación:', aprobacionError);
         throw aprobacionError;
       }
+      if (!aprobacion) throw new Error('No se pudo crear la aprobación — posible bloqueo de permisos (RLS)');
 
       // Determinar el nuevo estado del servicio
       let nuevoEstado = 'pendiente_evaluacion'; // Default
