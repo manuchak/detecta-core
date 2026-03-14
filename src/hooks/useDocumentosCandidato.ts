@@ -227,7 +227,7 @@ export function useValidarDocumento() {
       estado: 'valido' | 'invalido' | 'requiere_revision';
       motivoRechazo?: string;
     }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('documentos_candidato')
         .update({
           estado_validacion: estado,
@@ -236,9 +236,11 @@ export function useValidarDocumento() {
           motivo_rechazo: motivoRechazo,
           updated_at: new Date().toISOString()
         })
-        .eq('id', documentoId);
+        .eq('id', documentoId)
+        .select('id');
 
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('No se pudo validar el documento — operación bloqueada por permisos');
       return { documentoId, estado };
     },
     onSuccess: (_, variables) => {
