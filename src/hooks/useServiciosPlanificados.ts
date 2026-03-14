@@ -722,17 +722,19 @@ export function useServiciosPlanificados() {
       const userId = (await supabase.auth.getUser()).data.user?.id;
 
       // Cancel previous active assignments for this service (reassignment = replace, not add)
-      const { error: cancelError } = await supabase
+      const { data: cancelData, error: cancelError } = await supabase
         .from('asignacion_armados')
         .update({ 
           estado_asignacion: 'cancelado',
           observaciones: `Reemplazado por: ${newArmadoName}. Motivo: ${reason}`
         })
         .eq('servicio_custodia_id', currentService.id_servicio)
-        .not('estado_asignacion', 'eq', 'cancelado');
+        .not('estado_asignacion', 'eq', 'cancelado')
+        .select('id');
 
       if (cancelError) {
         console.error('Error cancelling previous assignments:', cancelError);
+        throw new Error(`Error al cancelar asignaciones previas: ${cancelError.message}`);
       }
 
       await supabase.from('asignacion_armados').insert({
