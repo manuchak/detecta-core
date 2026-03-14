@@ -33,10 +33,8 @@ async function isDuplicate(servicioId: string, templateName: string): Promise<bo
 
 /**
  * Resuelve los teléfonos de contacto del cliente para un servicio.
- * Fuentes: servicios_planificados.telefono_cliente + pc_clientes_contactos.
  */
 async function resolveClientPhones(serviceUUID: string): Promise<string[]> {
-  // 1. Get telefono_cliente from the service
   const { data: svc } = await supabase
     .from('servicios_planificados')
     .select('telefono_cliente, nombre_cliente')
@@ -50,7 +48,6 @@ async function resolveClientPhones(serviceUUID: string): Promise<string[]> {
     if (norm.length >= 10) phones.add(norm);
   }
 
-  // 2. Try to find additional contacts via pc_clientes
   if (svc?.nombre_cliente) {
     const { data: cliente } = await supabase
       .from('pc_clientes')
@@ -80,6 +77,26 @@ async function resolveClientPhones(serviceUUID: string): Promise<string[]> {
   }
 
   return Array.from(phones);
+}
+
+/**
+ * Registra fallo de notificación en bitacora_anomalias_turno para trazabilidad.
+ */
+async function logNotificationFailure(
+  servicioId: string,
+  templateName: string,
+  errorMsg: string,
+) {
+  try {
+    await (supabase as any).from('bitacora_anomalias_turno').insert({
+      tipo: 'notificacion_fallida',
+      descripcion: `Template "${templateName}" falló para servicio ${servicioId}: ${errorMsg}`,
+      servicio_id: servicioId,
+      metadata: { templateName, error: errorMsg },
+    });
+  } catch (e) {
+    console.error('[Lifecycle] No se pudo registrar fallo de notificación en bitácora:', e);
+  }
 }
 
 /**
@@ -135,13 +152,15 @@ export async function sendLifecycleTemplate(params: LifecycleTemplateParams): Pr
  * Envía template de posicionamiento al cliente cuando Planeación marca "En Sitio".
  */
 export function sendPositioningNotification(servicioId: string, serviceUUID: string) {
-  // Fire-and-forget (no bloquear el flujo principal)
   sendLifecycleTemplate({
     servicioId,
     serviceUUID,
     templateName: 'posicionamiento_cliente',
     commChannel: 'sistema',
-  }).catch(err => console.error('[Lifecycle] posicionamiento_cliente error:', err));
+  }).catch(err => {
+    console.error('[Lifecycle] posicionamiento_cliente error:', err);
+    logNotificationFailure(servicioId, 'posicionamiento_cliente', err?.message || String(err));
+  });
 }
 
 /**
@@ -158,7 +177,10 @@ export function sendCompletionNotifications(
     serviceUUID,
     templateName: 'cierre_servicio_cliente',
     commChannel: 'sistema',
-  }).catch(err => console.error('[Lifecycle] cierre_servicio_cliente error:', err));
+  }).catch(err => {
+    console.error('[Lifecycle] cierre_servicio_cliente error:', err);
+    logNotificationFailure(servicioId, 'cierre_servicio_cliente', err?.message || String(err));
+  });
 
   // 2. Servicio completado al custodio
   if (custodioTelefono) {
@@ -170,6 +192,9 @@ export function sendCompletionNotifications(
       templateName: 'servicio_completado',
       commChannel: 'sistema',
       overridePhones: [to],
-    }).catch(err => console.error('[Lifecycle] servicio_completado error:', err));
+    }).catch(err => {
+      console.error('[Lifecycle] servicio_completado error:', err);
+      logNotificationFailure(servicioId, 'servicio_completado', err?.message || String(err));
+    });
   }
 }

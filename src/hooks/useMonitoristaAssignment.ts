@@ -45,6 +45,30 @@ export function getTurnoLabel(turno: string): string {
   return map[turno] || turno;
 }
 
+/** RLS write-verification helper */
+function assertRowsAffected(data: any[] | null, operation: string) {
+  if (!data || data.length === 0) {
+    throw new Error(`Operación "${operation}" bloqueada — los datos no se persistieron. Contacte al administrador.`);
+  }
+}
+
+/** Insert anomaly with soft warning (never blocks main flow) */
+async function insertAnomaly(payload: Record<string, any>, context: string) {
+  try {
+    const { data, error } = await (supabase as any)
+      .from('bitacora_anomalias_turno')
+      .insert(payload)
+      .select('id');
+    if (error || !data || data.length === 0) {
+      console.warn(`[${context}] Anomalía no se persistió:`, error?.message);
+      toast.warning('Registro de anomalía no se guardó — revise bitácora manualmente.');
+    }
+  } catch (e) {
+    console.warn(`[${context}] Error insertando anomalía:`, e);
+    toast.warning('Registro de anomalía falló — revise bitácora manualmente.');
+  }
+}
+
 
 export function useMonitoristaAssignment() {
   const queryClient = useQueryClient();
@@ -111,7 +135,7 @@ export function useMonitoristaAssignment() {
             id: r.user_id,
             display_name: profileMap.get(r.user_id) || r.user_id.slice(0, 8),
             role: r.role,
-            en_turno: false, // Will be computed from heartbeat
+            en_turno: false,
           });
         }
       }
@@ -120,7 +144,7 @@ export function useMonitoristaAssignment() {
     refetchInterval: 60_000,
   });
 
-  // NEW: Heartbeat-based presence detection (replaces heuristic)
+  // Heartbeat-based presence detection
   const heartbeatQuery = useQuery({
     queryKey: [...queryKey, 'heartbeat'],
     queryFn: async () => {
@@ -137,12 +161,10 @@ export function useMonitoristaAssignment() {
 
   const onlineUserIds = heartbeatQuery.data || new Set<string>();
 
-  // Formal assignment IDs for fallback
   const formallyAssignedUserIds = new Set(
     (allAssignments.data || []).filter(a => a.activo).map(a => a.monitorista_id)
   );
 
-  // Triple fallback for en_turno detection
   const monitoristasIds = new Set((monitoristasQuery.data || []).map(m => m.id));
   const monitoristasOnline = new Set(
     [...onlineUserIds].filter((id: string) => monitoristasIds.has(id))
@@ -150,27 +172,17 @@ export function useMonitoristaAssignment() {
 
   const monitoristas: MonitoristaProfile[] = (monitoristasQuery.data || []).map(m => {
     let enTurno: boolean;
-
     if (monitoristasOnline.size > 0) {
-      // Primary: heartbeat
       enTurno = monitoristasOnline.has(m.id);
     } else {
-      // Fallback: formal assignments
       enTurno = formallyAssignedUserIds.has(m.id);
     }
-
-    return {
-      ...m,
-      en_turno: enTurno,
-    };
+    return { ...m, en_turno: enTurno };
   });
 
   const formalAssignments = allAssignments.data || [];
-
-  // Compute assigned service IDs (formal only)
   const assignedServiceIds = new Set(formalAssignments.map(a => a.servicio_id));
 
-  // Group assignments by monitorista (formal only)
   const assignmentsByMonitorista = formalAssignments.reduce<Record<string, MonitoristaAssignment[]>>(
     (acc, a) => {
       if (!acc[a.monitorista_id]) acc[a.monitorista_id] = [];
@@ -180,7 +192,6 @@ export function useMonitoristaAssignment() {
     {}
   );
 
-  // Map servicio_id -> monitorista for badge display
   const monitoristaByService = new Map<string, MonitoristaProfile>();
   for (const a of formalAssignments) {
     const m = monitoristas.find(m => m.id === a.monitorista_id);
@@ -192,37 +203,39 @@ export function useMonitoristaAssignment() {
       const { data: { user } } = await supabase.auth.getUser();
       const nowTs = new Date().toISOString();
       // Dedup: deactivate any existing active assignments for this service
-      await (supabase as any)
+      const { data: deactivated } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .update({ activo: false, fin_turno: nowTs })
         .eq('servicio_id', params.servicioId)
-        .eq('activo', true);
+        .eq('activo', true)
+        .select('id');
+      if (deactivated?.length) console.log(`[assignService] Deactivated ${deactivated.length} prior assignment(s)`);
 
-      const { error } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .insert({
           servicio_id: params.servicioId,
           monitorista_id: params.monitoristaId,
           asignado_por: user?.id || null,
           turno: params.turno || getCurrentTurno(),
-        });
-      // Unique constraint violation = another process already assigned → safe to ignore
+        })
+        .select('id');
       if (error && error.code === '23505') {
         console.log('[assignService] Duplicate caught by DB constraint, skipping');
         return;
       }
       if (error) throw error;
+      assertRowsAffected(data, 'assignService');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       toast.success('Servicio asignado');
     },
-    onError: () => toast.error('Error al asignar servicio'),
+    onError: (err: Error) => toast.error(err.message || 'Error al asignar servicio'),
   });
 
   /**
    * Client-affinity distribution algorithm.
-   * Priority 1: balanced workload. Priority 2: group same-client services together.
    */
   async function distributeWithAffinity(
     serviceIds: string[],
@@ -231,7 +244,6 @@ export function useMonitoristaAssignment() {
     userId: string | null,
     turno: string,
   ) {
-    // 1. Fetch client names for each service
     const { data: svcData } = await (supabase as any)
       .from('servicios_planificados')
       .select('id_servicio, nombre_cliente')
@@ -242,7 +254,6 @@ export function useMonitoristaAssignment() {
       clientByService.set(s.id_servicio, s.nombre_cliente || '__sin_cliente__');
     }
 
-    // 2. Group services by client
     const clientGroups = new Map<string, string[]>();
     for (const sId of serviceIds) {
       const client = clientByService.get(sId) || '__sin_cliente__';
@@ -250,10 +261,8 @@ export function useMonitoristaAssignment() {
       clientGroups.get(client)!.push(sId);
     }
 
-    // 3. Sort groups largest-first for better packing
     const sortedGroups = [...clientGroups.entries()].sort((a, b) => b[1].length - a[1].length);
 
-    // 4. Max per agent = ceil(total / agents)
     const totalServices = serviceIds.length;
     const maxPerAgent = Math.ceil(totalServices / monitoristaIds.length);
 
@@ -265,12 +274,9 @@ export function useMonitoristaAssignment() {
 
     for (const [, groupServiceIds] of sortedGroups) {
       const target = getLeastLoaded();
-
-      // How many can fit on this agent without exceeding max?
       const available = Math.max(0, maxPerAgent - load[target]);
-      const fitCount = Math.min(groupServiceIds.length, available || 1); // at least 1
+      const fitCount = Math.min(groupServiceIds.length, available || 1);
 
-      // Assign the fitting portion to the primary target
       for (let i = 0; i < fitCount; i++) {
         inserts.push({
           servicio_id: groupServiceIds[i],
@@ -281,7 +287,6 @@ export function useMonitoristaAssignment() {
         load[target]++;
       }
 
-      // Overflow: distribute remaining to next least-loaded agents
       for (let i = fitCount; i < groupServiceIds.length; i++) {
         const overflow = getLeastLoaded();
         inserts.push({
@@ -308,13 +313,14 @@ export function useMonitoristaAssignment() {
       const nowTs = new Date().toISOString();
 
       // Dedup: deactivate existing active assignments for these services
-      await (supabase as any)
+      const { data: deactivated } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .update({ activo: false, fin_turno: nowTs })
         .in('servicio_id', params.unassignedServiceIds)
-        .eq('activo', true);
+        .eq('activo', true)
+        .select('id');
+      if (deactivated?.length) console.log(`[autoDistribute] Deactivated ${deactivated.length} prior assignment(s)`);
 
-      // Build current load — only count operationally relevant services
       const activeBoardIds = params.activeBoardServiceIds;
       const load: Record<string, number> = {};
       for (const mId of params.monitoristaIds) {
@@ -332,17 +338,18 @@ export function useMonitoristaAssignment() {
         turno,
       );
 
-      // Insert one by one to handle unique constraint violations gracefully
       let inserted = 0;
       for (const row of inserts) {
-        const { error } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
-          .insert(row);
+          .insert(row)
+          .select('id');
         if (error && error.code === '23505') {
           console.log(`[autoDistribute] Duplicate for ${row.servicio_id}, skipping`);
           continue;
         }
         if (error) throw error;
+        assertRowsAffected(data, `autoDistribute(${row.servicio_id})`);
         inserted++;
       }
 
@@ -355,7 +362,7 @@ export function useMonitoristaAssignment() {
     onError: (err: Error) => toast.error(err.message || 'Error al distribuir'),
   });
 
-  // Reset & Redistribute: deactivate ALL assignments, then distribute ALL with client affinity
+  // Reset & Redistribute
   const resetAndRedistribute = useMutation({
     mutationFn: async (params: { serviceIds: string[]; monitoristaIds: string[] }) => {
       if (params.monitoristaIds.length === 0) throw new Error('No hay monitoristas en turno');
@@ -366,12 +373,14 @@ export function useMonitoristaAssignment() {
       const nowTs = new Date().toISOString();
 
       // Step 1: Deactivate ALL active assignments
-      await (supabase as any)
+      const { data: deactivated } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .update({ activo: false, fin_turno: nowTs })
-        .eq('activo', true);
+        .eq('activo', true)
+        .select('id');
+      console.log(`[resetAndRedistribute] Deactivated ${deactivated?.length || 0} assignments`);
 
-      // Step 2: Distribute with affinity (starting from zero load)
+      // Step 2: Distribute with affinity
       const load: Record<string, number> = {};
       for (const mId of params.monitoristaIds) load[mId] = 0;
 
@@ -383,27 +392,28 @@ export function useMonitoristaAssignment() {
         turno,
       );
 
-      // Insert one by one to handle unique constraint violations gracefully
       let insertedCount = 0;
       for (const row of inserts) {
-        const { error } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
-          .insert(row);
+          .insert(row)
+          .select('id');
         if (error && error.code === '23505') {
           console.log(`[resetAndRedistribute] Duplicate for ${row.servicio_id}, skipping`);
           continue;
         }
         if (error) throw error;
+        assertRowsAffected(data, `resetAndRedistribute(${row.servicio_id})`);
         insertedCount++;
       }
 
-      // Log anomaly
-      await (supabase as any).from('bitacora_anomalias_turno').insert({
+      // Log anomaly with verification
+      await insertAnomaly({
         tipo: 'reset_redistribucion',
         descripcion: `Reset completo: ${inserts.length} servicios redistribuidos con afinidad por cliente entre ${params.monitoristaIds.length} monitoristas`,
         ejecutado_por: user?.id || null,
         metadata: { total_services: inserts.length, total_staff: params.monitoristaIds.length },
-      });
+      }, 'resetAndRedistribute');
 
       return { total: inserts.length, perPerson: Math.round(inserts.length / params.monitoristaIds.length) };
     },
@@ -417,32 +427,37 @@ export function useMonitoristaAssignment() {
   const reassignService = useMutation({
     mutationFn: async (params: { assignmentId: string; newMonitoristaId: string; servicioId: string; turno: string }) => {
       const nowTs = new Date().toISOString();
-      // Deactivate ALL active assignments for this service (not just one record)
-      await (supabase as any)
+      // Deactivate ALL active assignments for this service
+      const { data: deactivated } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .update({ activo: false, fin_turno: nowTs })
         .eq('servicio_id', params.servicioId)
-        .eq('activo', true);
+        .eq('activo', true)
+        .select('id');
+      if (deactivated?.length) console.log(`[reassignService] Deactivated ${deactivated.length} prior assignment(s)`);
+
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .insert({
           servicio_id: params.servicioId,
           monitorista_id: params.newMonitoristaId,
           asignado_por: user?.id || null,
           turno: params.turno,
-        });
+        })
+        .select('id');
       if (error && error.code === '23505') {
         console.log(`[reassignService] Duplicate for ${params.servicioId}, skipping`);
         return;
       }
       if (error) throw error;
+      assertRowsAffected(data, 'reassignService');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       toast.success('Servicio reasignado');
     },
-    onError: () => toast.error('Error al reasignar servicio'),
+    onError: (err: Error) => toast.error(err.message || 'Error al reasignar servicio'),
   });
 
   const handoffTurno = useMutation({
@@ -474,13 +489,11 @@ export function useMonitoristaAssignment() {
         const hasRecentActivity = recentEvents && recentEvents.length > 0;
 
         if (hasRecentActivity) {
-          // Has recent activity → always transfer
           assignmentsToTransfer.push(a);
           continue;
         }
 
-        // ── Corrección 2 & 5: Guardia anti-cierre para servicios activos ──
-        // Before closing, check if service has protected state
+        // Check if service has protected state
         const { data: svcState } = await (supabase as any)
           .from('servicios_planificados')
           .select('en_destino, hora_inicio_real, id')
@@ -489,7 +502,7 @@ export function useMonitoristaAssignment() {
           .limit(1)
           .single();
 
-        // Check for active special events (pernocta, incidencia, etc.)
+        // Check for active special events
         const { data: activeSpecialEvents } = await (supabase as any)
           .from('servicio_eventos_ruta')
           .select('id, tipo_evento')
@@ -503,15 +516,13 @@ export function useMonitoristaAssignment() {
         const hasActiveSpecialEvent = activeSpecialEvents && activeSpecialEvents.length > 0;
 
         if (isEnDestino || hasRecentStart || hasActiveSpecialEvent) {
-          // PROTECT: Transfer instead of close
           console.log(`[Handoff] Servicio ${a.servicio_id} PROTEGIDO de cierre — en_destino=${isEnDestino}, inicio_reciente=${!!hasRecentStart}, evento_activo=${hasActiveSpecialEvent ? activeSpecialEvents[0].tipo_evento : 'none'}`);
           assignmentsToTransfer.push(a);
           protectedCount++;
           continue;
         }
 
-        // Safe to close: no recent activity, not en_destino, no recent start, no active events
-        // Close with RLS verification
+        // Safe to close
         const { data: closeData } = await (supabase as any)
           .from('servicios_planificados')
           .update({ hora_fin_real: nowTs, estado_planeacion: 'completado' })
@@ -532,23 +543,26 @@ export function useMonitoristaAssignment() {
             hora_fin: nowTs,
           });
 
-        await (supabase as any)
+        // Deactivate assignment with verification
+        const { data: deactData } = await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .update({ activo: false, fin_turno: nowTs, notas_handoff: params.notas })
           .eq('servicio_id', a.servicio_id)
-          .eq('activo', true);
+          .eq('activo', true)
+          .select('id');
+        if (deactData?.length) console.log(`[handoffTurno] Deactivated ${deactData.length} assignment(s) for closed service ${a.servicio_id}`);
 
-        // Registrar anomalía por cierre automático en handoff
-        await (supabase as any).from('bitacora_anomalias_turno').insert({
+        // Log anomaly with verification
+        await insertAnomaly({
           tipo: 'cierre_automatico_handoff',
           descripcion: `Servicio ${a.servicio_id} cerrado automáticamente durante handoff (>6h sin actividad)`,
           ejecutado_por: user?.id || null,
           servicio_id: a.servicio_id,
           monitorista_original: params.fromMonitoristaId,
           metadata: { turno_saliente: params.turno, motivo: 'inactividad_6h' },
-        });
+        }, 'handoffTurno');
 
-        // Enviar notificaciones de cierre al cliente/custodio
+        // Completion notifications
         if (closeData && closeData.length > 0) {
           const svcUUID = closeData[0].id;
           const custodioTel = closeData[0].custodio_telefono;
@@ -559,14 +573,16 @@ export function useMonitoristaAssignment() {
       }
 
       for (const a of assignmentsToTransfer) {
-        // Deactivate ALL active for this service (safe pattern)
-        await (supabase as any)
+        // Deactivate ALL active for this service with verification
+        const { data: deactData } = await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .update({ activo: false, fin_turno: nowTs, notas_handoff: params.notas })
           .eq('servicio_id', a.servicio_id)
-          .eq('activo', true);
+          .eq('activo', true)
+          .select('id');
+        if (deactData?.length) console.log(`[handoffTurno] Deactivated ${deactData.length} assignment(s) for transfer of ${a.servicio_id}`);
 
-        const { error } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .insert({
             servicio_id: a.servicio_id,
@@ -574,12 +590,14 @@ export function useMonitoristaAssignment() {
             asignado_por: user?.id || null,
             turno: params.turno,
             notas_handoff: params.notas,
-          });
+          })
+          .select('id');
         if (error && error.code === '23505') {
           console.log(`[handoffTurno] Duplicate for ${a.servicio_id}, skipping`);
           continue;
         }
         if (error) throw error;
+        assertRowsAffected(data, `handoffTurno.transfer(${a.servicio_id})`);
       }
 
       return { closedCount, transferredCount: assignmentsToTransfer.length, protectedCount };
@@ -593,7 +611,7 @@ export function useMonitoristaAssignment() {
       if (result.protectedCount > 0) parts.push(`${result.protectedCount} protegidos de cierre`);
       toast.success(parts.join(' · '));
     },
-    onError: () => toast.error('Error en cambio de turno'),
+    onError: (err: Error) => toast.error(err.message || 'Error en cambio de turno'),
   });
 
   // ── BalanceGuard: batch rebalance across monitoristas ──
@@ -604,31 +622,35 @@ export function useMonitoristaAssignment() {
       const turnoActual = getCurrentTurno();
 
       for (const r of params.reassignments) {
-        // Deactivate ALL active for this service (safe pattern)
-        await (supabase as any)
+        // Deactivate ALL active for this service with verification
+        const { data: deactData } = await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .update({ activo: false, fin_turno: nowTs })
           .eq('servicio_id', r.servicioId)
-          .eq('activo', true);
+          .eq('activo', true)
+          .select('id');
+        if (deactData?.length) console.log(`[rebalanceLoad] Deactivated ${deactData.length} assignment(s) for ${r.servicioId}`);
 
-        // Create new assignment
-        const { error } = await (supabase as any)
+        // Create new assignment with verification
+        const { data, error } = await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .insert({
             servicio_id: r.servicioId,
             monitorista_id: r.toMonitoristaId,
             asignado_por: user?.id || null,
             turno: turnoActual,
-          });
+          })
+          .select('id');
         if (error && error.code === '23505') {
           console.log(`[rebalanceLoad] Duplicate for ${r.servicioId}, skipping`);
           continue;
         }
         if (error) throw error;
+        assertRowsAffected(data, `rebalanceLoad(${r.servicioId})`);
       }
 
-      // Log anomaly
-      await (supabase as any).from('bitacora_anomalias_turno').insert({
+      // Log anomaly with verification
+      await insertAnomaly({
         tipo: 'rebalanceo_por_incorporacion',
         descripcion: `Rebalanceo automático: ${params.reassignments.length} servicios redistribuidos`,
         ejecutado_por: user?.id || null,
@@ -638,7 +660,7 @@ export function useMonitoristaAssignment() {
             to: r.toMonitoristaId,
           })),
         },
-      });
+      }, 'rebalanceLoad');
 
       return params.reassignments.length;
     },
@@ -646,16 +668,18 @@ export function useMonitoristaAssignment() {
       queryClient.invalidateQueries({ queryKey });
       toast.info(`⚖️ Carga rebalanceada: ${count} servicios redistribuidos`);
     },
-    onError: () => toast.error('Error al rebalancear carga'),
+    onError: (err: Error) => toast.error(err.message || 'Error al rebalancear carga'),
   });
 
   const endTurno = useMutation({
     mutationFn: async (assignmentId: string) => {
-      const { error } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .update({ activo: false, fin_turno: new Date().toISOString() })
-        .eq('id', assignmentId);
+        .eq('id', assignmentId)
+        .select('id');
       if (error) throw error;
+      assertRowsAffected(data, 'endTurno');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
