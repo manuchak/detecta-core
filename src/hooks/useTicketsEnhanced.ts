@@ -371,15 +371,17 @@ export const useTicketsEnhanced = () => {
 
   const assignTicket = async (ticketId: string, userId: string | null) => {
     try {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('tickets')
         .update({ 
           assigned_to: userId,
           updated_at: new Date().toISOString()
         })
-        .eq('id', ticketId);
+        .eq('id', ticketId)
+        .select('id');
 
       if (error) throw error;
+      if (!updated || updated.length === 0) throw new Error('No se pudo asignar el ticket — posible bloqueo de permisos');
 
       toast.success('Ticket asignado correctamente');
       await loadTickets();
