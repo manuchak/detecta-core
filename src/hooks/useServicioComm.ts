@@ -124,11 +124,12 @@ export function useServicioComm(servicioId: string | null, commChannel?: string)
   const markAsRead = useMutation({
     mutationFn: async () => {
       if (!servicioId) return;
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('whatsapp_messages')
         .update({ is_read: true } as any)
         .eq('servicio_id', servicioId)
-        .eq('is_read', false);
+        .eq('is_read', false)
+        .select('id');
       if (error) throw error;
     },
     onSuccess: () => {
