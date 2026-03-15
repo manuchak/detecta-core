@@ -193,6 +193,7 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
       const nowTs = new Date().toISOString();
       const { data: { user } } = await supabase.auth.getUser();
       const sixHoursAgo = new Date(Date.now() - 6 * 3600_000).toISOString();
+      const twelveHoursAgo = new Date(Date.now() - 12 * 3600_000).toISOString();
 
       // Lock services to freeze guards
       const allServiceIds = payload.servicios.map(s => s.servicio_id);
@@ -201,6 +202,7 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
       let closedCount = 0;
       let transferredCount = 0;
       let conflictsResolved = 0;
+      let protectedCount = 0;
       const serviciosTransferidos: any[] = [];
       const serviciosCerrados: any[] = [];
 
@@ -209,7 +211,7 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
           const targetMonitoristaId = payload.distribucion[svc.servicio_id];
           if (!targetMonitoristaId) continue;
 
-          // Check for inactivity > 6h → auto-close
+          // Check for inactivity > 6h
           const { data: recentEvents } = await (supabase as any)
             .from('servicio_eventos_ruta')
             .select('id')
@@ -217,8 +219,43 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
             .gte('hora_inicio', sixHoursAgo)
             .limit(1);
 
-          if (!recentEvents || recentEvents.length === 0) {
-            // Auto-close inactive service
+          const hasRecentActivity = recentEvents && recentEvents.length > 0;
+
+          // Even if inactive >6h, check safety gates before closing
+          let shouldClose = !hasRecentActivity;
+
+          if (shouldClose) {
+            // Gate 1: en_destino — service arrived at destination, don't close
+            const { data: svcState } = await (supabase as any)
+              .from('servicios_planificados')
+              .select('en_destino, hora_inicio_real, id')
+              .eq('id_servicio', svc.servicio_id)
+              .is('hora_fin_real', null)
+              .limit(1)
+              .single();
+
+            // Gate 2: Active special events (hora_fin IS NULL)
+            const { data: activeSpecialEvents } = await (supabase as any)
+              .from('servicio_eventos_ruta')
+              .select('id, tipo_evento')
+              .eq('servicio_id', svc.servicio_id)
+              .is('hora_fin', null)
+              .in('tipo_evento', ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia', 'trafico'])
+              .limit(1);
+
+            const isEnDestino = svcState?.en_destino === true;
+            const hasRecentStart = svcState?.hora_inicio_real && svcState.hora_inicio_real > twelveHoursAgo;
+            const hasActiveSpecialEvent = activeSpecialEvents && activeSpecialEvents.length > 0;
+
+            if (isEnDestino || hasRecentStart || hasActiveSpecialEvent) {
+              console.log(`[Handoff-Masivo] Servicio ${svc.servicio_id} PROTEGIDO de cierre — en_destino=${isEnDestino}, inicio_reciente=${!!hasRecentStart}, evento_activo=${hasActiveSpecialEvent ? activeSpecialEvents?.[0]?.tipo_evento : 'none'}`);
+              shouldClose = false;
+              protectedCount++;
+            }
+          }
+
+          if (shouldClose) {
+            // Auto-close inactive service (no safety gates triggered)
             await (supabase as any)
               .from('servicios_planificados')
               .update({ hora_fin_real: nowTs, estado_planeacion: 'completado' })
@@ -242,6 +279,22 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
               .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
               .eq('servicio_id', svc.servicio_id)
               .eq('activo', true);
+
+            // Register anomaly for audit trail
+            try {
+              await (supabase as any)
+                .from('bitacora_anomalias_turno')
+                .insert({
+                  tipo: 'cierre_automatico_handoff',
+                  descripcion: `Servicio ${svc.servicio_id} cerrado automáticamente en handoff masivo (>6h sin actividad)`,
+                  ejecutado_por: user?.id || null,
+                  servicio_id: svc.servicio_id,
+                  metadata: { cliente: svc.cliente, fase: svc.fase, minutos_inactivo: svc.minutos_inactivo },
+                })
+                .select('id');
+            } catch (anomalyErr) {
+              console.warn(`[Handoff-Masivo] Anomalía no registrada para ${svc.servicio_id}:`, anomalyErr);
+            }
 
             serviciosCerrados.push({
               servicio_id: svc.servicio_id,
