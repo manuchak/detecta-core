@@ -380,6 +380,7 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
           closedCount,
           transferredCount,
           conflictsResolved,
+          protectedCount,
           serviciosTransferidos,
           serviciosCerrados,
           incidentesAbiertos: allIncidents,
