@@ -41,6 +41,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
   const { entregas: entregasRevertibles } = useRevertHandoff();
+  const { forceLogout } = useForceLogout();
 
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [sinTurnoOpen, setSinTurnoOpen] = useState(false);
