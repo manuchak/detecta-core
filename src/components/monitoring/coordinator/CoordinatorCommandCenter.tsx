@@ -23,6 +23,7 @@ import { HandoffRevertSection } from './HandoffRevertSection';
 import { AnomaliasBadge } from './AnomaliasBadge';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
 import { useRevertHandoff } from '@/hooks/useRevertHandoff';
+import { useForceLogout } from '@/hooks/useForceLogout';
 import { cn } from '@/lib/utils';
 import { ConfirmTransitionDialog } from '@/components/monitoring/bitacora/ConfirmTransitionDialog';
 
@@ -40,6 +41,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
   const { entregas: entregasRevertibles } = useRevertHandoff();
+  const { forceLogout } = useForceLogout();
 
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [sinTurnoOpen, setSinTurnoOpen] = useState(false);
@@ -467,6 +469,9 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                 onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
                 isAssigning={assignService.isPending}
                 isPaused={pausedIds?.has(m.id)}
+                isCoordinator
+                onForceLogout={(id, name) => forceLogout.mutate({ monitoristaId: id, monitoristaName: name })}
+                isForceLoggingOut={forceLogout.isPending}
               />
             ))}
           </div>

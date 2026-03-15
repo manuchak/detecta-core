@@ -203,3 +203,6 @@ verify_jwt = false
 
 [functions.reparar-pausa-huerfana]
 verify_jwt = false
+
+[functions.force-logout-monitorista]
+verify_jwt = false
