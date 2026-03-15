@@ -396,6 +396,7 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
       const parts: string[] = ['✅ Turno entregado'];
       if (result.transferredCount > 0) parts.push(`${result.transferredCount} transferidos`);
       if (result.closedCount > 0) parts.push(`${result.closedCount} cerrados por inactividad`);
+      if (result.protectedCount > 0) parts.push(`${result.protectedCount} protegidos y transferidos`);
       if (result.conflictsResolved > 0) parts.push(`${result.conflictsResolved} conflictos resueltos`);
       toast.success(parts.join(' · '));
     },
