@@ -44,6 +44,7 @@ export interface HandoffResult {
   closedCount: number;
   transferredCount: number;
   conflictsResolved: number;
+  protectedCount: number;
   serviciosTransferidos: any[];
   serviciosCerrados: any[];
   incidentesAbiertos: any[];
