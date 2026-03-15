@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { User, Circle, Zap, Plus, Clock } from 'lucide-react';
+import { User, Circle, Zap, Plus, Clock, LogOut } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { MonitoristaProfile, MonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
 import { cn } from '@/lib/utils';
 import { Coffee } from 'lucide-react';
@@ -29,6 +33,9 @@ interface Props {
   onAssign?: (servicioId: string, monitoristaId: string) => void;
   isAssigning?: boolean;
   isPaused?: boolean;
+  isCoordinator?: boolean;
+  onForceLogout?: (monitoristaId: string, monitoristaName: string) => void;
+  isForceLoggingOut?: boolean;
 }
 
 function timeAgo(isoDate?: string): string {
@@ -61,8 +68,10 @@ function loadBorderColor(count: number, maxLoad: number): string {
 export const MonitoristaCard: React.FC<Props> = ({
   monitorista, assignments, maxLoad, serviceLabelMap, phaseBreakdown,
   unassignedServices = [], onAssign, isAssigning, isPaused,
+  isCoordinator, onForceLogout, isForceLoggingOut,
 }) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const count = assignments.length;
   const ago = timeAgo(monitorista.last_activity);
 
@@ -120,6 +129,20 @@ export const MonitoristaCard: React.FC<Props> = ({
             )}
           </div>
         </div>
+
+        {/* Force Logout button — coordinator only */}
+        {isCoordinator && monitorista.en_turno && onForceLogout && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            title="Forzar cierre de sesión"
+            disabled={isForceLoggingOut}
+            onClick={() => setLogoutConfirmOpen(true)}
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
 
       {/* Assigned services — always visible */}
@@ -193,6 +216,36 @@ export const MonitoristaCard: React.FC<Props> = ({
           </PopoverContent>
         </Popover>
       )}
+
+      {/* Force Logout Confirmation Dialog */}
+      <AlertDialog open={logoutConfirmOpen} onOpenChange={setLogoutConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Forzar cierre de sesión</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se cerrará la sesión de <strong>{monitorista.display_name}</strong> en todos sus dispositivos.
+              {count > 0 && (
+                <> Sus <strong>{count} servicio(s)</strong> asignados serán liberados y reasignados automáticamente por OrphanGuard.</>
+              )}
+              <br /><br />
+              Esta acción queda registrada en auditoría.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isForceLoggingOut}
+              onClick={() => {
+                onForceLogout?.(monitorista.id, monitorista.display_name);
+                setLogoutConfirmOpen(false);
+              }}
+            >
+              {isForceLoggingOut ? 'Cerrando...' : 'Forzar cierre'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

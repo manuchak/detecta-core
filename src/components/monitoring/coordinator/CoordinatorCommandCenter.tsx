@@ -23,6 +23,7 @@ import { HandoffRevertSection } from './HandoffRevertSection';
 import { AnomaliasBadge } from './AnomaliasBadge';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
 import { useRevertHandoff } from '@/hooks/useRevertHandoff';
+import { useForceLogout } from '@/hooks/useForceLogout';
 import { cn } from '@/lib/utils';
 import { ConfirmTransitionDialog } from '@/components/monitoring/bitacora/ConfirmTransitionDialog';
 
