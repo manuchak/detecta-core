@@ -469,6 +469,9 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                 onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
                 isAssigning={assignService.isPending}
                 isPaused={pausedIds?.has(m.id)}
+                isCoordinator
+                onForceLogout={(id, name) => forceLogout.mutate({ monitoristaId: id, monitoristaName: name })}
+                isForceLoggingOut={forceLogout.isPending}
               />
             ))}
           </div>
