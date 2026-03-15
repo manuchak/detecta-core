@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const ALLOWED_ROLES = ["monitoring_supervisor", "coordinador_operaciones", "admin", "owner"];
+const MONITORING_ROLES = ["monitoring", "monitoring_supervisor"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -26,7 +27,7 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // 1. Validate caller identity via JWT
+    // 1. Validate caller identity via JWT (getClaims)
     const anonClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -70,38 +71,104 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // 4. Force sign out — invalidates ALL sessions for the target user
-    const { error: signOutErr } = await admin.auth.admin.signOut(monitorista_id, "global");
-    if (signOutErr) {
-      console.error("SignOut error:", signOutErr);
-      // Continue anyway — session invalidation is best-effort, cleanup is critical
+    // 4. Validate target is a monitoring user (prevent force-logout of non-monitoristas)
+    const { data: targetRoles, error: targetRoleErr } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", monitorista_id)
+      .eq("is_active", true);
+
+    if (targetRoleErr) {
+      console.error("Error checking target roles:", targetRoleErr);
+      return new Response(JSON.stringify({ error: "Error validando usuario objetivo" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // 5. Delete heartbeat so BalanceGuard drops them immediately
-    await admin
+    const hasMonitoringRole = targetRoles?.some(r => MONITORING_ROLES.includes(r.role));
+    if (!hasMonitoringRole) {
+      return new Response(JSON.stringify({ error: "El usuario objetivo no es monitorista" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 5. Force sign out — use GoTrue Admin REST API directly
+    //    auth.admin.signOut() takes a JWT, not a userId, so we call the REST endpoint
+    const warnings: string[] = [];
+
+    try {
+      const logoutRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${monitorista_id}/logout`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceKey}`,
+          "apikey": serviceKey,
+        },
+      });
+
+      if (!logoutRes.ok) {
+        const body = await logoutRes.text();
+        console.warn(`GoTrue admin logout returned ${logoutRes.status}: ${body}`);
+        warnings.push(`Session invalidation: ${logoutRes.status}`);
+        // Best-effort: continue with DB cleanup even if session invalidation fails
+        // JWT will expire naturally within jwt_expiry (3600s)
+      } else {
+        // Consume response body to prevent resource leak
+        await logoutRes.text();
+      }
+    } catch (logoutErr: any) {
+      console.warn("GoTrue admin logout failed:", logoutErr.message);
+      warnings.push("Session invalidation failed — JWT expires in ≤1h");
+    }
+
+    // 6. Delete heartbeat so BalanceGuard drops them immediately
+    const { error: heartbeatErr } = await admin
       .from("monitorista_heartbeat")
       .delete()
       .eq("user_id", monitorista_id);
 
-    // 6. Deactivate all active assignments → OrphanGuard will pick them up
-    const { data: deactivated } = await admin
+    if (heartbeatErr) {
+      console.warn("Heartbeat delete failed:", heartbeatErr.message);
+      warnings.push("Heartbeat cleanup failed");
+    }
+
+    // 7. Deactivate all active assignments → OrphanGuard will pick them up
+    const { data: deactivated, error: deactivateErr } = await admin
       .from("bitacora_asignaciones_monitorista")
       .update({ activo: false, fin_turno: new Date().toISOString() })
       .eq("monitorista_id", monitorista_id)
       .eq("activo", true)
-      .select("id");
+      .select("id, servicio_id");
+
+    if (deactivateErr) {
+      console.error("CRITICAL: Assignment deactivation failed:", deactivateErr.message);
+      // This is critical — if assignments aren't deactivated, services stay assigned to a ghost user
+      return new Response(JSON.stringify({
+        error: "Error crítico: no se pudieron liberar las asignaciones. Intente de nuevo.",
+        warnings,
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const servicesReleased = deactivated?.length || 0;
 
-    // 7. Finalize any active pauses
-    await admin
+    // 8. Finalize any active pauses
+    const { error: pauseErr } = await admin
       .from("bitacora_pausas_monitorista")
       .update({ estado: "finalizada", fin_real: new Date().toISOString() })
       .eq("monitorista_id", monitorista_id)
       .eq("estado", "activa");
 
-    // 8. Audit log in bitacora_anomalias_turno
-    await admin
+    if (pauseErr) {
+      console.warn("Pause finalization failed:", pauseErr.message);
+      warnings.push("Finalización de pausa falló");
+    }
+
+    // 9. Audit log in bitacora_anomalias_turno
+    const { error: auditErr } = await admin
       .from("bitacora_anomalias_turno")
       .insert({
         tipo: "force_logout",
@@ -110,15 +177,27 @@ Deno.serve(async (req) => {
         ejecutado_por: callerId,
         metadata: {
           services_released: servicesReleased,
+          released_service_ids: deactivated?.map(d => d.servicio_id) || [],
           caller_role: callerRole,
+          warnings,
           timestamp: new Date().toISOString(),
         },
       });
 
-    console.log(`Force logout executed: target=${monitorista_id}, by=${callerId}, services_released=${servicesReleased}`);
+    if (auditErr) {
+      // Non-blocking but log it
+      console.error("Audit log insert failed:", auditErr.message);
+      warnings.push("Registro de auditoría falló");
+    }
+
+    console.log(`Force logout executed: target=${monitorista_id}, by=${callerId}, services_released=${servicesReleased}, warnings=${warnings.length}`);
 
     return new Response(
-      JSON.stringify({ ok: true, services_released: servicesReleased }),
+      JSON.stringify({
+        ok: true,
+        services_released: servicesReleased,
+        warnings: warnings.length > 0 ? warnings : undefined,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
